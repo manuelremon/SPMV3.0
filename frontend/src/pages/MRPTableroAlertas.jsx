@@ -1,0 +1,508 @@
+import { useState, useEffect, useCallback } from "react";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
+import { Select } from "../components/ui/Select";
+import { SearchInput } from "../components/ui/SearchInput";
+import { useI18n } from "../context/i18n";
+import { formatCurrency } from "../utils/formatters";
+import api from "../services/api";
+import { Button } from "../components/ui/Button";
+import { ExportButton } from "../components/export/ExportButton";
+import exportService from "../services/export";
+import clsx from "clsx";
+import {
+  AlertTriangle,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Info,
+  XCircle,
+  ICON_COLORS,
+} from "../components/ui/Icons";
+import { TempDataBanner } from "../components/ui/TempDataBanner";
+
+// Estado badge component - Glass style
+function EstadoBadge({ estado, clase }) {
+  const config = {
+    danger: { bg: "bg-red-50/70 backdrop-blur-sm border-red-200/50", text: "text-red-700", icon: XCircle },
+    warning: { bg: "bg-amber-50/70 backdrop-blur-sm border-amber-200/50", text: "text-amber-700", icon: AlertTriangle },
+    success: { bg: "bg-emerald-50/70 backdrop-blur-sm border-emerald-200/50", text: "text-emerald-700", icon: CheckCircle2 },
+    info: { bg: "bg-blue-50/70 backdrop-blur-sm border-blue-200/50", text: "text-blue-700", icon: Info },
+  };
+
+  const { bg, text, icon: Icon } = config[clase] || config.info;
+
+  return (
+    <span className={clsx("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border", bg, text)}>
+      <Icon className="w-4 h-4" />
+      {estado}
+    </span>
+  );
+}
+
+// Resumen card - Glass style
+function ResumenCard({ titulo, valor, icon: Icon, color }) {
+  const colorClasses = {
+    danger: { card: "bg-red-50/70 backdrop-blur-sm border-red-200/50", text: "text-red-700", iconBg: "bg-red-500/10" },
+    warning: { card: "bg-amber-50/70 backdrop-blur-sm border-amber-200/50", text: "text-amber-700", iconBg: "bg-amber-500/10" },
+    success: { card: "bg-emerald-50/70 backdrop-blur-sm border-emerald-200/50", text: "text-emerald-700", iconBg: "bg-emerald-500/10" },
+    info: { card: "bg-blue-50/70 backdrop-blur-sm border-blue-200/50", text: "text-blue-700", iconBg: "bg-blue-500/10" },
+    primary: { card: "bg-white/60 backdrop-blur-md border-white/40", text: "text-blue-600", iconBg: "bg-blue-500/10" },
+  };
+
+  const styles = colorClasses[color] || colorClasses.primary;
+
+  return (
+    <div className={clsx("rounded-[16px] border p-4 shadow-glass-sm", styles.card)}>
+      <div className="flex items-center gap-3">
+        <div className={clsx("p-2 rounded-xl", styles.iconBg)}>
+          <Icon className={clsx("w-5 h-5", styles.text)} />
+        </div>
+        <div>
+          <p className={clsx("text-2xl font-bold", styles.text)}>{valor}</p>
+          <p className="text-sm text-slate-500">{titulo}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MRPTableroAlertas() {
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [alertas, setAlertas] = useState([]);
+  const [resumen, setResumen] = useState({});
+  const [pagination, setPagination] = useState({ total: 0, limit: 50, offset: 0, has_more: false });
+
+  // Filtros
+  const [filtros, setFiltros] = useState({
+    centro: "",
+    almacen: "",
+    sector: "",
+    estado: "",
+  });
+  const [catalogos, setCatalogos] = useState({ centros: [], almacenes: [], sectores: [] });
+  const [showFiltros, setShowFiltros] = useState(true);
+
+  // Ordenamiento
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  // Búsqueda
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Cargar catálogos
+  useEffect(() => {
+    const fetchCatalogos = async () => {
+      try {
+        const res = await api.get("/mrp/catalogos");
+        if (res.data?.ok) {
+          setCatalogos(res.data);
+          // Set default centro if available
+          if (res.data.centros?.length > 0) {
+            setFiltros(prev => ({ ...prev, centro: res.data.centros[0].codigo }));
+          }
+        }
+      } catch (err) {
+        console.error("Error loading catalogos:", err);
+      }
+    };
+    fetchCatalogos();
+  }, []);
+
+  // Cargar alertas
+  const fetchAlertas = useCallback(async () => {
+    // No requiere centro obligatorio - permite cargar todos los datos
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (filtros.centro) params.append("centro", filtros.centro);
+      if (filtros.almacen) params.append("almacen", filtros.almacen);
+      if (filtros.sector) params.append("sector", filtros.sector);
+      if (filtros.estado) params.append("estado", filtros.estado);
+      params.append("limit", pagination.limit);
+      params.append("offset", pagination.offset);
+
+      const res = await api.get(`/mrp/alertas?${params.toString()}`);
+      if (res.data?.ok) {
+        setAlertas(res.data.data || []);
+        setResumen(res.data.resumen || {});
+        setPagination(prev => ({ ...prev, ...res.data.pagination }));
+      } else {
+        setError(res.data?.error?.message || "Error al cargar alertas");
+      }
+    } catch (err) {
+      setError(err.response?.data?.error?.message || "Error de conexión");
+    } finally {
+      setLoading(false);
+    }
+  }, [filtros, pagination.limit, pagination.offset]);
+
+  useEffect(() => {
+    fetchAlertas();
+  }, [fetchAlertas]);
+
+  // Ordenar datos
+  const sortedAlertas = [...alertas].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    const aVal = a[sortConfig.key];
+    const bVal = b[sortConfig.key];
+    if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // Filtrar por búsqueda
+  const filteredAlertas = sortedAlertas.filter(alerta =>
+    searchTerm === "" ||
+    alerta.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    alerta.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const SortIcon = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return null;
+    return sortConfig.direction === "asc" ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
+  };
+
+  const estados = [
+    { value: "", label: "Todos" },
+    { value: "quiebre", label: "Quiebre de Stock" },
+    { value: "bajo punto", label: "Bajo Punto de Pedido" },
+    { value: "bajo stock", label: "Bajo Stock de Seguridad" },
+    { value: "exceso", label: "Exceso/Sobrestock" },
+    { value: "normal", label: "Normal" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={t("mrp_alertas_titulo", "Tablero de Alertas MRP")}
+        subtitle={t("mrp_alertas_subtitulo", "Estado general de materiales planificados")}
+        actions={
+          <div className="flex items-center gap-2">
+            <ExportButton
+              onExport={(formato) => exportService.exportAlertasMRP({ formato })}
+              label={t("common_export", "Exportar")}
+            />
+            <Button
+              variant="ghost"
+              onClick={fetchAlertas}
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Banner de Modo Temporal */}
+      <TempDataBanner />
+
+      {/* Resumen Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <ResumenCard
+          titulo={t("mrp_total", "Total Materiales")}
+          valor={resumen.total || 0}
+          icon={Package}
+          color="primary"
+        />
+        <ResumenCard
+          titulo={t("mrp_quiebre", "Quiebre de Stock")}
+          valor={resumen.quiebre_stock || 0}
+          icon={XCircle}
+          color="danger"
+        />
+        <ResumenCard
+          titulo={t("mrp_bajo_pp", "Bajo Punto Pedido")}
+          valor={resumen.bajo_punto_pedido || 0}
+          icon={AlertTriangle}
+          color="warning"
+        />
+        <ResumenCard
+          titulo={t("mrp_bajo_ss", "Bajo Stock Seg.")}
+          valor={resumen.bajo_stock_seguridad || 0}
+          icon={AlertCircle}
+          color="warning"
+        />
+        <ResumenCard
+          titulo={t("mrp_sobrestock", "Sobrestock")}
+          valor={resumen.sobrestock || 0}
+          icon={Info}
+          color="info"
+        />
+        <ResumenCard
+          titulo={t("mrp_normal", "Normal")}
+          valor={resumen.normal || 0}
+          icon={CheckCircle2}
+          color="success"
+        />
+      </div>
+
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardHeader className="cursor-pointer" onClick={() => setShowFiltros(!showFiltros)}>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-slate-600" />
+              {t("mrp_filtros", "Filtros")}
+            </span>
+            {showFiltros ? <ChevronUp className="w-5 h-5 text-slate-500" /> : <ChevronDown className="w-5 h-5 text-slate-500" />}
+          </CardTitle>
+        </CardHeader>
+        {showFiltros && (
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* Centro */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t("mrp_centro", "Centro")}
+                </label>
+                <Select
+                  value={filtros.centro}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, centro: e.target.value }))}
+                >
+                  <option value="">Seleccionar...</option>
+                  {catalogos.centros?.map(c => (
+                    <option key={c.codigo} value={c.codigo}>{c.codigo} - {c.nombre}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Almacén */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t("mrp_almacen", "Almacén")}
+                </label>
+                <Select
+                  value={filtros.almacen}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, almacen: e.target.value }))}
+                >
+                  <option value="">Todos</option>
+                  {catalogos.almacenes?.map(a => (
+                    <option key={a.codigo} value={a.codigo}>{a.codigo} - {a.nombre}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Sector */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t("mrp_sector", "Sector")}
+                </label>
+                <Select
+                  value={filtros.sector}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, sector: e.target.value }))}
+                >
+                  <option value="">Todos</option>
+                  {catalogos.sectores?.map(s => (
+                    <option key={s.nombre} value={s.nombre}>{s.nombre}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Estado */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t("mrp_estado", "Estado")}
+                </label>
+                <Select
+                  value={filtros.estado}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, estado: e.target.value }))}
+                >
+                  {estados.map(e => (
+                    <option key={e.value} value={e.value}>{e.label}</option>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Búsqueda */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+                  {t("mrp_buscar", "Buscar")}
+                </label>
+                <SearchInput
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Código o descripción..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-4">
+              <Button onClick={fetchAlertas}>
+                <RefreshCw className="w-4 h-4 text-slate-600" />
+                {t("mrp_actualizar", "Actualizar")}
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Tabla de Alertas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className={`w-5 h-5 ${ICON_COLORS.warning}`} />
+            {t("mrp_lista_alertas", "Lista de Alertas")}
+            <span className="ml-2 text-sm font-normal text-slate-500">
+              ({filteredAlertas.length} materiales)
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className={`w-8 h-8 animate-spin ${ICON_COLORS.primary}`} />
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-12 text-red-500">
+              <AlertCircle className={`w-6 h-6 mr-2 ${ICON_COLORS.danger}`} />
+              {error}
+            </div>
+          ) : filteredAlertas.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+              <Package className={`w-12 h-12 mb-4 opacity-50 ${ICON_COLORS.logistics}`} />
+              <p>{t("mrp_sin_alertas", "No hay alertas para mostrar")}</p>
+              <p className="text-sm">{t("mrp_ajustar_filtros", "Ajuste los filtros o intente de nuevo")}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-white/30">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--bg-soft)] backdrop-blur-sm border-b-2 border-[var(--border)]">
+                  <tr>
+                    <th
+                      className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] cursor-pointer hover:bg-slate-100 transition-colors border-r border-b border-slate-200"
+                      onClick={() => handleSort("codigo")}
+                    >
+                      <span className="flex items-center justify-center gap-1">
+                        {t("mrp_col_codigo", "Código SAP")}
+                        <SortIcon columnKey="codigo" />
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_descripcion", "Descripción")}</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_demanda", "Demanda Anual")}</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_ss", "Stock Seg.")}</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_pp", "Pto. Pedido")}</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_smax", "Stock Máx.")}</th>
+                    <th
+                      className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] cursor-pointer hover:bg-slate-100 transition-colors border-r border-b border-slate-200"
+                      onClick={() => handleSort("stock_actual")}
+                    >
+                      <span className="flex items-center justify-center gap-1">
+                        {t("mrp_col_stock", "Stock Actual")}
+                        <SortIcon columnKey="stock_actual" />
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_pedidos", "Pedidos Curso")}</th>
+                    <th
+                      className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] cursor-pointer hover:bg-slate-100 transition-colors border-r border-b border-slate-200"
+                      onClick={() => handleSort("rotacion_pct")}
+                    >
+                      <span className="flex items-center justify-center gap-1">
+                        {t("mrp_col_rotacion", "Rotación %")}
+                        <SortIcon columnKey="rotacion_pct" />
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">{t("mrp_col_estado", "Estado")}</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)]">{t("mrp_col_sugerencia", "Sugerencia")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAlertas.map((alerta, idx) => (
+                    <tr
+                      key={alerta.codigo}
+                      className={clsx(
+                        "border-b border-white/20 hover:bg-white/50 transition-colors",
+                        idx % 2 === 0 ? "bg-transparent" : "bg-white/20"
+                      )}
+                    >
+                      <td className="px-4 py-3 font-mono text-blue-600 border-r border-b border-slate-200">{alerta.codigo}</td>
+                      <td className="px-4 py-3 max-w-xs truncate border-r border-b border-slate-200" title={alerta.descripcion}>
+                        {alerta.descripcion}
+                      </td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">{alerta.demanda_estimada_anual?.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">{alerta.stock_seguridad}</td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">{alerta.punto_pedido}</td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">{alerta.stock_maximo}</td>
+                      <td className={clsx(
+                        "px-4 py-3 text-center font-medium border-r border-b border-slate-200",
+                        alerta.stock_actual <= 0 ? "text-red-400" :
+                        alerta.stock_actual < alerta.punto_pedido ? "text-yellow-400" : "text-green-400"
+                      )}>
+                        {alerta.stock_actual}
+                      </td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">{alerta.pedidos_en_curso}</td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">
+                        <span className={clsx(
+                          "font-medium",
+                          alerta.rotacion_pct > 300 ? "text-green-400" :
+                          alerta.rotacion_pct > 100 ? "text-yellow-400" : "text-red-400"
+                        )}>
+                          {alerta.rotacion_pct}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center border-r border-b border-slate-200">
+                        <EstadoBadge estado={alerta.estado} clase={alerta.estado_clase} />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-500 max-w-xs truncate" title={alerta.sugerencia}>
+                        {alerta.sugerencia || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Paginación */}
+          {pagination.total > pagination.limit && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/30">
+              <span className="text-sm text-slate-500">
+                Mostrando {pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)} de {pagination.total}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
+                  disabled={pagination.offset === 0}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
+                  disabled={!pagination.has_more}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

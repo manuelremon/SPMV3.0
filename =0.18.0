@@ -1,0 +1,23 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting anthropic
+  Downloading anthropic-0.76.0-py3-none-any.whl (390 kB)
+     -------------------------------------- 390.3/390.3 kB 4.9 MB/s eta 0:00:00
+Collecting jiter<1,>=0.4.0
+  Downloading jiter-0.12.0-cp310-cp310-win_amd64.whl (204 kB)
+     ------------------------------------- 204.8/204.8 kB 13.0 MB/s eta 0:00:00
+Requirement already satisfied: pydantic<3,>=1.9.0 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (2.10.6)
+Requirement already satisfied: typing-extensions<5,>=4.10 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (4.15.0)
+Requirement already satisfied: sniffio in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (1.3.1)
+Requirement already satisfied: httpx<1,>=0.25.0 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (0.28.1)
+Requirement already satisfied: docstring-parser<1,>=0.15 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (0.17.0)
+Requirement already satisfied: distro<2,>=1.7.0 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (1.9.0)
+Requirement already satisfied: anyio<5,>=3.5.0 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anthropic) (4.12.1)
+Requirement already satisfied: idna>=2.8 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anyio<5,>=3.5.0->anthropic) (3.11)
+Requirement already satisfied: exceptiongroup>=1.0.2 in c:\users\manue\appdata\roaming\python\python310\site-packages (from anyio<5,>=3.5.0->anthropic) (1.3.1)
+Requirement already satisfied: certifi in c:\users\manue\appdata\roaming\python\python310\site-packages (from httpx<1,>=0.25.0->anthropic) (2026.1.4)
+Requirement already satisfied: httpcore==1.* in c:\users\manue\appdata\roaming\python\python310\site-packages (from httpx<1,>=0.25.0->anthropic) (1.0.9)
+Requirement already satisfied: h11>=0.16 in c:\users\manue\appdata\roaming\python\python310\site-packages (from httpcore==1.*->httpx<1,>=0.25.0->anthropic) (0.16.0)
+Requirement already satisfied: annotated-types>=0.6.0 in c:\users\manue\appdata\roaming\python\python310\site-packages (from pydantic<3,>=1.9.0->anthropic) (0.7.0)
+Requirement already satisfied: pydantic-core==2.27.2 in c:\users\manue\appdata\roaming\python\python310\site-packages (from pydantic<3,>=1.9.0->anthropic) (2.27.2)
+Installing collected packages: jiter, anthropic
+Successfully installed anthropic-0.76.0 jiter-0.12.0

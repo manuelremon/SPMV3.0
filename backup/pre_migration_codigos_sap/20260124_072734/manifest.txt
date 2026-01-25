@@ -1,0 +1,70 @@
+Backup de Migración de Códigos SAP
+Fecha: 2026-01-24T07:27:37.955802
+==================================================
+
+catalogo_materiales.db:
+  Tamaño: 26.53 MB
+  Tablas:
+    - materiales: 44,461 registros
+
+sap_data.db:
+  Tamaño: 77.96 MB
+  Tablas:
+    - stock: 149,997 registros
+    - pedidos_sap: 602 registros
+    - materiales_bbdd: 7,309 registros
+    - consumo_historico: 20,424 registros
+    - stock_detalle: 0 registros
+
+equivalentes.db:
+  Tamaño: 39.91 MB
+  Tablas:
+    - equivalencias: 180,065 registros
+
+spm.db:
+  Tamaño: 0.34 MB
+  Tablas:
+    - usuarios: 10 registros
+    - user_profile_requests: 0 registros
+    - solicitudes: 1 registros
+    - planificador_asignaciones: 0 registros
+    - notificaciones: 1 registros
+    - presupuesto_incorporaciones: 0 registros
+    - archivos_adjuntos: 0 registros
+    - solicitud_items_tratamiento: 0 registros
+    - solicitud_tratamiento_eventos: 0 registros
+    - solicitud_tratamiento_log: 0 registros
+    - traslados: 0 registros
+    - solpeds: 0 registros
+    - purchase_orders: 0 registros
+    - outbox_emails: 0 registros
+    - schema_migrations: 0 registros
+    - proveedores: 0 registros
+    - proveedores_externos: 0 registros
+    - proveedor_ext_contactos: 0 registros
+    - proveedor_ext_emails: 0 registros
+    - proveedor_ext_telefonos: 0 registros
+    - proveedores_internos: 0 registros
+    - proveedor_precios_negociados: 0 registros
+    - config_equivalencia_scores: 3 registros
+    - decision_abastecimiento: 0 registros
+    - decision_abastecimiento_fuentes: 0 registros
+    - mensajes: 0 registros
+    - presupuesto_ledger: 0 registros
+    - budget_update_requests: 0 registros
+    - catalog_sectores: 6 registros
+    - catalog_centros: 6 registros
+    - catalog_almacenes: 6 registros
+    - catalog_roles: 4 registros
+    - catalog_puestos: 8 registros
+    - presupuestos: 2 registros
+    - trivias_scores: 0 registros
+    - foro_posts: 0 registros
+    - foro_respuestas: 0 registros
+    - foro_likes: 0 registros
+    - config_almacenes: 0 registros
+    - config_lotes_excluidos: 0 registros
+    - push_subscriptions: 0 registros
+    - user_notification_preferences: 0 registros
+    - reglas_aprobacion: 3 registros
+

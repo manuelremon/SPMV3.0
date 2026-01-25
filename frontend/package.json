@@ -1,0 +1,59 @@
+{
+  "name": "spm-front",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src/",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.9",
+    "@headlessui/react": "^2.2.9",
+    "@mui/icons-material": "^7.3.7",
+    "@mui/material": "^7.3.7",
+    "@sentry/react": "^10.32.1",
+    "@tanstack/react-table": "^8.21.3",
+    "axios": "^1.6.2",
+    "clsx": "^2.1.1",
+    "plotly.js": "^3.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-helmet-async": "^2.0.5",
+    "react-is": "^18.3.1",
+    "react-plotly.js": "^2.6.0",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^3.6.0",
+    "zustand": "^4.4.1"
+  },
+  "overrides": {
+    "react-is": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.54.0",
+    "@svgr/plugin-jsx": "^8.1.0",
+    "@svgr/plugin-svgo": "^8.1.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.54.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "husky": "^9.1.7",
+    "jsdom": "^23.0.1",
+    "lint-staged": "^16.2.7",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.6",
+    "vite": "^5.0.8",
+    "vite-plugin-svgr": "^4.5.0",
+    "vitest": "^1.0.4"
+  }
+}
