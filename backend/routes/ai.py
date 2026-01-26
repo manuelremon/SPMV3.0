@@ -893,3 +893,202 @@ def tune_hyperparameters():
     except Exception as e:
         logger.error(f"Error en tuning: {e}")
         return jsonify({"ok": False, "error": {"code": "tune_error", "message": str(e)}}), 500
+
+
+# ============================================================================
+# FASE 1 - Forecast Mejorado (LSTM, STL Decomposition)
+# ============================================================================
+
+@bp.route("/forecast/compare-parallel", methods=["POST"])
+@require_auth
+@rate_limit(requests=10, window_seconds=60)
+def compare_models_parallel():
+    """
+    Compara múltiples modelos de forecast en paralelo.
+
+    Body:
+        {
+            "material_codigo": "MAT001",
+            "centro": "AA101",
+            "modelos": ["lstm", "stl", "random_forest"],
+            "periodos": 30
+        }
+
+    Returns:
+        Ranking de modelos con métricas (MAPE, RMSE, R2)
+    """
+    try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import pandas as pd
+        from backend.agent.pipelines.forecast import obtener_estrategia
+
+        data = request.get_json() or {}
+        material_codigo = data.get("material_codigo")
+        centro = data.get("centro", "1000")
+        modelos = data.get("modelos", ["lstm", "stl", "random_forest"])
+        periodos = int(data.get("periodos", 30))
+
+        if not material_codigo:
+            return jsonify({
+                "ok": False,
+                "error": {"code": "bad_request", "message": "material_codigo es requerido"}
+            }), 400
+
+        # Obtener datos históricos
+        with get_db_connection("sap_data") as conn:
+            query = """
+                SELECT fecha_doc as fecha, cantidad
+                FROM consumo_historico
+                WHERE material = ? AND centro = ?
+                ORDER BY fecha_doc
+                LIMIT 365
+            """
+            df = pd.read_sql_query(query, conn, params=[material_codigo, centro])
+
+        if len(df) < 30:
+            return jsonify({
+                "ok": False,
+                "error": {"code": "insufficient_data", "message": f"Datos insuficientes: {len(df)} registros"}
+            }), 400
+
+        # Entrenar modelos en paralelo
+        resultados = {}
+
+        def entrenar_modelo(modelo_id):
+            try:
+                modelo = obtener_estrategia(modelo_id)
+                if not modelo:
+                    return modelo_id, None
+
+                metricas = modelo.entrenar(df)
+                predicciones = modelo.predecir(df, periodos=periodos)
+
+                return modelo_id, {
+                    'metricas': metricas,
+                    'predicciones': predicciones.to_dict('records')
+                }
+            except Exception as e:
+                logger.warning(f"Error en modelo {modelo_id}: {e}")
+                return modelo_id, None
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {executor.submit(entrenar_modelo, mid): mid for mid in modelos}
+
+            for future in as_completed(futures, timeout=300):
+                modelo_id, resultado = future.result()
+                if resultado:
+                    resultados[modelo_id] = resultado
+
+        # Crear ranking
+        ranking = []
+        for modelo_id, resultado in resultados.items():
+            ranking.append({
+                'modelo': modelo_id,
+                'mape': resultado['metricas'].get('mape', 0),
+                'rmse': resultado['metricas'].get('rmse', 0),
+                'r2': resultado['metricas'].get('r2', 0),
+                'mae': resultado['metricas'].get('mae', 0)
+            })
+
+        # Ordenar por MAPE
+        ranking.sort(key=lambda x: x['mape'])
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "ranking": ranking,
+                "mejor_modelo": ranking[0]['modelo'] if ranking else None,
+                "total_modelos": len(resultados),
+                "periodos": periodos
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error comparando modelos: {e}")
+        return jsonify({"ok": False, "error": {"code": "compare_error", "message": str(e)}}), 500
+
+
+@bp.route("/forecast/decomposition", methods=["POST"])
+@require_auth
+@rate_limit(requests=10, window_seconds=60)
+def get_stl_decomposition():
+    """
+    Obtiene descomposición STL de una serie temporal.
+
+    Body:
+        {
+            "material_codigo": "MAT001",
+            "centro": "AA101",
+            "periodos": 30
+        }
+
+    Returns:
+        Componentes (trend, seasonal, residual) y predicciones
+    """
+    try:
+        import pandas as pd
+        from backend.agent.pipelines.forecast import obtener_estrategia
+
+        data = request.get_json() or {}
+        material_codigo = data.get("material_codigo")
+        centro = data.get("centro", "1000")
+        periodos = int(data.get("periodos", 30))
+
+        if not material_codigo:
+            return jsonify({
+                "ok": False,
+                "error": {"code": "bad_request", "message": "material_codigo es requerido"}
+            }), 400
+
+        # Obtener datos históricos
+        with get_db_connection("sap_data") as conn:
+            query = """
+                SELECT fecha_doc as fecha, cantidad
+                FROM consumo_historico
+                WHERE material = ? AND centro = ?
+                ORDER BY fecha_doc
+                LIMIT 365
+            """
+            df = pd.read_sql_query(query, conn, params=[material_codigo, centro])
+
+        if len(df) < 30:
+            return jsonify({
+                "ok": False,
+                "error": {"code": "insufficient_data", "message": f"Datos insuficientes: {len(df)} registros"}
+            }), 400
+
+        # Usar STL
+        stl = obtener_estrategia('stl')
+        if not stl:
+            return jsonify({
+                "ok": False,
+                "error": {"code": "model_unavailable", "message": "STL model not available"}
+            }), 500
+
+        # Entrenar
+        stl.entrenar(df)
+
+        # Obtener componentes
+        descomposicion = stl.get_descomposicion()
+
+        # Obtener predicciones
+        predicciones = stl.predecir(df, periodos=periodos)
+
+        return jsonify({
+            "ok": True,
+            "data": {
+                "componentes": {
+                    "trend": descomposicion['trend'].tolist() if isinstance(descomposicion['trend'], object) else descomposicion['trend'],
+                    "seasonal": descomposicion['seasonal'].tolist() if isinstance(descomposicion['seasonal'], object) else descomposicion['seasonal'],
+                    "residual": descomposicion['residual'].tolist() if isinstance(descomposicion['residual'], object) else descomposicion['residual'],
+                    "fechas": descomposicion['fechas']
+                },
+                "predicciones": predicciones.to_dict('records'),
+                "material": material_codigo,
+                "centro": centro
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Error en descomposición STL: {e}")
+        return jsonify({"ok": False, "error": {"code": "decomposition_error", "message": str(e)}}), 500
