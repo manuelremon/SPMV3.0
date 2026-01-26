@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent } from "../components/ui/Card";
 import { ModernDataTable as DataTable } from "../components/features/DataTable";
 import { TableSkeleton } from "../components/ui/Skeleton";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { solicitudes } from "../services/spm";
 import { CheckCircle, Plus, ArrowLeft } from "../components/ui/Icons";
 import { useI18n } from "../context/i18n";
@@ -9,7 +10,6 @@ import { useAuthStore } from "../store/authStore";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { getTableColumns } from "./DashboardShared";
 import { Button } from "../components/ui/Button";
-import clsx from "clsx";
 
 export default function TodasLasSolicitudes() {
   const { user } = useAuthStore();
@@ -27,6 +27,7 @@ export default function TodasLasSolicitudes() {
     en_proceso: 0,
     completadas: 0,
     rechazadas: 0,
+    cerradas: 0,
   });
   const [allData, setAllData] = useState({
     todas: [],
@@ -34,6 +35,7 @@ export default function TodasLasSolicitudes() {
     en_proceso: [],
     completadas: [],
     rechazadas: [],
+    cerradas: [],
   });
   const [loading, setLoading] = useState(true);
 
@@ -41,21 +43,25 @@ export default function TodasLasSolicitudes() {
   useEffect(() => {
     setLoading(true);
 
-    const pendientesCall = solicitudes.listar({ estado: "Enviada", page_size: 500 }).catch(() => null);
-    const enProcesoCall = solicitudes.listar({ estado: "En Progreso", page_size: 500 }).catch(() => null);
-    const completadasCall = solicitudes.listar({ estado: "Aprobada", page_size: 500 }).catch(() => null);
-    const rechazadasCall = solicitudes.listar({ estado: "Rechazada", page_size: 500 }).catch(() => null);
+    // Buscar TODAS las solicitudes con page_size grande
+    const todasCall = solicitudes.listar({ page_size: 500 }).catch(() => null);
+    const pendientesCall = solicitudes.listar({ estado: "submitted", page_size: 500 }).catch(() => null);
+    const enProcesoCall = solicitudes.listar({ estado: "processing", page_size: 500 }).catch(() => null);
+    const completadasCall = solicitudes.listar({ estado: "approved", page_size: 500 }).catch(() => null);
+    const rechazadasCall = solicitudes.listar({ estado: "rejected", page_size: 500 }).catch(() => null);
+    const cerradasCall = solicitudes.listar({ estado: "closed", page_size: 500 }).catch(() => null);
 
-    Promise.all([pendientesCall, enProcesoCall, completadasCall, rechazadasCall])
-      .then(([pendientesRes, enProcesoRes, completadasRes, rechazadasRes]) => {
+    Promise.all([todasCall, pendientesCall, enProcesoCall, completadasCall, rechazadasCall, cerradasCall])
+      .then(([todasRes, pendientesRes, enProcesoRes, completadasRes, rechazadasRes, cerradasRes]) => {
+        const todasLista = todasRes?.data?.solicitudes || todasRes?.data?.items || [];
         const pendientesLista = pendientesRes?.data?.solicitudes || pendientesRes?.data?.items || [];
         const enProcesoLista = enProcesoRes?.data?.solicitudes || enProcesoRes?.data?.items || [];
         const completadasLista = completadasRes?.data?.solicitudes || completadasRes?.data?.items || [];
         const rechazadasLista = rechazadasRes?.data?.solicitudes || rechazadasRes?.data?.items || [];
+        const cerradasLista = cerradasRes?.data?.solicitudes || cerradasRes?.data?.items || [];
 
-        // Combinar todas las solicitudes y ordenar por fecha descendente
-        const todasLista = [...pendientesLista, ...enProcesoLista, ...completadasLista, ...rechazadasLista]
-          .sort((a, b) => new Date(b.fecha_creacion || b.created_at || 0) - new Date(a.fecha_creacion || a.created_at || 0));
+        // Ordenar todas por fecha descendente
+        todasLista.sort((a, b) => new Date(b.fecha_creacion || b.created_at || 0) - new Date(a.fecha_creacion || a.created_at || 0));
 
         setStats({
           todas: todasLista.length,
@@ -63,6 +69,7 @@ export default function TodasLasSolicitudes() {
           en_proceso: enProcesoLista.length,
           completadas: completadasLista.length,
           rechazadas: rechazadasLista.length,
+          cerradas: cerradasLista.length,
         });
 
         setAllData({
@@ -71,6 +78,7 @@ export default function TodasLasSolicitudes() {
           en_proceso: enProcesoLista,
           completadas: completadasLista,
           rechazadas: rechazadasLista,
+          cerradas: cerradasLista,
         });
       })
       .finally(() => {
@@ -84,26 +92,19 @@ export default function TodasLasSolicitudes() {
     { key: "todas", label: t("dash_todas", "Todas"), count: stats.todas },
     { key: "pendientes", label: t("dash_pendientes", "Pendientes"), count: stats.pendientes },
     { key: "en_proceso", label: t("dash_en_proceso", "En Proceso"), count: stats.en_proceso },
-    { key: "completadas", label: t("dash_completadas", "Completadas"), count: stats.completadas },
+    { key: "completadas", label: t("dash_completadas", "Aprobadas"), count: stats.completadas },
     { key: "rechazadas", label: t("dash_rechazadas", "Rechazadas"), count: stats.rechazadas },
+    { key: "cerradas", label: t("dash_cerradas", "Cerradas"), count: stats.cerradas },
+    { key: "crear", label: t("btn_crear_solicitud", "+ Crear Solicitud"), isAction: true },
   ];
 
   const currentData = allData[activeTab] || [];
 
-  const getTableTitle = () => {
-    switch (activeTab) {
-      case "todas":
-        return t("dash_all_requests", "Todas las Solicitudes");
-      case "pendientes":
-        return t("dash_pending_review", "Solicitudes Pendientes de Revision");
-      case "en_proceso":
-        return t("dash_in_progress", "Solicitudes En Proceso");
-      case "completadas":
-        return t("dash_completed", "Solicitudes Completadas");
-      case "rechazadas":
-        return t("dash_rejected", "Solicitudes Rechazadas");
-      default:
-        return t("dash_solicitudes", "Solicitudes");
+  const handleTabChange = (value) => {
+    if (value === "crear") {
+      navigate("/solicitudes/nueva");
+    } else {
+      setActiveTab(value);
     }
   };
 
@@ -120,54 +121,26 @@ export default function TodasLasSolicitudes() {
           </button>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 uppercase">Todas las Solicitudes</h1>
         </div>
-
-        <Button as={Link} to="/solicitudes/nueva">
-          <Plus className="w-4 h-4" />
-          {t("dash_new_request", "Nueva Solicitud")}
-        </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-white/30 dark:border-slate-700/30 w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            className={clsx(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-              activeTab === tab.key
-                ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
-                : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50"
-            )}
-          >
-            <span>{tab.label}</span>
-            <span
-              className={clsx(
-                "px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums",
-                activeTab === tab.key
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                  : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
-              )}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList>
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              sx={tab.isAction ? { color: '#2196f3', fontWeight: 600 } : undefined}
             >
-              {tab.count}
-            </span>
-          </button>
-        ))}
-      </div>
+              {tab.isAction ? tab.label : `${tab.label} (${tab.count})`}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Tabla */}
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700">
-            <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">
-              {getTableTitle()}
-            </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-              {currentData.length} {t("dash_items", "items")}
-            </span>
-          </div>
-
           <div className="p-4">
             {loading ? (
               <TableSkeleton rows={10} columns={7} />

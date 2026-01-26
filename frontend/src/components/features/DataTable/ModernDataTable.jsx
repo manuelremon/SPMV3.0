@@ -1,38 +1,29 @@
 import React from "react";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  flexRender,
-} from "@tanstack/react-table";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "../../ui/table";
-import { ChevronUp, ChevronDown, ChevronsUpDown, Inbox } from "../../ui/Icons";
-import { cn } from "../../../lib/utils";
-import { adaptLegacyColumns, getAlignmentClass } from "./columns";
+import { SPMDataGrid } from "../../ui/SPMDataGrid";
+import { adaptLegacyColumns } from "./columns.jsx";
+import { Inbox } from "../../ui/Icons";
 
 /**
- * ModernDataTable - Componente de tabla empresarial con TanStack Table
+ * ModernDataTable - Componente de tabla empresarial con MUI DataGrid
  *
  * Características:
- * - Densidad compacta (32px filas) por defecto
- * - Ordenamiento integrado via TanStack Table
- * - Headers sticky para scroll
+ * - Basado en MUI DataGrid Community
+ * - Ordenamiento, filtrado y paginación integrados
+ * - Toolbar con búsqueda rápida
+ * - Exportación a CSV
  * - Compatible con API del DataTable legacy
- * - Alineación automática por tipo de columna
  *
  * @param {Object} props
  * @param {Array<{key: string, header: string, render?, sortAccessor?, align?}>} props.columns - Definición de columnas
  * @param {Array<object>} props.rows - Datos a mostrar
  * @param {string | React.ReactNode} [props.emptyMessage="Sin datos"] - Mensaje cuando no hay datos
  * @param {string} [props.className] - Clases adicionales para el contenedor
- * @param {'compact' | 'cozy'} [props.density='compact'] - Densidad de la tabla
+ * @param {'compact' | 'standard' | 'comfortable'} [props.density='compact'] - Densidad de la tabla
+ * @param {number} [props.height=400] - Altura del DataGrid
+ * @param {boolean} [props.showToolbar=true] - Mostrar toolbar con filtros
+ * @param {Function} [props.getRowId] - Función para obtener ID si no es 'id'
+ * @param {boolean} [props.loading=false] - Estado de carga
+ * @param {Array<number>} [props.pageSizeOptions] - Opciones de tamaño de página
  */
 export function ModernDataTable({
   columns = [],
@@ -40,39 +31,42 @@ export function ModernDataTable({
   emptyMessage = "Sin datos",
   className = "",
   density = "compact",
+  height = 400,
+  showToolbar = true,
+  getRowId,
+  loading = false,
+  pageSizeOptions = [10, 25, 50],
 }) {
-  const [sorting, setSorting] = React.useState([]);
-
-  // Adaptar columnas legacy al formato TanStack
-  const tanstackColumns = React.useMemo(
+  // Adaptar columnas legacy al formato MUI DataGrid
+  const muiColumns = React.useMemo(
     () => adaptLegacyColumns(columns),
     [columns]
   );
 
-  const table = useReactTable({
-    data: rows,
-    columns: tanstackColumns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
+  // Asegurar que cada fila tenga un ID
+  const rowsWithId = React.useMemo(() => {
+    return rows.map((row, index) => {
+      if (row.id !== undefined) return row;
+      return { ...row, id: index };
+    });
+  }, [rows]);
 
-  const densityClass = density === "compact" ? "h-row-compact" : "h-row-cozy";
+  // Mapeo de densidad: 'cozy' → 'comfortable' para compatibilidad
+  const mappedDensity = density === 'cozy' ? 'comfortable' : density;
 
-  // Empty state
-  if (rows.length === 0) {
+  // Empty state personalizado
+  if (rows.length === 0 && !loading) {
     // Si emptyMessage es un elemento React, renderizarlo directamente
     if (React.isValidElement(emptyMessage)) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+        <div className={`flex flex-col items-center justify-center py-12 px-4 text-center ${className}`}>
           {emptyMessage}
         </div>
       );
     }
 
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+      <div className={`flex flex-col items-center justify-center py-12 px-4 text-center ${className}`}>
         <div className="w-12 h-12 rounded-full bg-[var(--bg-soft)] flex items-center justify-center mb-4">
           <Inbox className="w-6 h-6 text-[var(--fg-muted)]" />
         </div>
@@ -82,98 +76,21 @@ export function ModernDataTable({
   }
 
   return (
-    <div className={cn("overflow-x-auto", className)} role="region" aria-label="Tabla de datos" data-density={density}>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className={densityClass}>
-              {headerGroup.headers.map((header) => {
-                const canSort = header.column.getCanSort();
-                const sorted = header.column.getIsSorted();
-                const minWidth = header.column.columnDef.meta?.minWidth;
-
-                return (
-                  <TableHead
-                    key={header.id}
-                    onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                    onKeyDown={(e) => {
-                      if (canSort && (e.key === "Enter" || e.key === " ")) {
-                        e.preventDefault();
-                        header.column.getToggleSortingHandler()(e);
-                      }
-                    }}
-                    tabIndex={canSort ? 0 : undefined}
-                    role={canSort ? "button" : undefined}
-                    aria-sort={
-                      sorted
-                        ? sorted === "asc"
-                          ? "ascending"
-                          : "descending"
-                        : undefined
-                    }
-                    className={cn(
-                      "text-center",
-                      canSort && "cursor-pointer select-none",
-                      canSort && "hover:text-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-inset"
-                    )}
-                    style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
-                  >
-                    <div className="flex items-center gap-1 justify-center">
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {canSort && (
-                        <span aria-hidden="true">
-                          <SortIcon sorted={sorted} />
-                        </span>
-                      )}
-                    </div>
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row, rowIndex) => (
-            <TableRow
-              key={row.id}
-              className={cn(
-                densityClass,
-                rowIndex % 2 === 1 && "bg-[var(--bg-soft)]/30"
-              )}
-            >
-              {row.getVisibleCells().map((cell) => {
-                const alignClass = getAlignmentClass(cell.column);
-                const minWidth = cell.column.columnDef.meta?.minWidth;
-
-                return (
-                  <TableCell
-                    key={cell.id}
-                    align={cell.column.columnDef.meta?.align}
-                    style={minWidth ? { minWidth: `${minWidth}px` } : undefined}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className={className} role="region" aria-label="Tabla de datos" data-density={density}>
+      <SPMDataGrid
+        rows={rowsWithId}
+        columns={muiColumns}
+        loading={loading}
+        height={height}
+        density={mappedDensity}
+        showToolbar={showToolbar}
+        getRowId={getRowId}
+        emptyMessage={typeof emptyMessage === 'string' ? emptyMessage : 'Sin datos'}
+        pageSizeOptions={pageSizeOptions}
+        disableRowSelectionOnClick
+      />
     </div>
   );
-}
-
-/**
- * Icono de ordenamiento
- */
-function SortIcon({ sorted }) {
-  if (sorted === "asc") {
-    return <ChevronUp className="w-3 h-3" />;
-  }
-  if (sorted === "desc") {
-    return <ChevronDown className="w-3 h-3" />;
-  }
-  return <ChevronsUpDown className="w-3 h-3 opacity-40" />;
 }
 
 export default ModernDataTable;

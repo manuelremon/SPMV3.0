@@ -56,14 +56,14 @@ svg {
   --accent-muted: #fce4ec;               /* MUI Pink 50 */
   --accent-glow: rgba(233, 30, 99, 0.25);
 
-  /* === BACKGROUNDS - MUI Grey 300 === */
-  --background: #e0e0e0;                 /* MUI Grey 300 */
+  /* === BACKGROUNDS - Cream/Beige Palette === */
+  --background: #faf1e1;                 /* Cream/Beige - Fondo principal */
   --foreground: hsl(222 47% 11%);
 
-  --bg: #e0e0e0;                         /* MUI Grey 300 */
-  --bg-soft: #eeeeee;                    /* MUI Grey 200 */
+  --bg: #faf1e1;                         /* Cream/Beige - Fondo principal */
+  --bg-soft: #f5ead6;                    /* Cream más suave */
   --bg-elevated: hsl(0 0% 100%);
-  --surface: #e0e0e0;                    /* MUI Grey 300 */
+  --surface: #faf1e1;                    /* Cream/Beige */
 
   /* Glass backgrounds */
   --card: hsl(0 0% 100%);
@@ -2156,4 +2156,45 @@ textarea:focus-visible,
   clip: rect(0, 0, 0, 0) !important;
   white-space: nowrap !important;
   border: 0 !important;
+}
+
+/* ============================================
+   PARALLAX EFFECTS
+   Sistema de efectos parallax basado en scroll
+   ============================================ */
+
+/* Contenedor parallax - overflow hidden para evitar scroll horizontal */
+.parallax-container {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Elemento con parallax - optimizaciones de rendering */
+.parallax-element {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Parallax presets - variables CSS para referencia */
+.parallax-subtle { --parallax-offset: 0.2; }
+.parallax-light { --parallax-offset: 0.35; }
+.parallax-moderate { --parallax-offset: 0.5; }
+.parallax-strong { --parallax-offset: 0.7; }
+
+/* Deshabilitar parallax en mobile para mejor UX */
+@media (max-width: 768px) {
+  .parallax-element {
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+/* Respetar reduced motion - accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .parallax-element {
+    transform: none !important;
+    transition: none !important;
+    will-change: auto;
+  }
 }

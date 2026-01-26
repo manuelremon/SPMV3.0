@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card"
 import { ModernDataTable as DataTable } from "../components/features/DataTable";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { ScrollReveal } from "../components/ui/ScrollReveal";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { planner, solicitudes } from "../services/spm";
 import api from "../services/api";
 import { formatCurrency } from "../utils/formatters";
@@ -18,87 +19,92 @@ import {
   DollarSign,
   Package,
   Loader2,
+  ChevronDown,
   ChevronRight,
 } from "../components/ui/Icons";
 import { useI18n } from "../context/i18n";
 import { toNumber } from "../utils/formatters";
+import clsx from "clsx";
 import { useAuthStore } from "../store/authStore";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { getTableColumns } from "./DashboardShared";
 import { Button } from "../components/ui/Button";
 import { WeeklyRequestsKpiCard } from "../components/dashboard/WeeklyRequestsKpiCard";
-import clsx from "clsx";
+import Slider from '@mui/material/Slider';
+import { BarChart } from '@mui/x-charts/BarChart';
+import { PieChart } from '@mui/x-charts/PieChart';
+import { Gauge, gaugeClasses } from '@mui/x-charts/Gauge';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import ListItemText from '@mui/material/ListItemText';
+import Select from '@mui/material/Select';
+import Checkbox from '@mui/material/Checkbox';
+
+// MenuProps para los multiselect
+const ITEM_HEIGHT = 32;
+const ITEM_PADDING_TOP = 4;
+const MenuProps = {
+  PaperProps: {
+    style: {
+      maxHeight: ITEM_HEIGHT * 6 + ITEM_PADDING_TOP,
+      width: 160,
+    },
+  },
+};
 
 // ============================================================================
 // KPI CHART COMPONENTS
 // ============================================================================
 
-// Componente Donut Chart para distribución de estados
-function DonutChart({ data, colors, labels }) {
-  const total = data.reduce((sum, val) => sum + val, 0) || 1;
-  const radius = 70;
-  const strokeWidth = 24;
-  const innerRadius = radius - strokeWidth / 2;
-  const circumference = 2 * Math.PI * innerRadius;
+// Componente Donut Chart con MUI X Charts - layout lateral
+function MuiDonutChart({ data, colors, labels }) {
+  // Datos sin label para evitar leyenda nativa
+  const pieData = labels.map((label, idx) => ({
+    id: idx,
+    value: data[idx] || 0,
+    color: colors[idx],
+  }));
 
-  let currentOffset = 0;
+  const total = data.reduce((sum, val) => sum + val, 0) || 0;
 
   return (
-    <div className="relative w-full flex items-center justify-center">
-      <div className="relative w-48 h-48">
-        <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90">
-          <circle
-            cx="80"
-            cy="80"
-            r={innerRadius}
-            fill="none"
-            stroke="#f1f5f9"
-            strokeWidth={strokeWidth}
-          />
-          {data.map((value, idx) => {
-            const percentage = value / total;
-            const dashLength = percentage * circumference;
-            const dashOffset = currentOffset;
-            currentOffset += dashLength;
-            if (value === 0) return null;
-            return (
-              <circle
-                key={idx}
-                cx="80"
-                cy="80"
-                r={innerRadius}
-                fill="none"
-                stroke={colors[idx]}
-                strokeWidth={strokeWidth}
-                strokeDasharray={`${dashLength} ${circumference - dashLength}`}
-                strokeDashoffset={-dashOffset}
-                strokeLinecap="round"
-                className="transition-all duration-500"
-              />
-            );
-          })}
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">{total}</span>
-          <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total</span>
-        </div>
-      </div>
-      <div className="ml-6 space-y-3">
+    <div className="flex items-center gap-4 w-full h-full">
+      {/* Leyendas a la izquierda */}
+      <div className="flex flex-col gap-1.5">
         {labels.map((label, idx) => (
-          <div key={idx} className="flex items-center gap-3">
+          <div key={idx} className="flex items-center gap-2">
             <div
-              className="w-3 h-3 rounded-full flex-shrink-0"
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: colors[idx] }}
             />
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
-              <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{data[idx]}</span>
-              <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-500">
-                ({total > 0 ? Math.round((data[idx] / total) * 100) : 0}%)
-              </span>
-            </div>
+            <span className="text-[11px] text-slate-600">{label}</span>
+            <span className="text-[11px] font-semibold text-slate-800">{data[idx]}</span>
           </div>
         ))}
+      </div>
+      {/* Donut a la derecha */}
+      <div className="relative flex-shrink-0 ml-auto">
+        <PieChart
+          series={[{
+            data: pieData,
+            innerRadius: 30,
+            outerRadius: 45,
+            paddingAngle: 2,
+            cornerRadius: 3,
+            highlightScope: { fade: 'global', highlight: 'item' },
+            faded: { innerRadius: 25, additionalRadius: -10, color: 'gray' },
+          }]}
+          height={100}
+          width={100}
+          skipAnimation={false}
+          margin={{ top: 5, bottom: 5, left: 5, right: 5 }}
+        />
+        {/* Total en el centro */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-lg font-bold text-slate-800">{total}</span>
+        </div>
       </div>
     </div>
   );
@@ -149,6 +155,7 @@ export default function DashboardAdmin() {
   const { t } = useI18n();
 
   // Solicitudes state
+  const [solicitudesCollapsed, setSolicitudesCollapsed] = useState(true); // Por defecto colapsado
   const [activeTab, setActiveTab] = useState("todas");
   const [stats, setStats] = useState({
     todas: 0,
@@ -166,10 +173,37 @@ export default function DashboardAdmin() {
   });
   const [loading, setLoading] = useState(true);
 
+  // Filtros state
+  // rangoFechas: [valorIzq, valorDer] donde 0=hace 365 días, 365=hoy
+  const [rangoFechas, setRangoFechas] = useState([0, 365]); // Por defecto: un año completo
+  const [centrosSeleccionados, setCentrosSeleccionados] = useState([]);
+  const [almacenesSeleccionados, setAlmacenesSeleccionados] = useState([]);
+  const [sectoresSeleccionados, setSectoresSeleccionados] = useState([]);
+  const [solicitantesSeleccionados, setSolicitantesSeleccionados] = useState([]);
+  const [filtrosInicializados, setFiltrosInicializados] = useState(false);
+
+  // Función para convertir valor del slider a fecha (formato DD/MM/AA)
+  // valor 0 = hace 365 días, valor 365 = hoy
+  const sliderAFecha = (valor) => {
+    const diasHaciaAtras = 365 - valor;
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() - diasHaciaAtras);
+    const dd = String(fecha.getDate()).padStart(2, '0');
+    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+    const yy = String(fecha.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  };
+
+  // Opciones de filtros (extraídas de los datos)
+  const [filtrosOpciones, setFiltrosOpciones] = useState({
+    centros: [],
+    almacenes: [],
+    sectores: [],
+    solicitantes: [],
+  });
+
   // KPI state
   const [kpiLoading, setKpiLoading] = useState(true);
-  const [materialesPeriodo, setMaterialesPeriodo] = useState("mes");
-  const [estadosPeriodo, setEstadosPeriodo] = useState("mes");
   const [kpiData, setKpiData] = useState({
     solicitudes: { total: 0, aprobadas: 0, rechazadas: 0, pendientes: 0, trend: [0,0,0,0,0,0,0], trendPercentage: 0 },
     presupuesto: { total: 0, utilizado: 0, disponible: 0, percentage: 0, porCentro: [] },
@@ -178,16 +212,26 @@ export default function DashboardAdmin() {
     gruposArticulosMasSolicitados: [],
   });
 
+  // Cumplimiento de proveedores
+  const [cumplimientoProveedores, setCumplimientoProveedores] = useState([]);
+  const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState([]);
+
+  // Stock inmovilizado
+  const [stockInmovilizado, setStockInmovilizado] = useState({ items: [], total: 0, valorTotal: 0, globalTotal: 0, globalValorTotal: 0 });
+
+  // Compras evitadas detalle (para filtrado)
+  const [comprasEvitadasDetalle, setComprasEvitadasDetalle] = useState([]);
+
   // Fetch solicitudes
   useEffect(() => {
     setLoading(true);
 
     // Fetch ALL solicitudes for "Todas" tab (no estado filter)
     const todasCall = solicitudes.listar({ page_size: 500 }).catch(() => null);
-    const pendientesCall = solicitudes.listar({ estado: "Enviada", page_size: 100 }).catch(() => null);
-    const enProcesoCall = solicitudes.listar({ estado: "En Progreso", page_size: 100 }).catch(() => null);
-    const completadasCall = solicitudes.listar({ estado: "Aprobada", page_size: 100 }).catch(() => null);
-    const rechazadasCall = solicitudes.listar({ estado: "Rechazada", page_size: 100 }).catch(() => null);
+    const pendientesCall = solicitudes.listar({ estado: "submitted", page_size: 500 }).catch(() => null);
+    const enProcesoCall = solicitudes.listar({ estado: "processing", page_size: 500 }).catch(() => null);
+    const completadasCall = solicitudes.listar({ estado: "approved", page_size: 500 }).catch(() => null);
+    const rechazadasCall = solicitudes.listar({ estado: "rejected", page_size: 500 }).catch(() => null);
 
     Promise.all([todasCall, pendientesCall, enProcesoCall, completadasCall, rechazadasCall])
       .then(([todasRes, pendientesRes, enProcesoRes, completadasRes, rechazadasRes]) => {
@@ -237,6 +281,273 @@ export default function DashboardAdmin() {
     fetchKpis();
   }, []);
 
+  // Fetch cumplimiento de proveedores
+  useEffect(() => {
+    const fetchCumplimiento = async () => {
+      try {
+        // Intentar obtener datos de cumplimiento
+        const response = await api.get("/procurement/kpis/compliance", { params: { min_pedidos: 1 } });
+        const items = response.data?.items || [];
+
+        if (items.length > 0) {
+          setCumplimientoProveedores(items);
+          if (proveedoresSeleccionados.length === 0) {
+            setProveedoresSeleccionados(items.map(p => p.proveedor_cuit || p.proveedor_nombre));
+          }
+        } else {
+          // Fallback: obtener lista de proveedores externos activos
+          const provResponse = await api.get("/admin/proveedores/externos");
+          const proveedores = (provResponse.data?.data || provResponse.data || [])
+            .filter(p => p.activo !== false && p.activo !== 0)
+            .map(p => ({
+              proveedor_cuit: p.cuit,
+              proveedor_nombre: p.razon_social || p.nombre || p.cuit,
+              total_pedidos: 0,
+              entregas_a_tiempo: 0,
+              pct_otif: null
+            }));
+          setCumplimientoProveedores(proveedores);
+          if (proveedores.length > 0 && proveedoresSeleccionados.length === 0) {
+            setProveedoresSeleccionados(proveedores.map(p => p.proveedor_cuit || p.proveedor_nombre));
+          }
+        }
+      } catch (err) {
+        // Si hay error, intentar fallback
+        try {
+          const provResponse = await api.get("/admin/proveedores/externos");
+          const proveedores = (provResponse.data?.data || provResponse.data || [])
+            .filter(p => p.activo !== false && p.activo !== 0)
+            .map(p => ({
+              proveedor_cuit: p.cuit,
+              proveedor_nombre: p.razon_social || p.nombre || p.cuit,
+              total_pedidos: 0,
+              entregas_a_tiempo: 0,
+              pct_otif: null
+            }));
+          setCumplimientoProveedores(proveedores);
+          if (proveedores.length > 0 && proveedoresSeleccionados.length === 0) {
+            setProveedoresSeleccionados(proveedores.map(p => p.proveedor_cuit || p.proveedor_nombre));
+          }
+        } catch {
+          setCumplimientoProveedores([]);
+        }
+      }
+    };
+    fetchCumplimiento();
+  }, []);
+
+  // Fetch stock inmovilizado (inicial - datos globales)
+  useEffect(() => {
+    const fetchStockInmovilizado = async () => {
+      try {
+        const response = await api.get("/kpis/stock-inmovilizado");
+        if (response.data?.ok) {
+          setStockInmovilizado({
+            items: response.data.items || [],
+            total: response.data.total || 0,
+            valorTotal: response.data.valorTotal || 0,
+            globalTotal: response.data.globalTotal || response.data.total || 0,
+            globalValorTotal: response.data.globalValorTotal || response.data.valorTotal || 0,
+          });
+        } else {
+          console.error("Stock inmovilizado - respuesta no ok:", response.data);
+        }
+      } catch (err) {
+        console.error("Error fetching stock inmovilizado:", err.response?.status, err.message);
+        setStockInmovilizado({ items: [], total: 0, valorTotal: 0, globalTotal: 0, globalValorTotal: 0 });
+      }
+    };
+    fetchStockInmovilizado();
+  }, []);
+
+  // Refetch stock inmovilizado cuando cambian los filtros de Centro
+  // Solo Centro aplica a esta card (no Sector, Solicitante ni Almacén de solicitudes)
+  useEffect(() => {
+    // Si no hay filtros inicializados, no hacer nada
+    if (!filtrosInicializados) return;
+
+    const fetchStockFiltrado = async () => {
+      try {
+        // Construir params - solo centros aplican
+        const params = new URLSearchParams();
+        if (centrosSeleccionados.length > 0) {
+          params.set("centros", centrosSeleccionados.join(","));
+        }
+
+        const url = params.toString() ? `/kpis/stock-inmovilizado?${params}` : "/kpis/stock-inmovilizado";
+        const response = await api.get(url);
+
+        if (response.data?.ok) {
+          setStockInmovilizado(prev => ({
+            items: response.data.items || [],
+            total: response.data.total || 0,
+            valorTotal: response.data.valorTotal || 0,
+            globalTotal: prev.globalTotal || response.data.globalTotal || 0,
+            globalValorTotal: prev.globalValorTotal || response.data.globalValorTotal || 0,
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching stock inmovilizado filtrado:", err.message);
+      }
+    };
+
+    fetchStockFiltrado();
+  }, [centrosSeleccionados, filtrosInicializados]);
+
+  // Fetch compras evitadas detalle
+  useEffect(() => {
+    const fetchComprasEvitadas = async () => {
+      try {
+        const response = await api.get("/kpis/compras-evitadas-detalle");
+        if (response.data?.ok) {
+          setComprasEvitadasDetalle(response.data.items || []);
+        }
+      } catch (err) {
+        console.error("Error fetching compras evitadas:", err.response?.status, err.message);
+        setComprasEvitadasDetalle([]);
+      }
+    };
+    fetchComprasEvitadas();
+  }, []);
+
+  // Extraer opciones de filtros de los datos e inicializar con todos seleccionados
+  useEffect(() => {
+    if (allData.todas.length > 0) {
+      const centros = [...new Set(allData.todas.map(s => s.centro).filter(Boolean))].sort();
+      const almacenes = [...new Set(allData.todas.map(s => s.almacen_virtual).filter(Boolean))].sort();
+      const sectores = [...new Set(allData.todas.map(s => s.sector_nombre || s.sector).filter(Boolean))].sort();
+      const solicitantes = [...new Set(allData.todas.map(s => {
+        const apellido = s.solicitante_apellido || '';
+        const nombre = s.solicitante_nombre || '';
+        return [apellido, nombre].filter(Boolean).join(' ').trim() || s.solicitante;
+      }).filter(Boolean))].sort();
+
+      setFiltrosOpciones({
+        centros,
+        almacenes,
+        sectores,
+        solicitantes,
+      });
+
+      // Inicializar filtros con todos seleccionados (solo la primera vez)
+      if (!filtrosInicializados) {
+        setCentrosSeleccionados(centros);
+        setAlmacenesSeleccionados(almacenes);
+        setSectoresSeleccionados(sectores);
+        setSolicitantesSeleccionados(solicitantes);
+        setFiltrosInicializados(true);
+      }
+    }
+  }, [allData.todas, filtrosInicializados]);
+
+  // Función para convertir valor del slider a fecha Date
+  const sliderAFechaDate = (valor) => {
+    const diasHaciaAtras = 365 - valor;
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() - diasHaciaAtras);
+    fecha.setHours(0, 0, 0, 0);
+    return fecha;
+  };
+
+  // Datos filtrados basados en todos los filtros seleccionados
+  const datosFiltrados = useMemo(() => {
+    // Si no hay ningún filtro seleccionado, no mostrar datos
+    const hayFiltrosSeleccionados = centrosSeleccionados.length > 0 ||
+                                     almacenesSeleccionados.length > 0 ||
+                                     sectoresSeleccionados.length > 0 ||
+                                     solicitantesSeleccionados.length > 0;
+
+    if (!hayFiltrosSeleccionados) {
+      return [];
+    }
+
+    let filtered = [...allData.todas];
+
+    // Filtrar por rango de fechas
+    const fechaDesde = sliderAFechaDate(rangoFechas[0]);
+    const fechaHasta = sliderAFechaDate(rangoFechas[1]);
+    fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día
+
+    filtered = filtered.filter(s => {
+      const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
+      return fechaCreacion >= fechaDesde && fechaCreacion <= fechaHasta;
+    });
+
+    // Filtrar por centros
+    if (centrosSeleccionados.length > 0) {
+      filtered = filtered.filter(s => centrosSeleccionados.includes(s.centro));
+    }
+
+    // Filtrar por almacenes
+    if (almacenesSeleccionados.length > 0) {
+      filtered = filtered.filter(s => almacenesSeleccionados.includes(s.almacen_virtual));
+    }
+
+    // Filtrar por sectores
+    if (sectoresSeleccionados.length > 0) {
+      filtered = filtered.filter(s => {
+        const sectorSolicitud = s.sector_nombre || s.sector;
+        return sectoresSeleccionados.includes(sectorSolicitud);
+      });
+    }
+
+    // Filtrar por solicitantes
+    if (solicitantesSeleccionados.length > 0) {
+      filtered = filtered.filter(s => {
+        const apellido = s.solicitante_apellido || '';
+        const nombre = s.solicitante_nombre || '';
+        const solicitanteCompleto = [apellido, nombre].filter(Boolean).join(' ').trim() || s.solicitante;
+        return solicitantesSeleccionados.includes(solicitanteCompleto);
+      });
+    }
+
+    return filtered;
+  }, [allData.todas, rangoFechas, centrosSeleccionados, almacenesSeleccionados, sectoresSeleccionados, solicitantesSeleccionados]);
+
+  // Stock inmovilizado - filtrado por Centro (desde el endpoint)
+  // Solo el filtro Centro aplica. Sector, Solicitante y Almacén NO aplican a esta card.
+  const stockInmovilizadoFiltrado = useMemo(() => {
+    // Si no hay centros seleccionados, mostrar vacío (consistente con otras cards)
+    if (centrosSeleccionados.length === 0) {
+      return {
+        items: [],
+        total: 0,
+        valorTotal: 0,
+        globalTotal: stockInmovilizado.globalTotal || 0,
+        globalValorTotal: stockInmovilizado.globalValorTotal || 0,
+      };
+    }
+    return {
+      items: stockInmovilizado.items.slice(0, 10),
+      total: stockInmovilizado.total,
+      valorTotal: stockInmovilizado.valorTotal,
+      globalTotal: stockInmovilizado.globalTotal || 0,
+      globalValorTotal: stockInmovilizado.globalValorTotal || 0,
+    };
+  }, [stockInmovilizado, centrosSeleccionados]);
+
+  // Estadísticas filtradas
+  const statsFiltrados = useMemo(() => {
+    const todas = datosFiltrados.length;
+    const pendientes = datosFiltrados.filter(s => {
+      const estado = (s.estado || s.status || '').toLowerCase();
+      return estado === 'enviada' || estado === 'submitted' || estado === 'pendiente';
+    }).length;
+    const en_proceso = datosFiltrados.filter(s => {
+      const estado = (s.estado || s.status || '').toLowerCase();
+      return estado.includes('progreso') || estado === 'processing' || estado === 'in_progress';
+    }).length;
+    const completadas = datosFiltrados.filter(s => {
+      const estado = (s.estado || s.status || '').toLowerCase();
+      return estado.includes('aprobada') || estado === 'approved';
+    }).length;
+    const rechazadas = datosFiltrados.filter(s => {
+      const estado = (s.estado || s.status || '').toLowerCase();
+      return estado.includes('rechazada') || estado === 'rejected';
+    }).length;
+    return { todas, pendientes, en_proceso, completadas, rechazadas };
+  }, [datosFiltrados]);
+
   const columns = useMemo(() => getTableColumns(t), [t]);
 
   // Tabs configuration
@@ -246,11 +557,18 @@ export default function DashboardAdmin() {
     { key: "en_proceso", label: t("dash_en_proceso", "En Proceso"), count: stats.en_proceso },
     { key: "completadas", label: t("dash_completadas", "Completadas"), count: stats.completadas },
     { key: "rechazadas", label: t("dash_rechazadas", "Rechazadas"), count: stats.rechazadas },
+    { key: "crear", label: t("btn_crear_solicitud", "+ Crear Solicitud"), isAction: true },
   ];
 
   const currentData = allData[activeTab] || [];
-  const limitedData = currentData.slice(0, 10);
-  const hasMoreData = currentData.length > 10;
+
+  const handleTabChange = (value) => {
+    if (value === "crear") {
+      navigate("/solicitudes/nueva");
+    } else {
+      setActiveTab(value);
+    }
+  };
 
   const getTableTitle = () => {
     switch (activeTab) {
@@ -272,88 +590,284 @@ export default function DashboardAdmin() {
   return (
     <div className="space-y-6">
       {/* ================================================================== */}
-      {/* SOLICITUDES SECTION - Contenedor unificado */}
+      {/* SOLICITUDES SECTION - Contenedor colapsable */}
       {/* ================================================================== */}
-      <Card>
-        <CardContent className="p-0">
-          {/* Header con tabs y botón */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-1 p-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={clsx(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200",
-                    activeTab === tab.key
-                      ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
-                  )}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={clsx(
-                      "px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums",
-                      activeTab === tab.key
-                        ? "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-                        : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <Button as={Link} to="/solicitudes/nueva" size="sm">
-              <Plus className="w-4 h-4" />
-              {t("dash_new_request", "Nueva Solicitud")}
-            </Button>
-          </div>
-
-          {/* Subtítulo con contador */}
-          <div className="flex items-center justify-between px-6 py-3 bg-slate-50/50 dark:bg-slate-800/30">
-            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {getTableTitle()}
-            </h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-              {currentData.length} {t("dash_items", "items")}
-            </span>
-          </div>
-
-          {/* Tabla */}
-          <div className="p-4">
-            {loading ? (
-              <TableSkeleton rows={5} columns={7} />
-            ) : currentData.length === 0 ? (
-              <div className="py-16 text-center">
-                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-4 opacity-60" />
-                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  {activeTab === "pendientes"
-                    ? t("dash_no_pending", "No hay solicitudes pendientes de revisión")
-                    : t("dash_no_requests_category", "No hay solicitudes en esta categoría")}
-                </p>
-              </div>
+      <Card className="overflow-hidden">
+        {/* Header con botón de colapsar/expandir y crear solicitud */}
+        <div className="relative flex items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setSolicitudesCollapsed(!solicitudesCollapsed)}
+            className="flex items-center gap-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-md px-2 py-1 -ml-2 z-10"
+          >
+            {solicitudesCollapsed ? (
+              <ChevronRight className="w-5 h-5 text-slate-500" />
             ) : (
-              <DataTable
-                columns={columns}
-                rows={limitedData}
-                emptyMessage={t("dash_no_requests", "No hay solicitudes")}
-                onRowClick={(row) => navigate(`/solicitudes/${row.id}`)}
-              />
+              <ChevronDown className="w-5 h-5 text-slate-500" />
             )}
-          </div>
-          {hasMoreData && (
-            <div className="px-4 pb-4">
-              <Link
-                to={`/solicitudes/todas?tab=${activeTab}`}
-                className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-              >
-                Ver todas las solicitudes ({currentData.length})
-                <ChevronRight className="w-4 h-4" />
-              </Link>
-            </div>
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Solicitudes
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
+              ({stats.todas} total)
+            </span>
+          </button>
+                  </div>
+
+        {/* Contenido colapsable */}
+        <div
+          className={clsx(
+            "transition-all duration-300 ease-in-out origin-top-left",
+            solicitudesCollapsed ? "max-h-0 opacity-0 scale-y-0" : "max-h-[2000px] opacity-100 scale-y-100"
           )}
+        >
+          <CardContent className="p-0">
+            {/* Header con tabs */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <TabsList>
+                  {tabs.map((tab) => (
+                    <TabsTrigger
+                      key={tab.key}
+                      value={tab.key}
+                      sx={tab.isAction ? { color: '#2196f3', fontWeight: 600 } : undefined}
+                    >
+                      {tab.isAction ? tab.label : `${tab.label} (${tab.count})`}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Tabla */}
+            <div className="p-4">
+              {loading ? (
+                <TableSkeleton rows={5} columns={7} />
+              ) : currentData.length === 0 ? (
+                <div className="py-16 text-center">
+                  <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-4 opacity-60" />
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">
+                    {activeTab === "pendientes"
+                      ? t("dash_no_pending", "No hay solicitudes pendientes de revisión")
+                      : t("dash_no_requests_category", "No hay solicitudes en esta categoría")}
+                  </p>
+                </div>
+              ) : (
+                <DataTable
+                  columns={columns}
+                  rows={currentData}
+                  emptyMessage={t("dash_no_requests", "No hay solicitudes")}
+                  onRowClick={(row) => navigate(`/solicitudes/${row.id}`)}
+                />
+              )}
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+
+      {/* ================================================================== */}
+      {/* FILTROS SECTION */}
+      {/* ================================================================== */}
+      <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
+        <CardContent className="py-2 px-6" style={{ height: '73px', maxWidth: '1850px' }}>
+          <div className="flex items-center gap-6 h-full">
+            {/* Slider de rango de fechas */}
+            <div className="flex flex-col gap-0 min-w-[320px] ml-[180px]">
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-2">
+                Desde <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechas[0])}</span> hasta <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechas[1])}</span>
+              </label>
+              <Slider
+                size="small"
+                value={rangoFechas}
+                onChange={(_, value) => setRangoFechas(value)}
+                min={0}
+                max={365}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => sliderAFecha(value)}
+                getAriaLabel={() => 'Rango de fechas'}
+                sx={{
+                  color: '#2196f3',
+                  '& .MuiSlider-thumb': {
+                    width: 14,
+                    height: 14,
+                  },
+                  '& .MuiSlider-valueLabel': {
+                    fontSize: 10,
+                  },
+                }}
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 -mt-1">
+                <span>Hace 1 año</span>
+                <span>Hoy</span>
+              </div>
+            </div>
+
+            {/* Separador vertical */}
+            <div className="h-16 w-px bg-slate-200 dark:bg-slate-700" />
+
+            {/* Centro Multiselect */}
+            <FormControl size="small" sx={{ minWidth: 160, ml: '40px' }}>
+              <InputLabel id="centro-label" sx={{ fontSize: '0.75rem' }}>Centro</InputLabel>
+              <Select
+                labelId="centro-label"
+                multiple
+                value={centrosSeleccionados}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.includes('__todos__')) {
+                    if (centrosSeleccionados.length === filtrosOpciones.centros.length) {
+                      setCentrosSeleccionados([]);
+                    } else {
+                      setCentrosSeleccionados([...filtrosOpciones.centros]);
+                    }
+                  } else {
+                    setCentrosSeleccionados(typeof value === 'string' ? value.split(',') : value);
+                  }
+                }}
+                input={<OutlinedInput label="Centro" />}
+                renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                <MenuItem value="__todos__">
+                  <Checkbox checked={centrosSeleccionados.length === filtrosOpciones.centros.length && filtrosOpciones.centros.length > 0} size="small" />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                </MenuItem>
+                {filtrosOpciones.centros.map((centro) => (
+                  <MenuItem key={centro} value={centro}>
+                    <Checkbox checked={centrosSeleccionados.includes(centro)} size="small" />
+                    <ListItemText primary={centro} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Almacén Multiselect */}
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="almacen-label" sx={{ fontSize: '0.75rem' }}>Almacén</InputLabel>
+              <Select
+                labelId="almacen-label"
+                multiple
+                value={almacenesSeleccionados}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.includes('__todos__')) {
+                    if (almacenesSeleccionados.length === filtrosOpciones.almacenes.length) {
+                      setAlmacenesSeleccionados([]);
+                    } else {
+                      setAlmacenesSeleccionados([...filtrosOpciones.almacenes]);
+                    }
+                  } else {
+                    setAlmacenesSeleccionados(typeof value === 'string' ? value.split(',') : value);
+                  }
+                }}
+                input={<OutlinedInput label="Almacén" />}
+                renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                <MenuItem value="__todos__">
+                  <Checkbox checked={almacenesSeleccionados.length === filtrosOpciones.almacenes.length && filtrosOpciones.almacenes.length > 0} size="small" />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                </MenuItem>
+                {filtrosOpciones.almacenes.map((almacen) => (
+                  <MenuItem key={almacen} value={almacen}>
+                    <Checkbox checked={almacenesSeleccionados.includes(almacen)} size="small" />
+                    <ListItemText primary={almacen} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Sector Multiselect */}
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel id="sector-label" sx={{ fontSize: '0.75rem' }}>Sector</InputLabel>
+              <Select
+                labelId="sector-label"
+                multiple
+                value={sectoresSeleccionados}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.includes('__todos__')) {
+                    if (sectoresSeleccionados.length === filtrosOpciones.sectores.length) {
+                      setSectoresSeleccionados([]);
+                    } else {
+                      setSectoresSeleccionados([...filtrosOpciones.sectores]);
+                    }
+                  } else {
+                    setSectoresSeleccionados(typeof value === 'string' ? value.split(',') : value);
+                  }
+                }}
+                input={<OutlinedInput label="Sector" />}
+                renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                <MenuItem value="__todos__">
+                  <Checkbox checked={sectoresSeleccionados.length === filtrosOpciones.sectores.length && filtrosOpciones.sectores.length > 0} size="small" />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                </MenuItem>
+                {filtrosOpciones.sectores.map((sector) => (
+                  <MenuItem key={sector} value={sector}>
+                    <Checkbox checked={sectoresSeleccionados.includes(sector)} size="small" />
+                    <ListItemText primary={sector} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Solicitante Multiselect */}
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel id="solicitante-label" sx={{ fontSize: '0.75rem' }}>Solicitante</InputLabel>
+              <Select
+                labelId="solicitante-label"
+                multiple
+                value={solicitantesSeleccionados}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.includes('__todos__')) {
+                    if (solicitantesSeleccionados.length === filtrosOpciones.solicitantes.length) {
+                      setSolicitantesSeleccionados([]);
+                    } else {
+                      setSolicitantesSeleccionados([...filtrosOpciones.solicitantes]);
+                    }
+                  } else {
+                    setSolicitantesSeleccionados(typeof value === 'string' ? value.split(',') : value);
+                  }
+                }}
+                input={<OutlinedInput label="Solicitante" />}
+                renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
+                MenuProps={MenuProps}
+                sx={{ fontSize: '0.75rem' }}
+              >
+                <MenuItem value="__todos__">
+                  <Checkbox checked={solicitantesSeleccionados.length === filtrosOpciones.solicitantes.length && filtrosOpciones.solicitantes.length > 0} size="small" />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                </MenuItem>
+                {filtrosOpciones.solicitantes.map((solicitante) => (
+                  <MenuItem key={solicitante} value={solicitante}>
+                    <Checkbox checked={solicitantesSeleccionados.includes(solicitante)} size="small" />
+                    <ListItemText primary={solicitante} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Botón limpiar filtros (deseleccionar todos) */}
+            <button
+              type="button"
+              onClick={() => {
+                setRangoFechas([0, 365]); // Un año completo
+                setCentrosSeleccionados([]);
+                setAlmacenesSeleccionados([]);
+                setSectoresSeleccionados([]);
+                setSolicitantesSeleccionados([]);
+              }}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-600 rounded-md hover:border-blue-300 dark:hover:border-blue-500 transition-colors"
+            >
+              Limpiar Filtros
+            </button>
+          </div>
         </CardContent>
       </Card>
 
@@ -367,64 +881,161 @@ export default function DashboardAdmin() {
         </div>
       ) : (
         <>
-          {/* Métricas principales - 4 tarjetas compactas */}
+          {/* Grid principal - 4 columnas consistentes */}
+          {/* Fila superior: Solicitudes Creadas + Cumplimiento Proveedores */}
           <ScrollReveal delay={100}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Total Solicitudes */}
-              <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                <CardContent className="flex flex-col gap-2 py-4 px-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Total Solicitudes
-                    </p>
-                    <div className="h-8 w-8 rounded-lg bg-blue-50/70 dark:bg-blue-900/30 grid place-items-center flex-shrink-0">
-                      <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                  </div>
-                  <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{kpiData.solicitudes.total}</p>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    {kpiData.solicitudes.trendPercentage >= 0 ? (
-                      <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
-                        <TrendingUp className="w-3 h-3" />
-                        +{kpiData.solicitudes.trendPercentage}%
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-0.5 text-red-600 font-medium">
-                        <TrendingDown className="w-3 h-3" />
-                        {kpiData.solicitudes.trendPercentage}%
-                      </span>
-                    )}
-                    <span className="text-slate-400 dark:text-slate-500">vs mes anterior</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Tasa de Aprobación */}
+            <div className="flex gap-4 flex-wrap">
+              {/* Solicitudes Creadas - Sparkline */}
               {(() => {
-                const tasaAprobacion = kpiData.solicitudes.total > 0
-                  ? Math.round((kpiData.solicitudes.aprobadas / kpiData.solicitudes.total) * 100)
-                  : 0;
-                const isGood = tasaAprobacion >= 70;
-                const isWarning = tasaAprobacion >= 40 && tasaAprobacion < 70;
-                const bgColor = isGood ? "bg-emerald-50/70 dark:bg-emerald-900/30" : isWarning ? "bg-amber-50/70 dark:bg-amber-900/30" : "bg-red-50/70 dark:bg-red-900/30";
-                const iconColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
-                const valueColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
+                const fechaDesde = sliderAFechaDate(rangoFechas[0]);
+                const fechaHasta = sliderAFechaDate(rangoFechas[1]);
+                fechaHasta.setHours(23, 59, 59, 999);
+
+                const diasTotales = Math.max(1, Math.ceil((fechaHasta - fechaDesde) / (1000 * 60 * 60 * 24)));
+                const segmentos = 7;
+                const diasPorSegmento = Math.max(1, Math.ceil(diasTotales / segmentos));
+
+                const datosSparkline = [];
+                const labelsSparkline = [];
+
+                const formatFecha = (date) => {
+                  const dd = String(date.getDate()).padStart(2, '0');
+                  const mm = String(date.getMonth() + 1).padStart(2, '0');
+                  const yy = String(date.getFullYear()).slice(-2);
+                  return `${dd}/${mm}/${yy}`;
+                };
+
+                for (let i = 0; i < segmentos; i++) {
+                  const inicioSegmento = new Date(fechaDesde);
+                  inicioSegmento.setDate(fechaDesde.getDate() + (i * diasPorSegmento));
+
+                  const finSegmento = new Date(inicioSegmento);
+                  finSegmento.setDate(inicioSegmento.getDate() + diasPorSegmento - 1);
+                  finSegmento.setHours(23, 59, 59, 999);
+
+                  const finReal = finSegmento > fechaHasta ? fechaHasta : finSegmento;
+
+                  const count = datosFiltrados.filter(s => {
+                    const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
+                    return fechaCreacion >= inicioSegmento && fechaCreacion <= finReal;
+                  }).length;
+
+                  datosSparkline.push(count);
+                  labelsSparkline.push(formatFecha(inicioSegmento));
+                }
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                    <CardContent className="flex flex-col gap-2 py-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Tasa de Aprobación
-                        </p>
-                        <div className={`h-8 w-8 rounded-lg ${bgColor} grid place-items-center flex-shrink-0`}>
-                          <CheckCircle2 className={`w-4 h-4 ${iconColor}`} />
+                  <div style={{ width: '475px', height: '165px' }}>
+                    <WeeklyRequestsKpiCard
+                      data={datosSparkline}
+                      labels={labelsSparkline}
+                      previousWeekTotal={null}
+                      trendPercentage={null}
+                      compact={false}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* Cumplimiento de Proveedores - Diseño original */}
+              {(() => {
+                const totalPedidos = cumplimientoProveedores.reduce((sum, p) => sum + (p.total_pedidos || 0), 0);
+                const entregasATiempo = cumplimientoProveedores.reduce((sum, p) => sum + (p.entregas_a_tiempo || 0), 0);
+                const pctCumplimiento = totalPedidos > 0 ? Math.round((entregasATiempo / totalPedidos) * 100) : 0;
+
+                // Filtrar proveedores seleccionados
+                const proveedoresFiltrados = cumplimientoProveedores.filter(p =>
+                  proveedoresSeleccionados.includes(p.proveedor_cuit || p.proveedor_nombre)
+                );
+
+                return (
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '475px', height: '165px' }}>
+                    <CardContent className="p-4">
+                      <div className="flex gap-6 h-full">
+                        {/* Lado izquierdo - KPI */}
+                        <div className="flex-shrink-0">
+                          <div className="mb-2">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                              Cumplimiento Proveedores
+                            </p>
+                            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                              {totalPedidos > 0 ? `${pctCumplimiento}%` : 'N/A'}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            {totalPedidos > 0 ? `${entregasATiempo}/${totalPedidos} a tiempo` : `${cumplimientoProveedores.length} proveedores`}
+                          </p>
+                        </div>
+
+                        {/* Separador */}
+                        <div className="w-px bg-slate-200 dark:bg-slate-600 self-stretch" />
+
+                        {/* Lado derecho - Selector y datos */}
+                        <div className="flex-1">
+                          <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+                            <InputLabel id="proveedores-label" sx={{ fontSize: '0.75rem' }}>Proveedores</InputLabel>
+                            <Select
+                              labelId="proveedores-label"
+                              multiple
+                              value={proveedoresSeleccionados}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value.includes('__todos__')) {
+                                  const todosIds = cumplimientoProveedores.map(p => p.proveedor_cuit || p.proveedor_nombre);
+                                  if (proveedoresSeleccionados.length === todosIds.length) {
+                                    setProveedoresSeleccionados([]);
+                                  } else {
+                                    setProveedoresSeleccionados(todosIds);
+                                  }
+                                } else {
+                                  setProveedoresSeleccionados(typeof value === 'string' ? value.split(',') : value);
+                                }
+                              }}
+                              input={<OutlinedInput label="Proveedores" />}
+                              renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected[0] || ''}
+                              MenuProps={MenuProps}
+                              sx={{ fontSize: '0.75rem' }}
+                            >
+                              <MenuItem value="__todos__">
+                                <Checkbox checked={proveedoresSeleccionados.length === cumplimientoProveedores.length && cumplimientoProveedores.length > 0} size="small" />
+                                <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                              </MenuItem>
+                              {cumplimientoProveedores.map((p) => (
+                                <MenuItem key={p.proveedor_cuit || p.proveedor_nombre} value={p.proveedor_cuit || p.proveedor_nombre}>
+                                  <Checkbox checked={proveedoresSeleccionados.includes(p.proveedor_cuit || p.proveedor_nombre)} size="small" />
+                                  <ListItemText primary={p.proveedor_nombre || 'Proveedor'} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+
+                          {proveedoresFiltrados.length > 0 ? (
+                            <div className="space-y-1 max-h-[80px] overflow-auto">
+                              {proveedoresFiltrados.slice(0, 5).map((p, idx) => {
+                                const pct = p.pct_otif !== null && p.pct_otif !== undefined
+                                  ? Math.round(p.pct_otif)
+                                  : p.total_pedidos > 0
+                                    ? Math.round((p.entregas_a_tiempo / p.total_pedidos) * 100)
+                                    : null;
+                                return (
+                                  <div key={idx} className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600 truncate flex-1">{p.proveedor_nombre || 'Proveedor'}</span>
+                                    {pct !== null ? (
+                                      <span className={`font-semibold ml-2 ${pct >= 90 ? 'text-emerald-600' : pct >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                                        {pct}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 ml-2 text-[10px]">Sin datos</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400 text-center py-2">No hay datos de proveedores disponibles</p>
+                          )}
                         </div>
                       </div>
-                      <p className={`text-2xl font-bold ${valueColor}`}>{tasaAprobacion}%</p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {kpiData.solicitudes.aprobadas} aprobadas de {kpiData.solicitudes.total}
-                      </p>
                     </CardContent>
                   </Card>
                 );
@@ -432,71 +1043,144 @@ export default function DashboardAdmin() {
 
               {/* Tiempo Promedio */}
               {(() => {
-                const promedio = kpiData.tiempoAprobacion.promedio;
-                const meta = kpiData.tiempoAprobacion.meta;
-                const isGood = promedio <= meta;
-                const isWarning = promedio > meta && promedio <= meta * 1.5;
-                const bgColor = isGood ? "bg-emerald-50/70 dark:bg-emerald-900/30" : isWarning ? "bg-amber-50/70 dark:bg-amber-900/30" : "bg-red-50/70 dark:bg-red-900/30";
-                const iconColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
-                const valueColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
+                // Calcular tiempo promedio de aprobación desde datos filtrados
+                const solicitudesAprobadas = datosFiltrados.filter(s => {
+                  const estado = (s.estado || s.status || '').toLowerCase();
+                  return estado.includes('aprobada') || estado === 'approved';
+                });
+
+                let tiempoAprobacion = 0;
+                if (solicitudesAprobadas.length > 0) {
+                  const tiempos = solicitudesAprobadas.map(s => {
+                    const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
+                    const fechaAprobacion = new Date(s.fecha_aprobacion || s.updated_at || s.fecha_actualizacion || fechaCreacion);
+                    const diffMs = fechaAprobacion - fechaCreacion;
+                    return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24))); // días
+                  });
+                  tiempoAprobacion = Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length);
+                }
+
+                const tiempoCompra = 5; // placeholder - requiere datos de compras
+                const tiempoEntrega = 5; // placeholder - requiere datos de entregas
+                const tiempoTotal = tiempoAprobacion + tiempoCompra + tiempoEntrega;
+
+                const pctAprobacion = tiempoTotal > 0 ? Math.round((tiempoAprobacion / tiempoTotal) * 100) : 0;
+                const pctCompra = tiempoTotal > 0 ? Math.round((tiempoCompra / tiempoTotal) * 100) : 0;
+                const pctEntrega = tiempoTotal > 0 ? Math.round((tiempoEntrega / tiempoTotal) * 100) : 0;
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                    <CardContent className="flex flex-col gap-2 py-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '395px', height: '165px' }}>
+                    <CardContent className="p-4">
+                      {/* Header */}
+                      <div className="mb-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                           Tiempo Promedio
                         </p>
-                        <div className={`h-8 w-8 rounded-lg ${bgColor} grid place-items-center flex-shrink-0`}>
-                          <Clock className={`w-4 h-4 ${iconColor}`} />
+                        <p className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                          {tiempoTotal}d total
+                        </p>
+                      </div>
+
+                      {/* Barra de progreso horizontal */}
+                      <div className="flex h-8 rounded overflow-hidden mb-3">
+                        <div
+                          className="flex items-center justify-center text-white text-xs font-medium"
+                          style={{ width: `${pctAprobacion}%`, backgroundColor: '#9333ea' }}
+                        >
+                          {tiempoAprobacion}d={pctAprobacion}%
+                        </div>
+                        <div
+                          className="flex items-center justify-center text-slate-800 text-xs font-medium"
+                          style={{ width: `${pctCompra}%`, backgroundColor: '#fbbf24' }}
+                        >
+                          {tiempoCompra}d={pctCompra}%
+                        </div>
+                        <div
+                          className="flex items-center justify-center text-white text-xs font-medium"
+                          style={{ width: `${pctEntrega}%`, backgroundColor: '#06b6d4' }}
+                        >
+                          {tiempoEntrega}d={pctEntrega}%
                         </div>
                       </div>
-                      <p className={`text-2xl font-bold ${valueColor}`}>{promedio} días</p>
-                      <div className="flex items-center gap-1.5 text-xs">
-                        {isGood ? (
-                          <span className="flex items-center gap-0.5 text-emerald-600 font-medium">
-                            <TrendingDown className="w-3 h-3" />
-                            Bajo meta
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-0.5 text-amber-600 font-medium">
-                            <TrendingUp className="w-3 h-3" />
-                            Sobre meta
-                          </span>
-                        )}
-                        <span className="text-slate-400">Meta: {meta} días</span>
+
+                      {/* Leyenda */}
+                      <div className="flex gap-4 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#9333ea' }} />
+                          <span className="text-slate-600">Aprobación</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#fbbf24' }} />
+                          <span className="text-slate-600">Compra</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#06b6d4' }} />
+                          <span className="text-slate-600">Entrega</span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })()}
 
-              {/* Presupuesto Utilizado */}
+              {/* Compras Evitadas */}
               {(() => {
-                const percentage = kpiData.presupuesto.percentage;
-                const isGood = percentage < 70;
-                const isWarning = percentage >= 70 && percentage <= 90;
-                const bgColor = isGood ? "bg-emerald-50/70 dark:bg-emerald-900/30" : isWarning ? "bg-amber-50/70 dark:bg-amber-900/30" : "bg-red-50/70 dark:bg-red-900/30";
-                const iconColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
-                const textColor = isGood ? "text-emerald-600 dark:text-emerald-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400";
+                // Si no hay filtros seleccionados, no mostrar datos
+                const hayFiltrosSeleccionados = centrosSeleccionados.length > 0 ||
+                                                 almacenesSeleccionados.length > 0 ||
+                                                 sectoresSeleccionados.length > 0 ||
+                                                 solicitantesSeleccionados.length > 0;
+
+                let itemsMostrar = 0;
+                let valorMostrar = 0;
+
+                if (hayFiltrosSeleccionados) {
+                  // Filtrar compras evitadas según filtros seleccionados
+                  const fechaDesde = sliderAFechaDate(rangoFechas[0]);
+                  const fechaHasta = sliderAFechaDate(rangoFechas[1]);
+                  fechaHasta.setHours(23, 59, 59, 999);
+
+                  const comprasFiltradas = comprasEvitadasDetalle.filter(item => {
+                    // Filtro por fecha
+                    const fechaItem = new Date(item.fecha);
+                    if (fechaItem < fechaDesde || fechaItem > fechaHasta) return false;
+
+                    // Filtro por centro
+                    if (centrosSeleccionados.length > 0 && !centrosSeleccionados.includes(item.centro)) return false;
+
+                    // Filtro por sector
+                    if (sectoresSeleccionados.length > 0 && !sectoresSeleccionados.includes(item.sector)) return false;
+
+                    return true;
+                  });
+
+                  itemsMostrar = comprasFiltradas.length;
+                  valorMostrar = comprasFiltradas.reduce((sum, item) => sum + (item.valor || 0), 0);
+                }
+
+                // Formatear monto como KUSD o MUSD
+                const formatMontoResumido = (val) => {
+                  if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
+                  if (val >= 1000) return `KUSD ${(val / 1000).toFixed(2).replace('.', ',')}`;
+                  return `USD ${val.toFixed(2).replace('.', ',')}`;
+                };
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                    <CardContent className="flex flex-col gap-2 py-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Presupuesto Utilizado
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ flex: 1, minWidth: '200px', height: '165px' }}>
+                    <CardContent className="p-4">
+                      <div className="mb-2">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          Compras Evitadas
                         </p>
-                        <div className={`h-8 w-8 rounded-lg ${bgColor} grid place-items-center flex-shrink-0`}>
-                          <DollarSign className={`w-4 h-4 ${iconColor}`} />
-                        </div>
+                        <p className="text-2xl font-bold text-emerald-600">
+                          {formatMontoResumido(valorMostrar)}
+                        </p>
                       </div>
-                      <p className={`text-2xl font-bold ${textColor}`}>
-                        {formatCurrency(kpiData.presupuesto.utilizado)}
+                      <p className="text-xs text-slate-500">
+                        {itemsMostrar} ítems abastecidos internamente
                       </p>
-                      <p className="text-xs">
-                        <span className={`font-medium ${textColor}`}>{percentage}% consumido</span>
-                        <span className="text-slate-400"> del total</span>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Ahorro por uso de stock y transferencias
                       </p>
                     </CardContent>
                   </Card>
@@ -505,214 +1189,331 @@ export default function DashboardAdmin() {
             </div>
           </ScrollReveal>
 
-          {/* KPI Semanal + Donut Chart */}
+          {/* Fila: Donuts + otras cards */}
           <ScrollReveal delay={200}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* KPI Card compacta con sparkline */}
-              <WeeklyRequestsKpiCard
-                data={kpiData.solicitudes.trend}
-                trendPercentage={kpiData.solicitudes.trendPercentage}
-              />
+            <div className="flex flex-wrap" style={{ gap: '13px' }}>
 
               {/* Distribución de Estados */}
-              <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                <CardHeader className="px-6 pt-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Distribución de Estados</CardTitle>
-                    <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-700 rounded-md">
-                      {[
-                        { key: "semana", label: "Sem" },
-                        { key: "mes", label: "Mes" },
-                        { key: "año", label: "Año" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={() => setEstadosPeriodo(opt.key)}
-                          className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
-                            estadosPeriodo === opt.key
-                              ? "bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm"
-                              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-6 pb-5 flex items-center justify-center">
-                  <DonutChart
-                    data={[
-                      kpiData.solicitudes.aprobadas,
-                      kpiData.solicitudes.rechazadas,
-                      kpiData.solicitudes.pendientes,
-                    ]}
-                    colors={["#10b981", "#ef4444", "#f59e0b"]}
-                    labels={["Aprobadas", "Rechazadas", "Pendientes"]}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </ScrollReveal>
+              {(() => {
+                const estados = {
+                  borrador: 0,
+                  enviadas: 0,
+                  aprobadas: 0,
+                  enProceso: 0,
+                  rechazadas: 0,
+                  cerradas: 0
+                };
 
-          {/* Materiales | Presupuesto por Centro */}
-          <ScrollReveal delay={250}>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Materiales Más Solicitados */}
-              <Card className="h-[320px] bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                <CardHeader className="px-5 pt-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Materiales Más Solicitados</CardTitle>
-                    <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-700 rounded-md">
-                      {[
-                        { key: "semana", label: "Sem" },
-                        { key: "mes", label: "Mes" },
-                        { key: "año", label: "Año" },
-                      ].map((opt) => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={() => setMaterialesPeriodo(opt.key)}
-                          className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
-                            materialesPeriodo === opt.key
-                              ? "bg-white text-blue-600 shadow-sm"
-                              : "text-slate-500 hover:text-slate-700"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                datosFiltrados.forEach(s => {
+                  const estado = (s.estado || s.status || '').toLowerCase();
+                  if (estado.includes('draft') || estado.includes('borrador')) {
+                    estados.borrador++;
+                  } else if (estado.includes('submitted') || estado.includes('enviada') || estado.includes('pendiente')) {
+                    estados.enviadas++;
+                  } else if (estado.includes('approved') || estado.includes('aprobada')) {
+                    estados.aprobadas++;
+                  } else if (estado.includes('processing') || estado.includes('proceso')) {
+                    estados.enProceso++;
+                  } else if (estado.includes('rejected') || estado.includes('rechazada')) {
+                    estados.rechazadas++;
+                  } else if (estado.includes('closed') || estado.includes('cerrada') || estado.includes('dispatched')) {
+                    estados.cerradas++;
+                  }
+                });
+
+                return (
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '280px', height: '191px' }}>
+                    <CardHeader className="px-4 pt-3 pb-1">
+                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Distribución de Estados</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 flex items-center">
+                      <MuiDonutChart
+                        data={[estados.borrador, estados.enviadas, estados.aprobadas, estados.enProceso, estados.rechazadas, estados.cerradas]}
+                        colors={["#94a3b8", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6"]}
+                        labels={["Borrador", "Enviadas", "Aprobadas", "En Proceso", "Rechazadas", "Cerradas"]}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Solicitudes Abiertas por Criticidad */}
+              {(() => {
+                const solicitudesAbiertas = datosFiltrados.filter(s => {
+                  const estado = (s.estado || s.status || '').toLowerCase();
+                  const esAbierta = estado.includes('proceso') || estado.includes('enviada') || estado.includes('pendiente') || estado === 'en progreso' || estado === 'submitted' || estado === 'processing';
+                  const noBorrador = !estado.includes('borrador') && !estado.includes('draft');
+                  return esAbierta && noBorrador;
+                });
+
+                const criticidades = { Alta: 0, Media: 0, Normal: 0, Baja: 0 };
+                solicitudesAbiertas.forEach(s => {
+                  const crit = s.criticidad || 'Normal';
+                  if (criticidades.hasOwnProperty(crit)) {
+                    criticidades[crit]++;
+                  } else {
+                    criticidades['Normal']++;
+                  }
+                });
+
+                return (
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '280px', height: '191px' }}>
+                    <CardHeader className="px-4 pt-3 pb-1">
+                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Solicitudes Abiertas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3 flex items-center">
+                      <MuiDonutChart
+                        data={[criticidades.Alta, criticidades.Media, criticidades.Normal, criticidades.Baja]}
+                        colors={["#ef4444", "#f59e0b", "#3b82f6", "#10b981"]}
+                        labels={["Alta", "Media", "Normal", "Baja"]}
+                      />
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Presupuesto Utilizado - Compacto horizontal */}
+              <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '590px', height: '191px', marginLeft: 'auto' }}>
+                <CardHeader className="px-4 pt-3 pb-1">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuesto Global</CardTitle>
                 </CardHeader>
-                <CardContent className="px-5 pb-5 overflow-auto h-[calc(100%-60px)]">
-                  <div className="space-y-3">
-                    {(kpiData.materialesMasSolicitados || []).length > 0 ? (
-                      kpiData.materialesMasSolicitados.map((material, idx) => {
-                        const maxCantidad = Math.max(...kpiData.materialesMasSolicitados.map(m => m.cantidad), 1);
-                        const percentage = (material.cantidad / maxCantidad) * 100;
-                        return (
-                          <div key={idx} className="group">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500/10 grid place-items-center text-xs font-bold text-blue-600">
-                                  {idx + 1}
-                                </div>
-                                <span className="text-sm text-slate-700 dark:text-slate-300 font-medium truncate" title={material.nombre}>
-                                  {material.nombre}
-                                </span>
+                <CardContent className="px-4 pb-3">
+                  <div className="flex items-center gap-6">
+                    {/* Medidores con Gauge MUI */}
+                    <div className="flex gap-2">
+                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                        <Gauge
+                          value={100}
+                          valueMax={100}
+                          startAngle={-110}
+                          endAngle={110}
+                          width={70}
+                          height={70}
+                          sx={{
+                            [`& .${gaugeClasses.valueText}`]: {
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              transform: 'translate(0px, 0px)',
+                            },
+                            [`& .${gaugeClasses.valueArc}`]: {
+                              fill: '#3b82f6',
+                            },
+                          }}
+                          text={({ value }) => `${value}%`}
+                        />
+                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Total</p>
+                        <p className="text-[10px] font-bold text-slate-700 text-center">MUSD {(kpiData.presupuesto.total / 1000000).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                        <Gauge
+                          value={kpiData.presupuesto.percentage}
+                          valueMax={100}
+                          startAngle={-110}
+                          endAngle={110}
+                          width={70}
+                          height={70}
+                          sx={{
+                            [`& .${gaugeClasses.valueText}`]: {
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              transform: 'translate(0px, 0px)',
+                            },
+                            [`& .${gaugeClasses.valueArc}`]: {
+                              fill: '#f59e0b',
+                            },
+                          }}
+                          text={({ value }) => `${value}%`}
+                        />
+                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Utilizado</p>
+                        <p className="text-[10px] font-bold text-amber-600 text-center">MUSD {(kpiData.presupuesto.utilizado / 1000000).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                        <Gauge
+                          value={100 - kpiData.presupuesto.percentage}
+                          valueMax={100}
+                          startAngle={-110}
+                          endAngle={110}
+                          width={70}
+                          height={70}
+                          sx={{
+                            [`& .${gaugeClasses.valueText}`]: {
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              transform: 'translate(0px, 0px)',
+                            },
+                            [`& .${gaugeClasses.valueArc}`]: {
+                              fill: '#10b981',
+                            },
+                          }}
+                          text={({ value }) => `${value}%`}
+                        />
+                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Disponible</p>
+                        <p className="text-[10px] font-bold text-emerald-600 text-center">MUSD {(kpiData.presupuesto.disponible / 1000000).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    </div>
+                    {/* Separador vertical */}
+                    <div className="w-px h-20 bg-slate-200 dark:bg-slate-600"></div>
+                    {/* Top 3 en dos columnas */}
+                    <div className="flex-1">
+                      <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">Consumido sobre Global</p>
+                      <div className="flex gap-6">
+                        {/* Top 3 Centros */}
+                        <div className="flex-1">
+                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">Top Centros</p>
+                          <div className="divide-y divide-slate-200">
+                            {(kpiData.presupuesto.topCentros || []).map((centro, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-[10px] text-slate-600 truncate flex-1">{centro.nombre}</span>
+                                <span className="text-[10px] font-semibold text-blue-600">{centro.porcentaje}%</span>
                               </div>
-                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 tabular-nums flex-shrink-0 ml-2">
-                                {(material.cantidad || 0).toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="h-2.5 bg-slate-100/70 backdrop-blur-sm rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500 group-hover:from-blue-600 group-hover:to-blue-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
+                            ))}
                           </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay datos disponibles</p>
-                    )}
+                        </div>
+                        {/* Top 3 Sectores */}
+                        <div className="flex-1">
+                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">Top Sectores</p>
+                          <div className="divide-y divide-slate-200">
+                            {(kpiData.presupuesto.topSectores || []).map((sector, idx) => (
+                              <div key={idx} className="flex items-center justify-between py-1">
+                                <span className="text-[10px] text-slate-600 truncate flex-1">{sector.nombre}</span>
+                                <span className="text-[10px] font-semibold text-emerald-600">{sector.porcentaje}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Presupuesto por Centro */}
-              <Card className="h-[320px] bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                <CardHeader className="px-5 pt-5 pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Presupuesto por Centro</CardTitle>
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
-                  </div>
-                </CardHeader>
-                <CardContent className="px-5 pb-5 overflow-auto h-[calc(100%-60px)]">
-                  <div className="space-y-3">
-                    {(kpiData.presupuesto.porCentro || []).length > 0 ? (
-                      kpiData.presupuesto.porCentro.map((centro, idx) => {
-                        const maxValor = Math.max(...kpiData.presupuesto.porCentro.map(c => c.valor), 1);
-                        const percentage = (centro.valor / maxValor) * 100;
-                        return (
-                          <div key={idx} className="group">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm text-slate-700 dark:text-slate-300 font-medium truncate flex-1" title={centro.nombre}>
-                                {centro.nombre}
-                              </span>
-                              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 tabular-nums flex-shrink-0 ml-2">
-                                {formatCurrency(centro.valor)}
-                              </span>
-                            </div>
-                            <div className="h-2.5 bg-slate-100/70 backdrop-blur-sm rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500 group-hover:from-emerald-600 group-hover:to-emerald-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">No hay datos disponibles</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </ScrollReveal>
 
-          {/* Resumen de Presupuesto - Con gráficos circulares */}
+          {/* Fila inferior: Materiales y Stock */}
           <ScrollReveal delay={300}>
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-              <CardHeader className="px-5 pt-5 pb-3 text-center">
-                <CardTitle className="text-base">Resumen de Presupuesto</CardTitle>
-              </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <div className="grid grid-cols-3 gap-6">
-                  {/* Total */}
-                  <div className="flex items-center gap-3">
-                    <ProgressCircle percentage={100} size="sm" color="#3b82f6" />
-                    <div>
-                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
-                        Total
-                      </p>
-                      <p className="text-base font-bold text-slate-800">
-                        {formatCurrency(kpiData.presupuesto.total)}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Utilizado */}
-                  <div className="flex items-center gap-3">
-                    <ProgressCircle percentage={kpiData.presupuesto.percentage} size="sm" color="#f59e0b" />
-                    <div>
-                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
-                        Utilizado
-                      </p>
-                      <p className="text-base font-bold text-amber-500">
-                        {formatCurrency(kpiData.presupuesto.utilizado)}
-                      </p>
-                    </div>
-                  </div>
-                  {/* Disponible */}
-                  <div className="flex items-center gap-3">
-                    <ProgressCircle percentage={100 - kpiData.presupuesto.percentage} size="sm" color="#10b981" />
-                    <div>
-                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">
-                        Disponible
-                      </p>
-                      <p className="text-base font-bold text-emerald-500">
-                        {formatCurrency(kpiData.presupuesto.disponible)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex flex-wrap" style={{ gap: '13px' }}>
+
+              {/* Materiales Más Solicitados - Lista simple top 10 */}
+              {(() => {
+                const materialesCount = {};
+                datosFiltrados.forEach(s => {
+                  (s.items || []).forEach(item => {
+                    const codigo = item.codigo || item.codigo_sap || '';
+                    const nombre = item.descripcion || item.nombre || item.material_nombre || `Material ${item.material_id}`;
+                    const cantidad = item.cantidad || 1;
+                    const precio = item.precio_unitario || item.precio || item.precio_estimado || 0;
+                    const key = codigo || nombre;
+                    if (!materialesCount[key]) {
+                      materialesCount[key] = { codigo, nombre, cantidad: 0, monto: 0, precioUnitario: precio };
+                    }
+                    materialesCount[key].cantidad += cantidad;
+                    materialesCount[key].monto += cantidad * precio;
+                    // Actualizar precio unitario si es mayor (para tener el más reciente o mayor)
+                    if (precio > materialesCount[key].precioUnitario) {
+                      materialesCount[key].precioUnitario = precio;
+                    }
+                  });
+                });
+
+                const materialesList = Object.values(materialesCount)
+                  .sort((a, b) => b.cantidad - a.cantidad)
+                  .slice(0, 10);
+
+                // Verificar si hay algún monto > 0 para decidir si mostrar la columna
+                const hayMontos = materialesList.some(m => m.monto > 0);
+
+                const formatMonto = (val) => {
+                  if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
+                  if (val >= 1000) return `KUSD ${(val / 1000).toFixed(2).replace('.', ',')}`;
+                  return `USD ${val.toFixed(2).replace('.', ',')}`;
+                };
+
+                return (
+                  <Card className="flex-1 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
+                    <CardHeader className="px-4 pt-3 pb-2">
+                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Materiales Más Solicitados</CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 ">
+                      <div className="divide-y divide-slate-200">
+                        {materialesList.length > 0 ? (
+                          materialesList.map((material, idx) => (
+                            <div key={idx} className="flex items-center gap-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 px-1 -mx-1">
+                              <span className="text-[10px] font-bold text-slate-400 w-4">{idx + 1}.</span>
+                              <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">{material.codigo || '-'}</span>
+                              <span className="text-xs text-slate-700 dark:text-slate-300 flex-1">
+                                {material.nombre}
+                              </span>
+                              <span className="text-xs text-slate-600 font-semibold w-12 text-right">{material.cantidad}</span>
+                              {hayMontos && (
+                                <span className="text-xs text-slate-600 font-mono w-28 text-right">{formatMonto(material.monto)}</span>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">No hay datos</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Stock Inmovilizado - Lista top 10 */}
+              {(() => {
+                const formatMontoStock = (val) => {
+                  if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
+                  if (val >= 1000) return `KUSD ${(val / 1000).toFixed(2).replace('.', ',')}`;
+                  return `USD ${(val || 0).toFixed(2).replace('.', ',')}`;
+                };
+
+                // Verificar si hay algún monto > 0
+                const hayMontosStock = stockInmovilizadoFiltrado.items.some(item => (item.valor || 0) > 0);
+
+                // Datos globales para el tooltip
+                const globalTotal = stockInmovilizadoFiltrado.globalTotal || stockInmovilizado.globalTotal || stockInmovilizado.total || 0;
+                const globalValor = stockInmovilizadoFiltrado.globalValorTotal || stockInmovilizado.globalValorTotal || stockInmovilizado.valorTotal || 0;
+
+                return (
+                  <Card className="flex-1 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
+                    <CardHeader className="px-4 pt-3 pb-2">
+                      <CardTitle
+                        className="text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-help"
+                        title={`Global: ${globalTotal.toLocaleString()} materiales · ${formatMontoStock(globalValor)}\nFiltrado por Centro (Sector y Solicitante no aplican)`}
+                      >
+                        Stock Inmovilizado
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 ">
+                      <div className="divide-y divide-slate-200">
+                        {stockInmovilizadoFiltrado.items.length > 0 ? (
+                          stockInmovilizadoFiltrado.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 px-1 -mx-1">
+                              <span className="text-[10px] font-bold text-slate-400 w-4">{idx + 1}.</span>
+                              <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">{item.codigo || '-'}</span>
+                              <span className="text-xs text-slate-700 dark:text-slate-300 flex-1">
+                                {item.descripcion}
+                              </span>
+                              <span className="text-xs text-slate-600 font-semibold w-12 text-right">{item.stock || 0}</span>
+                              {hayMontosStock && (
+                                <span className="text-xs text-slate-600 font-mono w-28 text-right">{formatMontoStock(item.valor || 0)}</span>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
+                            {centrosSeleccionados.length === 0 ? 'Seleccione un Centro para ver datos' : 'No hay stock inmovilizado en los centros seleccionados'}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+            </div>
           </ScrollReveal>
+
         </>
       )}
     </div>

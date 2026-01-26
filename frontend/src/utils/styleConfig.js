@@ -24,144 +24,164 @@ import {
 export const estadoConfig = {
   // Estados de Solicitudes
   "Borrador": {
-    color: "var(--fg-muted)",
+    color: "#f57c00",
     icon: FileText,
     label: "Borrador"
   },
   "Draft": {
-    color: "var(--fg-muted)",
+    color: "#f57c00",
     icon: FileText,
     label: "Borrador"
   },
   "Enviada": {
-    color: "var(--info)",
+    color: "#757575",
     icon: Send,
     label: "Enviada"
   },
   "Submitted": {
-    color: "var(--info)",
+    color: "#757575",
     icon: Send,
     label: "Enviada"
   },
   "Pendiente": {
-    color: "var(--fg-muted)",
+    color: "#757575",
     icon: Clock,
     label: "Pendiente"
   },
   "Pending": {
-    color: "var(--fg-muted)",
+    color: "#757575",
+    icon: Clock,
+    label: "Pendiente"
+  },
+  "Pendiente_de_Aprobacion": {
+    color: "#757575",
     icon: Clock,
     label: "Pendiente"
   },
   "En Proceso": {
-    color: "var(--primary)",
+    color: "#c2185b",
     icon: Play,
     label: "En Proceso"
   },
   "Processing": {
-    color: "var(--primary)",
+    color: "#c2185b",
+    icon: Play,
+    label: "En Proceso"
+  },
+  "En Progreso": {
+    color: "#c2185b",
     icon: Play,
     label: "En Proceso"
   },
   "Aprobada": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: CheckCircle,
     label: "Aprobada"
   },
   "Approved": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: CheckCircle,
     label: "Aprobada"
   },
+  "Completada": {
+    color: "#689f38",
+    icon: CheckCircle,
+    label: "Completada"
+  },
+  "Completed": {
+    color: "#689f38",
+    icon: CheckCircle,
+    label: "Completada"
+  },
   "Rechazada": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Rechazada"
   },
   "Rejected": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Rechazada"
   },
   "En Despacho": {
-    color: "var(--accent)",
+    color: "#c2185b",
     icon: Package,
     label: "En Despacho"
   },
   "Dispatching": {
-    color: "var(--accent)",
+    color: "#c2185b",
     icon: Package,
     label: "En Despacho"
   },
   "Despachada": {
-    color: "var(--accent)",
+    color: "#689f38",
     icon: Truck,
     label: "Despachada"
   },
   "Dispatched": {
-    color: "var(--accent)",
+    color: "#689f38",
     icon: Truck,
     label: "Despachada"
   },
   "Cerrada": {
-    color: "var(--fg-subtle)",
+    color: "#689f38",
     icon: Archive,
     label: "Cerrada"
   },
   "Closed": {
-    color: "var(--fg-subtle)",
+    color: "#689f38",
     icon: Archive,
     label: "Cerrada"
   },
   "Cancelada": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Cancelada"
   },
   "Cancelled": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Cancelada"
   },
   "En Pausa": {
-    color: "var(--fg-muted)",
+    color: "#757575",
     icon: Pause,
     label: "En Pausa"
   },
   "On Hold": {
-    color: "var(--fg-muted)",
+    color: "#757575",
     icon: Pause,
     label: "En Pausa"
   },
 
   // Estados genéricos
   "Activo": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: CheckCircle,
     label: "Activo"
   },
   "Active": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: CheckCircle,
     label: "Activo"
   },
   "Inactivo": {
-    color: "var(--fg-muted)",
+    color: "#757575",
     icon: Pause,
     label: "Inactivo"
   },
   "Inactive": {
-    color: "var(--fg-muted)",
+    color: "#757575",
     icon: Pause,
     label: "Inactivo"
   },
   "Suspendido": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Suspendido"
   },
   "Suspended": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: XCircle,
     label: "Suspendido"
   },
@@ -172,42 +192,42 @@ export const estadoConfig = {
 // ═══════════════════════════════════════════════════════════════
 export const criticidadConfig = {
   "Urgente": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: AlertTriangle,
     label: "Urgente"
   },
   "Urgent": {
-    color: "var(--danger)",
+    color: "#d32f2f",
     icon: AlertTriangle,
     label: "Urgente"
   },
   "Alta": {
-    color: "var(--primary)",
+    color: "#d32f2f",
     icon: AlertCircle,
     label: "Alta"
   },
   "High": {
-    color: "var(--primary)",
+    color: "#d32f2f",
     icon: AlertCircle,
     label: "Alta"
   },
   "Normal": {
-    color: "var(--info)",
+    color: "#1976d2",
     icon: Clock,
     label: "Normal"
   },
   "Medium": {
-    color: "var(--info)",
+    color: "#1976d2",
     icon: Clock,
     label: "Normal"
   },
   "Baja": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: Clock,
     label: "Baja"
   },
   "Low": {
-    color: "var(--success)",
+    color: "#689f38",
     icon: Clock,
     label: "Baja"
   },

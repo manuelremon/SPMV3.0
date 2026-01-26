@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { SearchInput } from "../components/ui/SearchInput";
 import { Card, CardContent } from "../components/ui/Card";
 import { ModernDataTable as DataTable } from "../components/features/DataTable";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { withSpmAlignments } from "../utils/tableAlignments";
 import StatusBadge from "../components/ui/StatusBadge";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -469,30 +470,16 @@ export default function BudgetRequests() {
       {msg && <Alert variant="success" onDismiss={() => setMsg("")}>{msg}</Alert>}
 
       {/* Main Tabs: Historial / Solicitudes */}
-      <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-white/30 dark:border-slate-700/30 w-fit">
-        <button
-          onClick={() => setMainTab("historial")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-            mainTab === "historial"
-              ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
-              : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50"
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" />
-          {t("bur_main_historial", "Historial")}
-        </button>
-        <button
-          onClick={() => setMainTab("solicitudes")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-            mainTab === "solicitudes"
-              ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
-              : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50"
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          {t("bur_main_solicitudes", "Incorporaciones")}
-        </button>
-      </div>
+      <Tabs value={mainTab} onValueChange={setMainTab}>
+        <TabsList>
+          <TabsTrigger value="historial">
+            {t("bur_main_historial", "Historial")}
+          </TabsTrigger>
+          <TabsTrigger value="solicitudes">
+            {t("bur_main_solicitudes", "Incorporaciones")}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Content based on main tab */}
       {mainTab === "historial" ? (
@@ -564,21 +551,15 @@ export default function BudgetRequests() {
         <Card>
           <CardContent className="space-y-4 pt-6">
             {/* Sub-tabs for BUR */}
-            <div className="flex items-center gap-1 p-1 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-xl border border-white/30 dark:border-slate-700/30 w-fit">
-              {tabs.map((tabItem) => (
-                <button
-                  key={tabItem.key}
-                  onClick={() => setTab(tabItem.key)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    tab === tabItem.key
-                      ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
-                      : "text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50"
-                  }`}
-                >
-                  {tabItem.label}
-                </button>
-              ))}
-            </div>
+            <Tabs value={tab} onValueChange={setTab}>
+              <TabsList>
+                {tabs.map((tabItem) => (
+                  <TabsTrigger key={tabItem.key} value={tabItem.key}>
+                    {tabItem.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
             {/* Search */}
             <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">

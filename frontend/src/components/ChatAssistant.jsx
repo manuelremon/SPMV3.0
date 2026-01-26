@@ -3,7 +3,6 @@ import { Send, X, Loader2, AlertCircle, Bell, Mic, MicOff, Volume2, VolumeX } fr
 import { useVertexStore, selectFormattedMessages } from '../store/vertexStore'
 import { useAuthStore } from '../store/authStore'
 import vertexService, { sendVertexMessage, loadVertexAlerts, initializeVertex } from '../services/vertex'
-import { Button } from './ui/Button'
 import api from '../services/api'
 
 /**
@@ -471,31 +470,32 @@ export default function ChatAssistant() {
 
   return (
     <div className="fixed bottom-24 right-6 z-50 w-full max-w-sm h-[520px]
-                    bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl
-                    border border-white/50 dark:border-white/10
-                    rounded-2xl shadow-glass
+                    bg-white border border-gray-200
+                    rounded-2xl shadow-lg
                     flex flex-col
                     animate-scale-in"
     >
       {/* Header - Vertex IA */}
-      <div className="px-4 py-3 border-b border-white/30 dark:border-white/10 flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-violet-500/10 to-purple-500/10">
+      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between rounded-t-2xl"
+           style={{ backgroundColor: '#1976d2' }}>
         <div className="flex items-center gap-3">
           {/* Avatar Vertex */}
           <div className="relative">
-            <div className={`w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-purple-600
-                          flex items-center justify-center shadow-lg shadow-violet-500/25
-                          ${isSpeaking ? 'animate-pulse' : ''}`}>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md
+                          ${isSpeaking ? 'animate-pulse' : ''}`}
+                 style={{ backgroundColor: '#fc1b80' }}>
               <span className="text-white text-sm font-bold">V</span>
             </div>
             {/* Indicador de estado */}
-            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900
-                          ${isSpeaking ? 'bg-violet-400 animate-pulse' : 'bg-green-400'}`}></div>
+            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
+                          ${isSpeaking ? 'animate-pulse' : ''}`}
+                 style={{ backgroundColor: isSpeaking ? '#90caf9' : '#4caf50' }}></div>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            <h3 className="text-sm font-semibold text-white">
               Vertex IA
             </h3>
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs text-blue-100">
               {isSpeaking ? 'Hablando...' : isListening ? 'Escuchando...' : 'Tu asistente SPM'}
             </span>
           </div>
@@ -503,55 +503,52 @@ export default function ChatAssistant() {
 
         <div className="flex items-center gap-1">
           {/* Toggle Voice Output */}
-          <Button
+          <button
             onClick={toggleVoice}
-            variant="icon"
-            size="icon-sm"
             aria-label={voiceEnabled ? 'Desactivar voz' : 'Activar voz'}
             title={voiceEnabled ? 'Desactivar voz' : 'Activar voz'}
-            className={voiceEnabled ? 'text-violet-500' : 'text-slate-400'}
+            className={`p-1.5 rounded-full transition-colors ${voiceEnabled ? 'text-white hover:bg-blue-600' : 'text-blue-200 hover:bg-blue-600'}`}
           >
             {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </Button>
+          </button>
 
           {/* Badge de alertas */}
           {unshownAlertsCount > 0 && (
             <div className="relative">
-              <Bell className="w-5 h-5 text-amber-500" />
+              <Bell className="w-5 h-5 text-amber-300" />
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {unshownAlertsCount}
               </span>
             </div>
           )}
 
-          <Button
+          <button
             onClick={closeChat}
-            variant="icon"
-            size="icon-sm"
             aria-label="Cerrar chat"
+            className="p-1.5 rounded-full text-white hover:bg-blue-600 transition-colors"
           >
             <X className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Alertas Proactivas */}
       {pendingAlerts.length > 0 && (
-        <div className="px-3 py-2 bg-amber-50/80 dark:bg-amber-900/20 border-b border-amber-200/50 dark:border-amber-500/20">
+        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200">
           {pendingAlerts.slice(0, 1).map(alert => (
             <div key={alert.id} className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-amber-800 dark:text-amber-200 truncate">
+                <p className="text-xs font-medium text-amber-800 truncate">
                   {alert.title}
                 </p>
-                <p className="text-[11px] text-amber-600 dark:text-amber-300 line-clamp-2">
+                <p className="text-[11px] text-amber-600 line-clamp-2">
                   {alert.message}
                 </p>
               </div>
               <button
                 onClick={() => handleDismissAlert(alert.id)}
-                className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 p-1"
+                className="text-amber-400 hover:text-amber-600 p-1"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -561,18 +558,19 @@ export default function ChatAssistant() {
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 dark:bg-slate-800/50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: '#faf1e1' }}>
         {formattedMessages.map((msg) => (
           <div
             key={msg.id}
             className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] px-3 py-2 rounded-xl
+              className={`max-w-[85%] px-3 py-2 rounded-xl shadow-sm
                 ${msg.isUser
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/25'
-                  : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-white/50 dark:border-white/10 text-slate-700 dark:text-slate-200 shadow-sm'
+                  ? 'text-white'
+                  : 'bg-gray-100 border border-gray-200 text-slate-700'
                 }`}
+              style={msg.isUser ? { backgroundColor: '#1976d2' } : undefined}
             >
               {/* Contenido del mensaje */}
               <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
@@ -581,16 +579,16 @@ export default function ChatAssistant() {
 
               {/* Sugerencias */}
               {msg.suggestions && msg.suggestions.length > 0 && msg.isAssistant && (
-                <div className="mt-2 space-y-1.5 pt-2 border-t border-slate-200/50 dark:border-slate-600/50">
+                <div className="mt-2 space-y-1.5 pt-2 border-t border-gray-200">
                   {msg.suggestions.map((suggestion, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleSuggestion(suggestion)}
                       className="block w-full text-left text-xs px-2 py-1.5
-                               bg-white/50 dark:bg-slate-700/50 hover:bg-violet-50/70 dark:hover:bg-violet-900/30
-                               border border-slate-200/50 dark:border-slate-600/50
-                               rounded-lg transition-colors text-slate-600 dark:text-slate-300
-                               hover:text-violet-600 dark:hover:text-violet-400"
+                               bg-white hover:bg-blue-50
+                               border border-gray-200
+                               rounded-lg transition-colors text-slate-600
+                               hover:text-blue-600"
                     >
                       {suggestion}
                     </button>
@@ -599,7 +597,7 @@ export default function ChatAssistant() {
               )}
 
               {/* Timestamp */}
-              <p className={`text-[10px] mt-1.5 ${msg.isUser ? 'text-violet-100' : 'text-slate-400'}`}>
+              <p className={`text-[10px] mt-1.5 ${msg.isUser ? 'text-blue-100' : 'text-slate-400'}`}>
                 {msg.formattedTime}
               </p>
             </div>
@@ -609,13 +607,13 @@ export default function ChatAssistant() {
         {/* Indicador de Vertex pensando */}
         {isTyping && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-3 py-2 bg-violet-50/80 dark:bg-violet-900/30 backdrop-blur-sm border border-violet-200/50 dark:border-violet-500/30 rounded-xl">
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl">
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '150ms' }} />
+                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '300ms' }} />
               </div>
-              <span className="text-xs text-violet-600 dark:text-violet-300">Vertex esta pensando...</span>
+              <span className="text-xs" style={{ color: '#1976d2' }}>Vertex esta pensando...</span>
             </div>
           </div>
         )}
@@ -623,9 +621,9 @@ export default function ChatAssistant() {
         {/* Loading sin typing */}
         {isLoading && !isTyping && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-3 py-2 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm border border-white/50 dark:border-white/10 rounded-xl shadow-sm">
-              <Loader2 className="w-4 h-4 text-violet-600 dark:text-violet-400 animate-spin" />
-              <span className="text-sm text-slate-600 dark:text-slate-300">Conectando...</span>
+            <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm">
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1976d2' }} />
+              <span className="text-sm text-slate-600">Conectando...</span>
             </div>
           </div>
         )}
@@ -633,7 +631,7 @@ export default function ChatAssistant() {
         {/* Error Message */}
         {error && (
           <div className="flex justify-start">
-            <div className="px-3 py-2 bg-red-50/70 dark:bg-red-900/30 backdrop-blur-sm border border-red-200/50 dark:border-red-500/30 rounded-xl text-sm text-red-600 dark:text-red-400">
+            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
               {error}
             </div>
           </div>
@@ -645,24 +643,22 @@ export default function ChatAssistant() {
       {/* Input Area */}
       <form
         onSubmit={handleSendMessage}
-        className="border-t border-white/30 dark:border-white/10 p-3 bg-white/50 dark:bg-slate-800/50 rounded-b-2xl"
+        className="border-t border-gray-200 p-3 bg-white rounded-b-2xl"
       >
         <div className="flex gap-2">
           {/* Microphone Button */}
           {speechSupported && !micPermissionDenied && (
-            <Button
+            <button
               type="button"
               onClick={toggleListening}
               disabled={isLoading}
-              size="sm"
-              variant={isListening ? 'primary' : 'secondary'}
-              className={`px-3 ${isListening
+              className={`px-3 py-2 rounded-xl transition-colors ${isListening
                 ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                : 'bg-violet-100 dark:bg-violet-900/50 hover:bg-violet-200 dark:hover:bg-violet-900'}`}
+                : 'bg-blue-50 hover:bg-blue-100'}`}
               title={isListening ? 'Detener' : 'Hablar'}
             >
-              {isListening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
-            </Button>
+              {isListening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4" style={{ color: '#1976d2' }} />}
+            </button>
           )}
 
           <input
@@ -673,25 +669,25 @@ export default function ChatAssistant() {
             placeholder={isListening ? 'Escuchando...' : 'Escribi o habla tu consulta...'}
             disabled={isLoading}
             autoComplete="off"
-            className={`flex-1 px-3 py-2 bg-white/70 dark:bg-slate-700/70 backdrop-blur-sm
+            className={`flex-1 px-3 py-2 bg-white
                       border rounded-xl
-                      text-sm text-slate-800 dark:text-slate-200
-                      placeholder-slate-400 dark:placeholder-slate-500
-                      focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400/50
-                      disabled:bg-slate-100/50 dark:disabled:bg-slate-600/50 disabled:cursor-not-allowed
+                      text-sm text-slate-800
+                      placeholder-slate-400
+                      focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400
+                      disabled:bg-gray-100 disabled:cursor-not-allowed
                       transition-all
                       ${isListening
-                        ? 'border-red-400/50 ring-2 ring-red-400/30'
-                        : 'border-white/50 dark:border-white/10'}`}
+                        ? 'border-red-400 ring-2 ring-red-200'
+                        : 'border-gray-300'}`}
           />
-          <Button
+          <button
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            size="sm"
-            className="px-3 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg shadow-violet-500/25"
+            className="px-3 py-2 rounded-xl text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            style={{ backgroundColor: '#1976d2' }}
           >
             <Send className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
 
         {/* Helper text con sugerencias rapidas */}
@@ -702,10 +698,11 @@ export default function ChatAssistant() {
               type="button"
               onClick={() => handleSuggestion(sug)}
               disabled={isLoading}
-              className="text-[10px] px-2 py-0.5 bg-violet-50 dark:bg-violet-900/30
-                       text-violet-600 dark:text-violet-300 rounded-full
-                       hover:bg-violet-100 dark:hover:bg-violet-900/50
+              className="text-[10px] px-2 py-0.5 bg-blue-50
+                       rounded-full
+                       hover:bg-blue-100
                        disabled:opacity-50 transition-colors"
+              style={{ color: '#1976d2' }}
             >
               {sug}
             </button>

@@ -4,16 +4,22 @@ import { solicitudes } from '../services/spm'
 import api from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { useI18n } from '../context/i18n'
-import { Button } from '../components/ui/Button'
-import { CustomSelect } from '../components/ui/CustomSelect'
-import { Input } from '../components/ui/Input'
-import { Textarea } from '../components/ui/Textarea'
-import { Alert } from '../components/ui/Alert'
-import { Card, CardContent } from '../components/ui/Card'
-import { PageHeader } from '../components/ui/PageHeader'
 import { FormSkeleton } from '../components/ui/Skeleton'
-import { Paperclip, X, Upload } from '../components/ui/Icons'
-import clsx from 'clsx'
+import { CloudUpload, Close, AttachFile, ArrowBack } from '@mui/icons-material'
+import {
+  Container,
+  Paper,
+  Typography,
+  Grid,
+  TextField,
+  MenuItem,
+  Box,
+  Button,
+  Divider,
+  Alert,
+  IconButton,
+  CircularProgress,
+} from '@mui/material'
 
 function getDefaultNeedDate() {
   const d = new Date()
@@ -197,292 +203,387 @@ export default function CreateSolicitud() {
     navigate('/dashboard')
   }, [navigate])
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []).slice(0, 5 - form.archivos.length)
+    if (files.length > 0) {
+      setForm(prev => ({ ...prev, archivos: [...prev.archivos, ...files].slice(0, 5) }))
+    }
+    e.target.value = ''
+  }
+
+  const removeFile = (idx) => {
+    setForm(prev => ({
+      ...prev,
+      archivos: prev.archivos.filter((_, i) => i !== idx)
+    }))
+  }
+
+  // Estilos para criticidad
+  const getCriticidadColor = (value) => {
+    switch (value) {
+      case 'Alta': return '#ed6c02'
+      case 'Critica': return '#d32f2f'
+      default: return 'inherit'
+    }
+  }
+
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <PageHeader title={t('create_title', 'CREAR NUEVA SOLICITUD')} />
+    <Container maxWidth="lg" sx={{ py: 2 }}>
+      {/* Header fuera del Paper */}
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <IconButton
+            onClick={() => navigate(-1)}
+            size="small"
+            sx={{ color: 'text.secondary' }}
+          >
+            <ArrowBack />
+          </IconButton>
+          <Typography
+            variant="h5"
+            component="h1"
+            fontWeight={700}
+            color="text.primary"
+            sx={{ textTransform: 'uppercase' }}
+          >
+            {t('create_title', 'Crear nueva solicitud')}
+          </Typography>
+        </Box>
+      </Box>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {/* Alerta de error */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
 
-      <Card>
-        <CardContent className="pt-6">
-          {loadingCatalogos ? (
-            <FormSkeleton rows={6} />
-          ) : (
-            <form onSubmit={onSubmit} className="space-y-6">
-              {/* ═══════════════════════════════════════════════════════════════
-                  FILA 1: Datos Logísticos - Grid 3 columnas (Centro, Sector, Almacén)
-                  ═══════════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="centro"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_centro', 'Centro')} <span className="text-red-500">*</span>
-                  </label>
-                  <CustomSelect
-                    id="centro"
-                    name="centro"
-                    value={form.centro}
-                    onChange={onChange}
-                    required
-                    placeholder={t('create_select_centro', 'Selecciona')}
-                    options={catalogos.centros.map((c) => ({
-                      value: c.id,
-                      label: `${c.id} - ${c.nombre || c.descripcion || ''}`,
-                    }))}
-                    aria-label={t('create_centro', 'Centro')}
-                    className="h-[42px]"
+      {/* Formulario dentro de Paper */}
+      <Paper elevation={2} sx={{ p: 3 }}>
+        {loadingCatalogos ? (
+          <FormSkeleton rows={6} />
+        ) : (
+          <form onSubmit={onSubmit}>
+            {/* ═══════════════════════════════════════════════════════════════
+                SECCIÓN 1: Datos de Ubicación
+                ═══════════════════════════════════════════════════════════════ */}
+            <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
+              {t('create_section_ubicacion', 'Datos de ubicación')}
+            </Typography>
+
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  id="centro"
+                  name="centro"
+                  label={t('create_centro', 'Centro')}
+                  value={form.centro}
+                  onChange={onChange}
+                  required
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    {t('create_select_centro', 'Selecciona un centro')}
+                  </MenuItem>
+                  {catalogos.centros.map((c) => (
+                    <MenuItem key={c.id} value={c.id}>
+                      {c.id} - {c.nombre || c.descripcion || ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  id="sector"
+                  name="sector"
+                  label={t('create_sector', 'Sector')}
+                  value={form.sector}
+                  onChange={onChange}
+                  required
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    {t('create_select_sector', 'Selecciona un sector')}
+                  </MenuItem>
+                  {catalogos.sectores.map((s) => (
+                    <MenuItem key={s.nombre} value={s.nombre}>
+                      {s.nombre || s.descripcion || ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  id="almacen"
+                  name="almacen_virtual"
+                  label={t('create_almacen', 'Almacén')}
+                  value={form.almacen_virtual}
+                  onChange={onChange}
+                  required
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    {t('create_select_almacen', 'Selecciona un almacén')}
+                  </MenuItem>
+                  {catalogos.almacenes.map((a) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.id} - {a.nombre || a.descripcion || ''}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECCIÓN 2: Detalles de la Solicitud
+                ═══════════════════════════════════════════════════════════════ */}
+            <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
+              {t('create_section_detalles', 'Detalles de la solicitud')}
+            </Typography>
+
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  id="centro_costos"
+                  name="centro_costos"
+                  label={t('create_centro_costos', 'Centro de costos')}
+                  value={form.centro_costos}
+                  onChange={onChange}
+                  required
+                  placeholder="Ej: CC001"
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  id="criticidad"
+                  name="criticidad"
+                  label={t('create_criticidad', 'Criticidad')}
+                  value={form.criticidad}
+                  onChange={onChange}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    select: {
+                      sx: { color: getCriticidadColor(form.criticidad) }
+                    }
+                  }}
+                >
+                  <MenuItem value="Normal">{t('create_normal', 'Normal')}</MenuItem>
+                  <MenuItem value="Alta" sx={{ color: '#ed6c02' }}>{t('create_alta', 'Alta')}</MenuItem>
+                  <MenuItem value="Critica" sx={{ color: '#d32f2f' }}>{t('create_critica', 'Crítica')}</MenuItem>
+                </TextField>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  id="fecha_necesidad"
+                  name="fecha_necesidad"
+                  label={t('create_fecha', 'Fecha de necesidad')}
+                  value={form.fecha_necesidad}
+                  onChange={onChange}
+                  required
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                />
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECCIÓN 3: Información Adicional
+                ═══════════════════════════════════════════════════════════════ */}
+            <Typography variant="h6" color="text.primary" gutterBottom sx={{ fontWeight: 600 }}>
+              {t('create_section_adicional', 'Información adicional')}
+            </Typography>
+
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              {/* Justificación - 2/3 del espacio */}
+              <Grid size={{ xs: 12, md: 8 }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={5}
+                  id="justificacion"
+                  name="justificacion"
+                  label={t('create_justificacion', 'Justificación')}
+                  value={form.justificacion}
+                  onChange={onChange}
+                  required
+                  placeholder={t('create_justificacion_placeholder', 'Describe brevemente el motivo de la solicitud...')}
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                />
+              </Grid>
+
+              {/* Dropzone de Archivos - 1/3 del espacio */}
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Box
+                  component="label"
+                  htmlFor="file-upload"
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: 133, // Misma altura que el textarea de justificación
+                    border: '2px dashed',
+                    borderColor: form.archivos.length > 0 ? 'primary.main' : 'divider',
+                    borderRadius: 1,
+                    bgcolor: form.archivos.length > 0 ? 'action.selected' : 'grey.50',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  <input
+                    id="file-upload"
+                    type="file"
+                    multiple
+                    hidden
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    onChange={handleFileChange}
                   />
-                </div>
 
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="sector"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_sector', 'Sector')} <span className="text-red-500">*</span>
-                  </label>
-                  <CustomSelect
-                    id="sector"
-                    name="sector"
-                    value={form.sector}
-                    onChange={onChange}
-                    required
-                    placeholder={t('create_select_sector', 'Selecciona')}
-                    options={catalogos.sectores.map((s) => ({
-                      value: s.nombre,
-                      label: s.nombre || s.descripcion || '',
-                    }))}
-                    aria-label={t('create_sector', 'Sector')}
-                    className="h-[42px]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="almacen"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_almacen', 'Almacén')} <span className="text-red-500">*</span>
-                  </label>
-                  <CustomSelect
-                    id="almacen"
-                    name="almacen_virtual"
-                    value={form.almacen_virtual}
-                    onChange={onChange}
-                    required
-                    placeholder={t('create_select_almacen', 'Selecciona')}
-                    options={catalogos.almacenes.map((a) => ({
-                      value: a.id,
-                      label: `${a.id} - ${a.nombre || a.descripcion || ''}`,
-                    }))}
-                    aria-label={t('create_almacen', 'Almacén')}
-                    className="h-[42px]"
-                  />
-                </div>
-              </div>
-
-              {/* ═══════════════════════════════════════════════════════════════
-                  FILA 2: Datos Financieros/Temporales - Grid 3 columnas
-                  (Centro Costos, Criticidad, Fecha)
-                  ═══════════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="centro_costos"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_centro_costos', 'Centro de Costos')} <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    id="centro_costos"
-                    name="centro_costos"
-                    value={form.centro_costos}
-                    onChange={onChange}
-                    required
-                    placeholder="Ej: CC001"
-                    aria-label={t('create_centro_costos', 'Centro de costos')}
-                    className="h-[42px]"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="criticidad"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_criticidad', 'Criticidad')}
-                  </label>
-                  <CustomSelect
-                    id="criticidad"
-                    name="criticidad"
-                    value={form.criticidad}
-                    onChange={onChange}
-                    options={[
-                      { value: 'Normal', label: t('create_normal', 'Normal') },
-                      { value: 'Alta', label: t('create_alta', 'Alta') },
-                      { value: 'Critica', label: t('create_critica', 'Crítica') },
-                    ]}
-                    aria-label={t('create_criticidad', 'Criticidad')}
-                    className={clsx(
-                      "h-[42px]",
-                      form.criticidad === 'Normal' && "[&_.selected-text]:text-blue-600",
-                      form.criticidad === 'Alta' && "[&_.selected-text]:text-amber-500",
-                      form.criticidad === 'Critica' && "[&_.selected-text]:text-red-600"
-                    )}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="fecha_necesidad"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_fecha', 'Fecha de Necesidad')} <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    type="date"
-                    id="fecha_necesidad"
-                    name="fecha_necesidad"
-                    value={form.fecha_necesidad}
-                    onChange={onChange}
-                    required
-                    aria-label={t('create_fecha', 'Fecha de Necesidad')}
-                    className="h-[42px]"
-                  />
-                </div>
-              </div>
-
-              {/* ═══════════════════════════════════════════════════════════════
-                  FILA 3: Justificación + Adjuntos - Grid Asimétrico 2:1
-                  ═══════════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Justificación - 2/3 del espacio */}
-                <div className="md:col-span-2 space-y-1.5">
-                  <label
-                    htmlFor="justificacion"
-                    className="text-xs uppercase font-semibold tracking-wide text-slate-500"
-                  >
-                    {t('create_justificacion', 'Justificación')} <span className="text-red-500">*</span>
-                  </label>
-                  <Textarea
-                    id="justificacion"
-                    name="justificacion"
-                    value={form.justificacion}
-                    onChange={onChange}
-                    className="h-[130px] min-h-[130px] resize-none"
-                    required
-                    placeholder={t('create_justificacion_placeholder', 'Describe brevemente el motivo de la solicitud...')}
-                    aria-label={t('create_justificacion', 'Justificación')}
-                  />
-                </div>
-
-                {/* Adjuntos Compactos - 1/3 del espacio */}
-                <div className="space-y-1.5">
-                  <label className="text-xs uppercase font-semibold tracking-wide text-slate-500">
-                    {t('create_adjuntos', 'Adjuntos')}
-                    <span className="text-slate-400 normal-case font-normal ml-1">(opcional)</span>
-                  </label>
-
-                  {/* Drop Zone Compacta - Minimalista en dark mode */}
-                  <label
-                    htmlFor="file-upload"
-                    className={clsx(
-                      "flex flex-col items-center justify-center cursor-pointer",
-                      "rounded-xl transition-all duration-200",
-                      "border-2 border-dashed",
-                      // Altura: normal en light, compacta en dark
-                      "h-[130px] dark:h-[80px]",
-                      form.archivos.length > 0
-                        ? "border-blue-300 dark:border-blue-500/50 bg-blue-50/50 dark:bg-blue-900/20"
-                        : "border-slate-300 dark:border-slate-600/50 bg-white/30 dark:bg-transparent hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50/30 dark:hover:bg-blue-900/10"
-                    )}
-                  >
-                    <input
-                      id="file-upload"
-                      type="file"
-                      multiple
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []).slice(0, 5 - form.archivos.length)
-                        if (files.length > 0) {
-                          setForm(prev => ({ ...prev, archivos: [...prev.archivos, ...files].slice(0, 5) }))
-                        }
-                        e.target.value = ''
-                      }}
-                    />
-
-                    {form.archivos.length === 0 ? (
-                      <>
-                        <Paperclip className="w-6 h-6 text-blue-500 dark:text-blue-400 dark:mb-0 mb-2" />
-                        {/* Textos solo visibles en light mode */}
-                        <span className="text-sm font-medium text-slate-600 dark:hidden">Arrastra o Clic</span>
-                        <span className="text-[10px] text-slate-400 mt-1 dark:hidden">Máx 5 archivos</span>
-                      </>
-                    ) : (
-                      <div className="w-full px-3 space-y-1.5 overflow-auto max-h-[110px]">
-                        {form.archivos.map((file, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between gap-2 px-2 py-1.5 bg-white/70 dark:bg-slate-700/70 rounded-lg text-xs"
+                  {form.archivos.length === 0 ? (
+                    <>
+                      <CloudUpload sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                        {t('create_dropzone_text', 'Arrastra archivos o haz clic')}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {t('create_dropzone_hint', 'Máx. 5 archivos (PDF, DOC, XLS, IMG)')}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Box sx={{ width: '100%', px: 1.5, py: 1, maxHeight: 120, overflow: 'auto' }}>
+                      {form.archivos.map((file, idx) => (
+                        <Box
+                          key={idx}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                            px: 1.5,
+                            py: 0.75,
+                            mb: 0.5,
+                            bgcolor: 'background.paper',
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                            <AttachFile sx={{ fontSize: 16, color: 'primary.main' }} />
+                            <Typography variant="caption" noWrap sx={{ flex: 1 }}>
+                              {file.name}
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              removeFile(idx)
+                            }}
+                            sx={{
+                              p: 0.25,
+                              '&:hover': { color: 'error.main' }
+                            }}
                           >
-                            <span className="truncate flex-1 text-slate-700 dark:text-slate-200">{file.name}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                setForm(prev => ({
-                                  ...prev,
-                                  archivos: prev.archivos.filter((_, i) => i !== idx)
-                                }))
-                              }}
-                              className="p-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
-                            >
-                              <X className="w-4 h-4 text-red-500" />
-                            </button>
-                          </div>
-                        ))}
-                        {form.archivos.length < 5 && (
-                          <div className="flex items-center justify-center gap-1 py-1 text-[10px] text-blue-500">
-                            <Upload className="w-3 h-3 text-blue-600" />
-                            <span>Agregar más</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </label>
-                </div>
-              </div>
+                            <Close sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Box>
+                      ))}
+                      {form.archivos.length < 5 && (
+                        <Typography
+                          variant="caption"
+                          color="primary"
+                          sx={{ display: 'block', textAlign: 'center', mt: 1 }}
+                        >
+                          + {t('create_add_more', 'Agregar más')}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
 
-              {/* ═══════════════════════════════════════════════════════════════
-                  ACCIONES
-                  ═══════════════════════════════════════════════════════════════ */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/30">
-                <Button
-                  variant="danger"
-                  type="button"
-                  onClick={handleCancel}
-                  aria-label={t('create_cancelar', 'Cancelar y volver al dashboard')}
-                >
-                  {t('common_cancelar', 'Cancelar')}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  aria-label={t('create_submit', 'Crear solicitud y agregar materiales')}
-                >
-                  {submitting
-                    ? t('create_submitting', 'Creando...')
-                    : t('create_btn', 'Crear y agregar materiales')}
-                </Button>
-              </div>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            {/* ═══════════════════════════════════════════════════════════════
+                ACCIONES
+                ═══════════════════════════════════════════════════════════════ */}
+            <Divider sx={{ my: 3 }} />
+
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={handleCancel}
+                sx={{
+                  minWidth: 120,
+                  color: 'text.secondary',
+                  borderColor: 'divider',
+                  '&:hover': {
+                    borderColor: 'text.secondary',
+                    bgcolor: 'action.hover',
+                  }
+                }}
+              >
+                {t('common_cancelar', 'Cancelar')}
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={submitting}
+                startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
+                sx={{ minWidth: 200 }}
+              >
+                {submitting
+                  ? t('create_submitting', 'Creando...')
+                  : t('create_btn', 'Crear y agregar materiales')}
+              </Button>
+            </Box>
+          </form>
+        )}
+      </Paper>
+    </Container>
   )
 }

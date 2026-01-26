@@ -207,7 +207,7 @@ def normalizar_estado(estado: str) -> str:
         "en aprobacion": "submitted",
         "aprobada": "approved",
         "rechazada": "rejected",
-        "en progreso": "in_planning",
+        "en progreso": "processing",
         "en tratamiento": "in_treatment",
         "tratado": "treated",
         "tratada": "treated",

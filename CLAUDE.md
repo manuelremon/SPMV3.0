@@ -33,6 +33,11 @@ cd frontend && npm run build
 # Scripts de inicio rapido (Windows)
 scripts/INICIAR_SPM.bat           # Inicia backend + frontend
 scripts/INICIAR_SPM_RAPIDO.bat    # Inicio sin verificaciones
+
+# Seed de datos de prueba
+python scripts/seed_dev_data.py          # Genera datos de desarrollo
+python scripts/seed_dev_data.py --clean  # Limpia y regenera datos
+python scripts/seed_dev_data.py -v       # Modo verbose
 ```
 
 ## Arquitectura

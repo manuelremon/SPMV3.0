@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card"
 import { ModernDataTable as DataTable } from "../components/features/DataTable";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { ScrollReveal } from "../components/ui/ScrollReveal";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { solicitudes } from "../services/spm";
 import api from "../services/api";
 import { formatCurrency } from "../utils/formatters";
@@ -128,8 +129,17 @@ export default function DashboardPlanificador() {
     { key: "por_planificar", label: t("dash_por_planificar", "Por Planificar"), count: stats.por_planificar },
     { key: "en_proceso", label: t("dash_en_proceso", "En Proceso"), count: stats.en_proceso },
     { key: "completadas", label: t("dash_despachadas", "Despachadas"), count: stats.completadas },
+    { key: "crear", label: t("btn_crear_solicitud", "+ Crear Solicitud"), isAction: true },
   ];
   const currentData = allData[activeTab] || [];
+
+  const handleTabChange = (value) => {
+    if (value === "crear") {
+      navigate("/solicitudes/nueva");
+    } else {
+      setActiveTab(value);
+    }
+  };
 
   const getTableTitle = () => {
     switch (activeTab) {
@@ -144,25 +154,23 @@ export default function DashboardPlanificador() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 p-1 bg-white/50 backdrop-blur-sm rounded-xl border border-white/30">
-          {tabs.map((tab) => (
-            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-              className={clsx("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                activeTab === tab.key ? "bg-white shadow-sm text-blue-600" : "text-slate-600 hover:text-slate-800 hover:bg-white/50")}>
-              <span>{tab.label}</span>
-              <span className={clsx("px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums", activeTab === tab.key ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500")}>{tab.count}</span>
-            </button>
-          ))}
-        </div>
-        <Button as={Link} to="/solicitudes/nueva"><Plus className="w-4 h-4" />{t("dash_new_request", "Nueva Solicitud")}</Button>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.key}
+                value={tab.key}
+                sx={tab.isAction ? { color: '#2196f3', fontWeight: 600 } : undefined}
+              >
+                {tab.isAction ? tab.label : `${tab.label} (${tab.count})`}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-            <h2 className="text-base font-semibold text-slate-800">{getTableTitle()}</h2>
-            <span className="text-xs text-slate-500 tabular-nums">{currentData.length} {t("dash_items", "items")}</span>
-          </div>
           <div className="p-4">
             {loading ? <TableSkeleton rows={5} columns={7} /> : currentData.length === 0 ? (
               <div className="py-16 text-center">

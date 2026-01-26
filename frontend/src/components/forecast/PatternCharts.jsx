@@ -1,15 +1,22 @@
 /**
- * PatternCharts - Gráficos de patrones de demanda
+ * PatternCharts - Graficos de patrones de demanda con MUI X Charts
  *
  * Muestra patrones semanales y mensuales
  */
 
-import React from 'react';
-import LazyPlot from './LazyPlot';
+import React, { useMemo } from 'react';
+import { BarChart } from '@mui/x-charts/BarChart';
 import { useI18n } from '../../context/i18n';
 
-const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+// Colores MUI oficial
+const COLORS = {
+  semanal: '#1976d2',      // MUI Blue 700
+  finDeSemana: '#2e7d32',  // MUI Green 800
+  mensual: '#9c27b0',      // MUI Purple 500
+};
 
 const PatternCharts = ({
   patronSemanal = null,
@@ -18,6 +25,22 @@ const PatternCharts = ({
   className = ''
 }) => {
   const { t } = useI18n();
+
+  // Preparar datos semanales
+  const semanalData = useMemo(() => {
+    if (!patronSemanal) return { values: [], colors: [] };
+    const values = Object.values(patronSemanal);
+    const colors = DIAS_SEMANA.map((_, i) =>
+      i >= 5 ? COLORS.finDeSemana : COLORS.semanal
+    );
+    return { values, colors };
+  }, [patronSemanal]);
+
+  // Preparar datos mensuales
+  const mensualData = useMemo(() => {
+    if (!patronMensual) return [];
+    return Object.values(patronMensual);
+  }, [patronMensual]);
 
   if (loading) {
     return (
@@ -32,78 +55,66 @@ const PatternCharts = ({
     );
   }
 
-  const semanalData = patronSemanal ? [{
-    x: DIAS_SEMANA,
-    y: Object.values(patronSemanal),
-    type: 'bar',
-    marker: {
-      color: DIAS_SEMANA.map((_, i) =>
-        i === 4 || i === 5 ? '#10b981' : '#3b82f6'
-      )
-    },
-    text: Object.values(patronSemanal).map(v => v?.toFixed(1)),
-    textposition: 'outside'
-  }] : [];
-
-  const mensualData = patronMensual ? [{
-    x: MESES,
-    y: Object.values(patronMensual),
-    type: 'bar',
-    marker: { color: '#8b5cf6' },
-    text: Object.values(patronMensual).map(v => v?.toFixed(1)),
-    textposition: 'outside'
-  }] : [];
-
-  const semanalLayout = {
-    title: t('forecast_patron_semanal', 'Patrón Semanal'),
-    xaxis: { title: '' },
-    yaxis: { title: t('forecast_demanda_promedio', 'Demanda Promedio') },
-    margin: { t: 40, r: 20, b: 40, l: 50 },
-    height: 250,
-    showlegend: false
-  };
-
-  const mensualLayout = {
-    title: t('forecast_patron_mensual', 'Patrón Mensual'),
-    xaxis: { title: '' },
-    yaxis: { title: t('forecast_demanda_promedio', 'Demanda Promedio') },
-    margin: { t: 40, r: 20, b: 40, l: 50 },
-    height: 250,
-    showlegend: false
-  };
-
-  const config = { responsive: true, displaylogo: false };
-
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${className}`}>
-      {/* Patrón semanal */}
+      {/* Patron semanal */}
       <div className="p-4 bg-white rounded-lg border">
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">
+          {t('forecast_patron_semanal', 'Patron Semanal')}
+        </h3>
         {patronSemanal ? (
-          <LazyPlot
-            data={semanalData}
-            layout={semanalLayout}
-            config={config}
-            style={{ width: '100%' }}
+          <BarChart
+            xAxis={[{
+              scaleType: 'band',
+              data: DIAS_SEMANA,
+            }]}
+            series={[{
+              data: semanalData.values,
+              color: COLORS.semanal,
+              valueFormatter: (value) => value?.toFixed(1) || '-',
+            }]}
+            height={220}
+            margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
+            slotProps={{
+              legend: { hidden: true },
+            }}
+            grid={{ horizontal: true }}
+            barLabel="value"
           />
         ) : (
           <div className="flex items-center justify-center h-48 text-slate-400">
-            {t('forecast_sin_patron_semanal', 'Sin datos de patrón semanal')}
+            {t('forecast_sin_patron_semanal', 'Sin datos de patron semanal')}
           </div>
         )}
       </div>
 
-      {/* Patrón mensual */}
+      {/* Patron mensual */}
       <div className="p-4 bg-white rounded-lg border">
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">
+          {t('forecast_patron_mensual', 'Patron Mensual')}
+        </h3>
         {patronMensual ? (
-          <LazyPlot
-            data={mensualData}
-            layout={mensualLayout}
-            config={config}
-            style={{ width: '100%' }}
+          <BarChart
+            xAxis={[{
+              scaleType: 'band',
+              data: MESES,
+            }]}
+            series={[{
+              data: mensualData,
+              color: COLORS.mensual,
+              valueFormatter: (value) => value?.toFixed(1) || '-',
+            }]}
+            height={220}
+            margin={{ top: 10, bottom: 30, left: 40, right: 10 }}
+            slotProps={{
+              legend: { hidden: true },
+            }}
+            grid={{ horizontal: true }}
+            barLabel="value"
           />
         ) : (
           <div className="flex items-center justify-center h-48 text-slate-400">
-            {t('forecast_sin_patron_mensual', 'Sin datos de patrón mensual')}
+            {t('forecast_sin_patron_mensual', 'Sin datos de patron mensual')}
           </div>
         )}
       </div>

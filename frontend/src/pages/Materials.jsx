@@ -25,6 +25,7 @@ import { ConfirmModal } from '../components/ui/ConfirmModal'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Badge } from '../components/ui/Badge'
 import { ScrollReveal } from '../components/ui/ScrollReveal'
+import { ParallaxSection } from '../components/ui/ParallaxSection'
 import { Loader2, Check, X, Sparkles, Eye } from '../components/ui/Icons'
 
 // Material-specific components
@@ -90,25 +91,28 @@ export default function Materials() {
       )}
 
       {/* Search and Context Section */}
-      <ScrollReveal delay={100}>
-        <Card hover={false}>
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: Search */}
-              <SearchSection m={m} t={t} />
+      <ParallaxSection.Light>
+        <ScrollReveal delay={100}>
+          <Card hover={false}>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left: Search */}
+                <SearchSection m={m} t={t} />
 
-              {/* Center: Selected Material */}
-              <SelectedMaterialSection m={m} t={t} />
+                {/* Center: Selected Material */}
+                <SelectedMaterialSection m={m} t={t} />
 
-              {/* Right: Context Info */}
-              <ContextSection m={m} t={t} />
-            </div>
-          </CardContent>
-        </Card>
-      </ScrollReveal>
+                {/* Right: Context Info */}
+                <ContextSection m={m} t={t} />
+              </div>
+            </CardContent>
+          </Card>
+        </ScrollReveal>
+      </ParallaxSection.Light>
 
       {/* Materials Summary Section */}
-      <ScrollReveal delay={200}>
+      <ParallaxSection.Moderate>
+        <ScrollReveal delay={200}>
         <Card hover={false}>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -159,6 +163,7 @@ export default function Materials() {
           </CardContent>
         </Card>
       </ScrollReveal>
+      </ParallaxSection.Moderate>
 
       {/* Material Detail Modal */}
       <MaterialDetailModal

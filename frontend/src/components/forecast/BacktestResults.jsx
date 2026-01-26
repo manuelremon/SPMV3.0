@@ -1,15 +1,100 @@
 /**
- * BacktestResults - Resultados de backtesting
+ * BacktestResults - Resultados de backtesting con MUI DataGrid y MUI X Charts
  *
- * Muestra métricas y gráficos de validación walk-forward
+ * Muestra metricas y graficos de validacion walk-forward
  */
 
-import React from 'react';
-import LazyPlot from './LazyPlot';
+import React, { useMemo } from 'react';
+import { BarChart } from '@mui/x-charts/BarChart';
 import { useI18n } from '../../context/i18n';
+import { SPMDataGrid } from '../ui/SPMDataGrid';
+
+// Colores MUI oficial
+const COLORS = {
+  mae: '#1976d2',      // MUI Blue 700
+  rmse: '#9c27b0',     // MUI Purple 500
+};
 
 const BacktestResults = ({ data, loading = false, className = '' }) => {
   const { t } = useI18n();
+
+  // Preparar filas para el DataGrid
+  const rows = useMemo(() => {
+    if (!data?.steps) return [];
+    return data.steps.map((step, i) => ({
+      id: i,
+      paso: i + 1,
+      fecha_corte: new Date(step.fecha_corte),
+      n_train: step.n_train,
+      n_test: step.n_test,
+      mae: step.mae,
+      r2: step.r2,
+    }));
+  }, [data?.steps]);
+
+  // Definir columnas
+  const columns = useMemo(() => [
+    {
+      field: 'paso',
+      headerName: 'Paso',
+      width: 80,
+      type: 'number',
+      align: 'center',
+      headerAlign: 'center',
+    },
+    {
+      field: 'fecha_corte',
+      headerName: 'Fecha Corte',
+      width: 130,
+      type: 'date',
+      align: 'center',
+      headerAlign: 'center',
+      valueFormatter: (value) => {
+        if (!value) return '-';
+        return value.toLocaleDateString('es-ES');
+      },
+    },
+    {
+      field: 'n_train',
+      headerName: 'Train',
+      width: 90,
+      type: 'number',
+      align: 'right',
+      headerAlign: 'center',
+    },
+    {
+      field: 'n_test',
+      headerName: 'Test',
+      width: 90,
+      type: 'number',
+      align: 'right',
+      headerAlign: 'center',
+    },
+    {
+      field: 'mae',
+      headerName: 'MAE',
+      width: 100,
+      type: 'number',
+      align: 'right',
+      headerAlign: 'center',
+      valueFormatter: (value) => value?.toFixed(2) || '-',
+      renderCell: (params) => (
+        <span className="font-medium">{params.value?.toFixed(2) || '-'}</span>
+      ),
+    },
+    {
+      field: 'r2',
+      headerName: 'R2',
+      width: 100,
+      type: 'number',
+      align: 'right',
+      headerAlign: 'center',
+      valueFormatter: (value) => value?.toFixed(4) || '-',
+      renderCell: (params) => (
+        <span className="font-medium">{params.value?.toFixed(4) || '-'}</span>
+      ),
+    },
+  ], []);
 
   if (loading) {
     return (
@@ -31,36 +116,17 @@ const BacktestResults = ({ data, loading = false, className = '' }) => {
     return null;
   }
 
-  const { metricas_agregadas, steps, es_estable, modelo_tipo } = data;
+  const { metricas_agregadas, steps, es_estable } = data;
 
-  // Datos para el gráfico de métricas por paso
-  const chartData = [
-    {
-      x: steps?.map((_, i) => `Paso ${i + 1}`) || [],
-      y: steps?.map(s => s.mae) || [],
-      type: 'bar',
-      name: 'MAE',
-      marker: { color: '#3b82f6' }
-    },
-    {
-      x: steps?.map((_, i) => `Paso ${i + 1}`) || [],
-      y: steps?.map(s => s.rmse) || [],
-      type: 'bar',
-      name: 'RMSE',
-      marker: { color: '#8b5cf6' }
-    }
-  ];
-
-  const chartLayout = {
-    title: t('forecast_backtest_metricas_paso', 'Métricas por Paso de Validación'),
-    barmode: 'group',
-    xaxis: { title: '' },
-    yaxis: { title: t('forecast_error', 'Error') },
-    showlegend: true,
-    legend: { orientation: 'h', y: 1.1 },
-    margin: { t: 60, r: 20, b: 40, l: 60 },
-    height: 300
-  };
+  // Datos para el grafico de metricas por paso (MUI X Charts)
+  const chartData = useMemo(() => {
+    if (!steps || steps.length === 0) return { labels: [], mae: [], rmse: [] };
+    return {
+      labels: steps.map((_, i) => `Paso ${i + 1}`),
+      mae: steps.map(s => s.mae || 0),
+      rmse: steps.map(s => s.rmse || 0),
+    };
+  }, [steps]);
 
   return (
     <div className={`p-6 bg-white rounded-lg border ${className}`}>
@@ -80,7 +146,7 @@ const BacktestResults = ({ data, loading = false, className = '' }) => {
         </span>
       </div>
 
-      {/* Métricas resumidas */}
+      {/* Metricas resumidas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-600 font-medium">MAE Promedio</p>
@@ -88,7 +154,7 @@ const BacktestResults = ({ data, loading = false, className = '' }) => {
             {metricas_agregadas?.mae_mean?.toFixed(2) || '-'}
           </p>
           <p className="text-xs text-blue-500">
-            ±{metricas_agregadas?.mae_std?.toFixed(2) || '0'}
+            +/-{metricas_agregadas?.mae_std?.toFixed(2) || '0'}
           </p>
         </div>
 
@@ -100,7 +166,7 @@ const BacktestResults = ({ data, loading = false, className = '' }) => {
         </div>
 
         <div className="p-3 bg-green-50 rounded-lg">
-          <p className="text-xs text-green-600 font-medium">R² Promedio</p>
+          <p className="text-xs text-green-600 font-medium">R2 Promedio</p>
           <p className="text-xl font-bold text-green-700">
             {metricas_agregadas?.r2_mean?.toFixed(4) || '-'}
           </p>
@@ -114,45 +180,63 @@ const BacktestResults = ({ data, loading = false, className = '' }) => {
         </div>
       </div>
 
-      {/* Gráfico de métricas por paso */}
+      {/* Grafico de metricas por paso - MUI X Charts */}
       {steps && steps.length > 0 && (
-        <LazyPlot
-          data={chartData}
-          layout={chartLayout}
-          config={{ responsive: true, displaylogo: false }}
-          style={{ width: '100%' }}
-        />
+        <div className="mb-4">
+          <h4 className="text-sm font-medium text-slate-700 mb-2">
+            {t('forecast_backtest_metricas_paso', 'Metricas por Paso de Validacion')}
+          </h4>
+          <BarChart
+            xAxis={[{
+              scaleType: 'band',
+              data: chartData.labels,
+            }]}
+            series={[
+              {
+                data: chartData.mae,
+                label: 'MAE',
+                color: COLORS.mae,
+                valueFormatter: (value) => value?.toFixed(2) || '-',
+              },
+              {
+                data: chartData.rmse,
+                label: 'RMSE',
+                color: COLORS.rmse,
+                valueFormatter: (value) => value?.toFixed(2) || '-',
+              },
+            ]}
+            height={280}
+            margin={{ top: 20, bottom: 40, left: 50, right: 20 }}
+            slotProps={{
+              legend: {
+                direction: 'row',
+                position: { vertical: 'top', horizontal: 'right' },
+                padding: 0,
+                itemMarkWidth: 10,
+                itemMarkHeight: 10,
+              },
+            }}
+            grid={{ horizontal: true }}
+          />
+        </div>
       )}
 
-      {/* Tabla de detalle por paso */}
-      {steps && steps.length > 0 && (
-        <div className="mt-4 overflow-x-auto rounded-xl border border-white/30">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--bg-soft)] backdrop-blur-sm border-b-2 border-[var(--border)]">
-              <tr>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">Paso</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">Fecha Corte</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">Train</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">Test</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)] border-r border-b border-slate-200">MAE</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-[var(--fg-muted)]">R²</th>
-              </tr>
-            </thead>
-            <tbody>
-              {steps.map((step, i) => (
-                <tr key={i} className="border-b border-slate-100">
-                  <td className="px-3 py-2 font-medium">{i + 1}</td>
-                  <td className="px-3 py-2 text-slate-600">
-                    {new Date(step.fecha_corte).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 py-2 text-right">{step.n_train}</td>
-                  <td className="px-3 py-2 text-right">{step.n_test}</td>
-                  <td className="px-3 py-2 text-right font-medium">{step.mae?.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right font-medium">{step.r2?.toFixed(4)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Tabla de detalle por paso con DataGrid */}
+      {rows.length > 0 && (
+        <div className="mt-4">
+          <SPMDataGrid
+            rows={rows}
+            columns={columns}
+            height={300}
+            density="compact"
+            showToolbar={false}
+            pageSizeOptions={[5, 10, 25]}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 5 }
+              }
+            }}
+          />
         </div>
       )}
     </div>

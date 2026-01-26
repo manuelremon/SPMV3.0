@@ -1,15 +1,16 @@
 /**
- * Layout Component - Sidebar-based navigation
- * Glass Morphism Design (Apple/iOS Style)
- * Gradient background with glass effects
+ * Layout Component - Header-based navigation
+ * Navegacion horizontal en el header (reemplaza sidebar)
  *
  * Inicializa conexion de tiempo real (SSE) para notificaciones
  */
 
 import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { MessageSquare, Wifi, WifiOff, User, Settings, LogOut, ChevronDown, Bell, Home } from "./ui/Icons";
+import { MessageSquare, Wifi, User, Settings, LogOut, ChevronDown, Bell, Home } from "./ui/Icons";
 import Badge from "@mui/material/Badge";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import { useRealtimeStore } from "../store/realtimeStore";
 import clsx from "clsx";
 import { useTheme } from "@mui/material/styles";
@@ -18,7 +19,7 @@ import { useAuthStore } from "../store/authStore";
 import { useVertexStore } from "../store/vertexStore";
 import { useRealtime } from "../hooks/useRealtime";
 import ChatAssistant from "./ChatAssistant";
-import Sidebar from "./Sidebar";
+import HeaderNav from "./HeaderNav";
 import ToastContainer from "./ui/ToastContainer";
 import SkipLink from "./ui/SkipLink";
 import { useI18n } from "../context/i18n";
@@ -30,8 +31,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const { toggleChat, getUnshownAlertsCount } = useVertexStore();
   const unshownAlertsCount = getUnshownAlertsCount();
   const unreadCount = useRealtimeStore((state) => state.unreadCount);
@@ -42,25 +42,10 @@ export default function Layout({ children }) {
     enabled: !!user
   });
 
-  // Load sidebar state from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("spm-sidebar-collapsed");
-    if (saved !== null) {
-      setSidebarCollapsed(JSON.parse(saved));
-    }
-  }, []);
-
   // Close user menu on route change
   useEffect(() => {
-    setUserMenuOpen(false);
+    setUserMenuAnchor(null);
   }, [location.pathname]);
-
-  // Save sidebar state
-  const handleSidebarToggle = () => {
-    const newState = !sidebarCollapsed;
-    setSidebarCollapsed(newState);
-    localStorage.setItem("spm-sidebar-collapsed", JSON.stringify(newState));
-  };
 
   // Handle logout
   const handleLogout = useCallback(() => {
@@ -76,39 +61,151 @@ export default function Layout({ children }) {
       <SkipLink targetId="main-content" />
 
       {/* Header Menu - 43px alto, ancho completo */}
-      <header className="fixed top-0 left-0 right-0 h-[43px] z-50 bg-[#bdbdbd] border-b border-[#9e9e9e] flex items-center justify-between pr-4">
-        {/* App name izquierda - 43x43px box + Home icon */}
-        <div className="flex items-center">
-          <div className="w-[43px] h-[43px] flex items-center justify-center bg-[#093170] border-r border-[#757575] -ml-px">
+      <header className="fixed top-0 left-0 right-0 h-[43px] z-50 bg-[#212121] border-b border-[#424242] flex items-center">
+        {/* Izquierda: Logo SPM */}
+        <div className="flex-shrink-0">
+          <div className="w-[86px] h-[43px] flex items-center justify-center bg-[#fc1b80] border-r border-[#424242]">
             <span className="text-sm font-bold text-[#bbdefb] uppercase tracking-wide">
               {t("app_name", "SPM")}
             </span>
           </div>
-          {/* Home icon */}
-          <NavLink
-            to="/dashboard"
-            className={clsx(
-              "flex items-center justify-center w-10 h-[43px] transition-all duration-200",
-              isPathActive("/dashboard")
-                ? "bg-[#1976d2] text-white"
-                : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-            )}
-            title={t("nav_dashboard", "Dashboard")}
-          >
-            <Home className={clsx("w-5 h-5", isPathActive("/dashboard") ? "text-white" : "text-[#212121]")} />
-          </NavLink>
         </div>
 
-        {/* Notificaciones + User Menu derecha */}
-        <div className="flex items-center gap-2">
+        {/* Centro: Dashboard + Navegación (centrado) */}
+        <div className="flex-1 flex items-center justify-center h-[43px]">
+          <div className="flex items-center">
+            {/* Home icon */}
+            <NavLink
+              to="/dashboard"
+              className={clsx(
+                "flex items-center justify-center w-[43px] h-[43px] border-l border-r border-[#424242] transition-all duration-200",
+                isPathActive("/dashboard")
+                  ? "bg-[#1976d2] text-white"
+                  : "text-white hover:bg-[#424242]"
+              )}
+              title={t("nav_dashboard", "Dashboard")}
+            >
+              <Home className="w-5 h-5" />
+            </NavLink>
+            {/* Header Navigation */}
+            <HeaderNav />
+          </div>
+        </div>
+
+        {/* Derecha: User Menu + Notificaciones */}
+        <div className="flex-shrink-0 flex items-center h-[43px]">
+          {/* User Menu - primero, con mismo estilo que botones del menú */}
+          <div className="h-[43px] border-l border-[#424242]">
+            <button
+              type="button"
+              onClick={(e) => setUserMenuAnchor(e.currentTarget)}
+              className={clsx(
+                "flex items-center gap-2 h-[43px] px-4 transition-all duration-200",
+                "text-[10px] font-semibold uppercase tracking-wide",
+                userMenuAnchor || isPathActive("/mi-cuenta") || isPathActive("/ajustes")
+                  ? "bg-[#1976d2] text-white"
+                  : "text-white hover:bg-[#424242]"
+              )}
+            >
+              <span className="truncate max-w-[100px]">
+                {user?.nombre || t("user_default", "Usuario")}
+              </span>
+              <ChevronDown
+                className={clsx(
+                  "w-3 h-3 transition-transform duration-200",
+                  userMenuAnchor && "rotate-180"
+                )}
+              />
+            </button>
+
+            {/* Dropdown Menu - MUI Menu */}
+            <Menu
+              anchorEl={userMenuAnchor}
+              open={Boolean(userMenuAnchor)}
+              onClose={() => setUserMenuAnchor(null)}
+              disableScrollLock={true}
+              MenuListProps={{ sx: { py: 0 } }}
+              PaperProps={{
+                sx: {
+                  minWidth: 150,
+                  backgroundColor: '#212121',
+                  border: '1px solid #424242',
+                }
+              }}
+            >
+              <MenuItem
+                component={NavLink}
+                to="/mi-cuenta"
+                onClick={() => setUserMenuAnchor(null)}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  py: 1,
+                  px: 2,
+                  color: 'white',
+                  borderBottom: '1px solid #424242',
+                  backgroundColor: isPathActive("/mi-cuenta") ? '#1976d2' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: isPathActive("/mi-cuenta") ? '#1565c0' : '#424242',
+                  },
+                }}
+              >
+                {t("user_mi_cuenta", "Mi Cuenta")}
+              </MenuItem>
+              <MenuItem
+                component={NavLink}
+                to="/ajustes"
+                onClick={() => setUserMenuAnchor(null)}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  py: 1,
+                  px: 2,
+                  color: 'white',
+                  borderBottom: '1px solid #424242',
+                  backgroundColor: isPathActive("/ajustes") ? '#1976d2' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: isPathActive("/ajustes") ? '#1565c0' : '#424242',
+                  },
+                }}
+              >
+                {t("user_ajustes", "Ajustes")}
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setUserMenuAnchor(null);
+                  handleLogout();
+                }}
+                sx={{
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  py: 1,
+                  px: 2,
+                  color: '#ef5350',
+                  '&:hover': {
+                    backgroundColor: '#424242',
+                  },
+                }}
+              >
+                {t("user_logout", "Cerrar Sesión")}
+              </MenuItem>
+            </Menu>
+          </div>
+
           {/* Botón Notificaciones */}
           <NavLink
             to="/centro-interaccion"
             className={clsx(
-              "flex items-center justify-center w-8 h-8 rounded-none transition-all duration-200",
+              "flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242] transition-all duration-200",
               isPathActive("/centro-interaccion")
                 ? "bg-[#1976d2] text-white"
-                : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
+                : "text-white hover:bg-[#424242]"
             )}
             title={t("nav_notificaciones", "Notificaciones")}
           >
@@ -124,7 +221,7 @@ export default function Layout({ children }) {
                 }
               }}
             >
-              <Bell className={clsx("w-4 h-4", unreadCount > 0 && "animate-notification-blink", isPathActive("/centro-interaccion") ? "text-white" : "text-[#212121]")} />
+              <Bell className={clsx("w-4 h-4", unreadCount > 0 && "animate-notification-blink")} />
             </Badge>
           </NavLink>
 
@@ -132,121 +229,43 @@ export default function Layout({ children }) {
           <NavLink
             to="/foro"
             className={clsx(
-              "flex items-center justify-center w-8 h-8 rounded-none transition-all duration-200",
+              "flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242] transition-all duration-200",
               isPathActive("/foro")
                 ? "bg-[#1976d2] text-white"
-                : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
+                : "text-white hover:bg-[#424242]"
             )}
             title={t("nav_foro", "Foro")}
           >
-            <MessageSquare className={clsx("w-4 h-4", isPathActive("/foro") ? "text-white" : "text-[#212121]")} />
+            <MessageSquare className="w-4 h-4" />
           </NavLink>
 
-          {/* User Menu */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 rounded-none transition-all duration-200 text-[10px] font-medium px-2 py-1.5 text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-            >
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-[8px] shadow-md">
-                {user?.nombre?.[0]?.toUpperCase() || "U"}
-              </div>
-              <p className="text-[10px] font-medium text-[#212121] truncate max-w-[80px]">
-                {user?.nombre || t("user_default", "Usuario")}
-              </p>
-            </div>
-            <ChevronDown
-              className={clsx(
-                "w-3 h-3 transition-transform duration-200 text-black",
-                userMenuOpen && "rotate-180"
-              )}
-            />
-          </button>
-
-          {/* Dropdown Menu */}
-          {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-40 bg-[#bdbdbd] border border-[#9e9e9e] shadow-lg animate-fade-in">
-              <NavLink
-                to="/mi-cuenta"
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-2 transition-all duration-200",
-                  "text-[10px] font-medium uppercase tracking-wide",
-                  isPathActive("/mi-cuenta")
-                    ? "bg-[#1976d2] text-white"
-                    : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-                )}
-              >
-                <User className="w-3 h-3 text-[#212121]" />
-                <span>{t("user_mi_cuenta", "Mi Cuenta")}</span>
-              </NavLink>
-              <NavLink
-                to="/ajustes"
-                className={clsx(
-                  "flex items-center gap-2 px-3 py-2 transition-all duration-200",
-                  "text-[10px] font-medium uppercase tracking-wide",
-                  isPathActive("/ajustes")
-                    ? "bg-[#1976d2] text-white"
-                    : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-                )}
-              >
-                <Settings className="w-3 h-3 text-[#212121]" />
-                <span>{t("user_ajustes", "Ajustes")}</span>
-              </NavLink>
-              <div className="border-t border-[#9e9e9e]" />
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 w-full transition-all duration-200 text-[10px] font-medium uppercase tracking-wide text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-              >
-                <LogOut className="w-3 h-3 text-[#212121]" />
-                <span>{t("user_logout", "Cerrar Sesión")}</span>
-              </button>
-            </div>
-          )}
-          </div>
-
-          {/* Connection Status Indicator - Wifi icon with fill animation */}
+          {/* Connection Status Indicator */}
           <div
-            className="relative flex items-center justify-center w-6 h-6"
+            className="flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242]"
             title={isConnected ? "Real Time" : "Offline"}
           >
-            {/* Base icon (gray) */}
-            <Wifi className="w-4 h-4 text-[#9e9e9e] absolute" />
-            {/* Animated fill icon (white) - only visible when connected */}
-            {isConnected && (
-              <Wifi className="w-4 h-4 text-white absolute animate-wifi-fill" />
-            )}
+            <div className="relative flex items-center justify-center w-6 h-6">
+              <Wifi className="w-4 h-4 text-[#616161] absolute" />
+              {isConnected && (
+                <Wifi className="w-4 h-4 text-[#4caf50] absolute animate-wifi-fill" />
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Sidebar */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={handleSidebarToggle}
-      />
-
-      {/* Main content area */}
+      {/* Main content area - sin sidebar */}
       <div
         className={clsx(
           "min-h-screen transition-all duration-300 ease-spring",
           // Padding top para el header (43px)
-          "pt-[43px]",
-          // En móvil (<768px): sin margin-left (sidebar está oculto)
-          // En desktop: margin según estado del sidebar (160px expandido)
-          isMobile ? "ml-0" : (sidebarCollapsed ? "ml-[43px]" : "ml-[160px]")
+          "pt-[43px]"
         )}
       >
         {/* Page content - Responsive padding */}
         <main
           id="main-content"
-          className={clsx(
-            "p-3 sm:p-4 lg:p-6",
-            // Padding top extra en móvil para el hamburger button
-            isMobile && "pt-16"
-          )}
+          className="p-3 sm:p-4 lg:p-6"
           tabIndex={-1}
         >
           {children}
@@ -264,15 +283,14 @@ export default function Layout({ children }) {
           // Tamaño responsive
           isMobile ? "h-12 w-12" : "h-14 w-14",
           "rounded-full grid place-items-center",
-          "bg-gradient-to-r from-violet-500 to-purple-600",
-          "text-white shadow-lg shadow-violet-500/30",
-          "hover:shadow-xl hover:shadow-violet-500/40",
-          "hover:from-violet-600 hover:to-purple-700",
+          "text-white shadow-lg",
+          "hover:shadow-xl",
           "transition-all duration-300 ease-spring",
           "hover:scale-105",
           // Touch target mínimo de 44px
           "min-h-[44px] min-w-[44px]"
         )}
+        style={{ backgroundColor: '#fc1b80' }}
         aria-label="Abrir Vertex IA"
         title={t("tooltip_chat", "Vertex IA - Asistente")}
       >

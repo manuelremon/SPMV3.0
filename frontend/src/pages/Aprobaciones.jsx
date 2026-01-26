@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { solicitudes } from "../services/spm";
 import { useAuthStore } from "../store/authStore";
 import { Button } from "../components/ui/Button";
@@ -16,7 +17,7 @@ import { formatCurrency, formatAlmacen, formatDate } from "../utils/formatters";
 import { useDebounced } from "../hooks/useDebounced";
 import { Modal } from "../components/ui/Modal";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/Tabs";
-import { XCircle, CheckCircle, RefreshCw, Eye, Package, Clock, ICON_COLORS } from "../components/ui/Icons";
+import { XCircle, CheckCircle, RefreshCw, Eye, Package, Clock, ICON_COLORS, AlertTriangle, DollarSign } from "../components/ui/Icons";
 import { getCriticidadConfig } from "../utils/styleConfig";
 
 const DEBOUNCE_MS = 300;
@@ -24,6 +25,7 @@ const DEBOUNCE_MS = 300;
 export default function Aprobaciones() {
   const { user } = useAuthStore();
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("pendientes");
   const [items, setItems] = useState([]);
   const [historial, setHistorial] = useState([]);
@@ -36,6 +38,8 @@ export default function Aprobaciones() {
   const [rejectModal, setRejectModal] = useState({ open: false, id: null, motivo: "" });
   const [refreshing, setRefreshing] = useState(false);
   const [detailModal, setDetailModal] = useState({ open: false, solicitud: null });
+  const [budgetErrorModal, setBudgetErrorModal] = useState({ open: false, message: "", solicitudId: null });
+  const [successModal, setSuccessModal] = useState({ open: false, message: "" });
 
   // Check if user is admin (can see all pending approvals)
   const isAdmin = useMemo(() => {
@@ -149,11 +153,20 @@ export default function Aprobaciones() {
     setError("");
     try {
       await solicitudes.aprobar(id);
-      setMsg(t("aprov_aprobada_msg", "Solicitud aprobada y asignada a planificador."));
-      setTimeout(() => setMsg(""), 3000);
+      // Mostrar modal de éxito que desaparece en 5 segundos
+      setSuccessModal({ open: true, message: t("aprov_aprobada_msg", "Solicitud aprobada y asignada a planificador") });
+      setTimeout(() => setSuccessModal({ open: false, message: "" }), 5000);
       load();
     } catch (err) {
-      setError(err.response?.data?.error?.message || err.message);
+      const errorCode = err.response?.data?.error?.code;
+      const errorMessage = err.response?.data?.error?.message || err.message;
+
+      // Si es error de saldo insuficiente, mostrar modal especial
+      if (errorCode === "saldo_insuficiente" || errorMessage.toLowerCase().includes("saldo insuficiente")) {
+        setBudgetErrorModal({ open: true, message: errorMessage, solicitudId: id });
+      } else {
+        setError(errorMessage);
+      }
     }
   }, [load, t]);
 
@@ -257,14 +270,10 @@ export default function Aprobaciones() {
       },
       render: (row) => {
         const config = getCriticidadConfig(row.criticidad);
-        const Icon = config.icon;
         return (
-          <div className="flex items-center justify-center gap-1.5">
-            <Icon className="w-4 h-4" style={{ color: config.color }} />
-            <span style={{ color: config.color }} className="text-xs font-semibold uppercase">
-              {config.label}
-            </span>
-          </div>
+          <span style={{ color: config.color }} className="text-xs font-semibold">
+            {config.label}
+          </span>
         );
       },
     },
@@ -363,16 +372,9 @@ export default function Aprobaciones() {
             <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
               <TabsList>
                 <TabsTrigger value="pendientes">
-                  <CheckCircle className={`w-4 h-4 ${ICON_COLORS.success}`} />
-                  {t("aprov_tab_pendientes", "Pendientes")}
-                  {items.length > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full">
-                      {items.length}
-                    </span>
-                  )}
+                  {t("aprov_tab_pendientes", "Pendientes")} ({items.length})
                 </TabsTrigger>
                 <TabsTrigger value="historial">
-                  <Clock className={`w-4 h-4 ${ICON_COLORS.time}`} />
                   {t("aprov_tab_historial", "Historial")}
                 </TabsTrigger>
               </TabsList>
@@ -636,6 +638,61 @@ export default function Aprobaciones() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de éxito (desaparece en 5 segundos) */}
+      <Modal
+        isOpen={successModal.open}
+        onClose={() => setSuccessModal({ open: false, message: "" })}
+        title={<span className="text-green-600 uppercase font-bold">{t("common_exito", "Operación Exitosa")}</span>}
+        size="sm"
+        footer={null}
+      >
+        <div className="flex items-center gap-4 p-4">
+          <CheckCircle className="w-12 h-12 text-green-500 flex-shrink-0" />
+          <p className="text-base text-slate-700 dark:text-slate-300 font-medium">
+            {successModal.message}
+          </p>
+        </div>
+      </Modal>
+
+      {/* Modal de error de presupuesto insuficiente */}
+      <Modal
+        isOpen={budgetErrorModal.open}
+        onClose={() => setBudgetErrorModal({ open: false, message: "", solicitudId: null })}
+        title={<span className="text-red-600 uppercase font-bold">{t("aprov_presupuesto_insuficiente", "Presupuesto Insuficiente")}</span>}
+        size="md"
+        footer={
+          <div className="flex justify-end w-full">
+            <Button
+              onClick={() => {
+                setBudgetErrorModal({ open: false, message: "", solicitudId: null });
+                navigate("/presupuestos/nueva");
+              }}
+              type="button"
+              className="uppercase"
+            >
+              {t("aprov_solicitar_presupuesto", "Solicitar Presupuesto")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-700/50">
+            <AlertTriangle className="w-8 h-8 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                {t("aprov_no_se_puede_aprobar", "No se puede aprobar la solicitud")}
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                {budgetErrorModal.message}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {t("aprov_presupuesto_ayuda", "Para aprobar esta solicitud, solicita un aumento de presupuesto")}
+          </p>
+        </div>
       </Modal>
     </div>
   );

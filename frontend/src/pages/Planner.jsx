@@ -171,22 +171,13 @@ export default function Planner() {
       render: (row) => {
         const criticidad = row.criticidad || "Normal";
         const config = getCriticidadConfig(criticidad);
-        const Icon = config.icon;
         return (
-          <div className="inline-flex items-center gap-1.5">
-            {Icon && (
-              <Icon
-                className="w-4 h-4 flex-shrink-0"
-                style={{ color: config.color }}
-              />
-            )}
-            <span
-              className="text-xs font-semibold tracking-wide uppercase"
-              style={{ color: config.color }}
-            >
-              {config.label}
-            </span>
-          </div>
+          <span
+            className="text-xs font-semibold"
+            style={{ color: config.color }}
+          >
+            {config.label}
+          </span>
         );
       },
       sortAccessor: (row) => row.criticidad || "Normal",

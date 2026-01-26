@@ -91,7 +91,7 @@ const theme = createTheme({
     fontWeightBold: 700,
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 0,  // Bordes rectos en todo el sistema
   },
   components: {
     MuiButton: {
@@ -99,7 +99,7 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          borderRadius: '0.5rem',
+          borderRadius: 0,  // Bordes rectos
         },
         sizeMedium: {
           padding: '0.5rem 1rem',
@@ -114,31 +114,152 @@ const theme = createTheme({
         },
       },
     },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos
+        },
+      },
+    },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRadius: '1rem 1rem 0 0',
+          borderRadius: 0,  // Bordes rectos
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: '0.75rem',
+          borderRadius: 0,  // Bordes rectos
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: '0.75rem',
+          borderRadius: 0,  // Bordes rectos
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos
+        },
         rounded: {
-          borderRadius: '0.75rem',
+          borderRadius: 0,  // Bordes rectos
+        },
+      },
+    },
+    MuiMenu: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 0,  // Bordes rectos en menús desplegables
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 0,  // Bordes rectos en popovers
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos en inputs
+        },
+        notchedOutline: {
+          borderRadius: 0,
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 0,
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos en chips
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos en alertas
+        },
+      },
+    },
+    MuiSnackbarContent: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos en snackbars
+        },
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        root: {},
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          borderRadius: 0,  // Bordes rectos en tabs
+        },
+      },
+    },
+    MuiBadge: {
+      styleOverrides: {
+        badge: {
+          borderRadius: 0,  // Bordes rectos en badges (si se desea)
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          borderRadius: 0,  // Bordes rectos en tooltips
+        },
+      },
+    },
+    MuiAutocomplete: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 0,  // Bordes rectos en autocomplete dropdown
+        },
+        listbox: {
+          borderRadius: 0,
         },
       },
     },

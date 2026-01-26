@@ -3,6 +3,7 @@ Rutas para KPIs y métricas del sistema
 """
 
 import json
+import logging
 from collections import Counter, defaultdict
 
 from flask import Blueprint, jsonify
@@ -14,6 +15,9 @@ from backend.core.db import (
     sql_format_date,
 )
 from backend.core.helpers import row_to_dict as _row_to_dict
+from backend.core.roles import require_auth
+
+logger = logging.getLogger(__name__)
 
 
 def _rows_to_dicts(rows, cursor):
@@ -22,6 +26,232 @@ def _rows_to_dicts(rows, cursor):
 
 
 bp = Blueprint("kpis", __name__, url_prefix="/api/kpis")
+
+
+@bp.route("/stock-inmovilizado", methods=["GET"])
+def get_stock_inmovilizado():
+    """
+    Obtiene materiales inmovilizados con información de centro.
+
+    Query params:
+        - centros: lista de centros (códigos de solicitudes, ej: AA101,AA102)
+        - almacenes: lista de almacenes (códigos de solicitudes, ej: AV001,AV002)
+
+    Returns:
+        - items: lista de materiales inmovilizados con codigo, descripcion, centro y almacen
+        - total: cantidad total de materiales inmovilizados
+        - valorTotal: valor total del stock inmovilizado
+        - globalTotal: total global (sin filtros)
+        - globalValorTotal: valor total global (sin filtros)
+    """
+    from flask import request
+
+    try:
+        # Obtener filtros de query params
+        centros_param = request.args.get("centros", "")
+        almacenes_param = request.args.get("almacenes", "")
+
+        centros = [c.strip() for c in centros_param.split(",") if c.strip()]
+        almacenes = [a.strip() for a in almacenes_param.split(",") if a.strip()]
+
+        with get_db_connection("sap_data") as conn:
+            cursor = conn.cursor()
+
+            # Primero obtener totales globales (sin filtros)
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(DISTINCT material) as total,
+                    SUM(stock_valorizado) as valor_total
+                FROM stock
+                WHERE inmovilizado = 'INMOVILIZADO'
+            """
+            )
+            global_row = cursor.fetchone()
+            if isinstance(global_row, dict):
+                global_total = global_row.get("total") or 0
+                global_valor = float(global_row.get("valor_total") or 0)
+            else:
+                global_total = global_row[0] if global_row else 0
+                global_valor = float(global_row[1]) if global_row and global_row[1] else 0
+
+            # Construir query con filtros
+            # En SAP: el campo 'almacen' contiene códigos como AA101 que coinciden con 'centro' de solicitudes
+            where_clauses = ["inmovilizado = 'INMOVILIZADO'"]
+            params = []
+
+            if centros:
+                # Los centros de solicitudes (AA101) mapean al campo 'almacen' de SAP
+                placeholders = ",".join(["?" for _ in centros])
+                where_clauses.append(f"almacen IN ({placeholders})")
+                params.extend(centros)
+
+            if almacenes:
+                # Los almacenes virtuales de solicitudes (AV001) pueden tener otro mapeo
+                # Por ahora intentamos buscar en el campo almacen también
+                # Si hay centros y almacenes, buscar combinación
+                pass  # Los almacenes de solicitudes son diferentes, no aplican filtro adicional
+
+            where_sql = " AND ".join(where_clauses)
+
+            # Query filtrada para items
+            query = f"""
+                SELECT
+                    material as codigo,
+                    material_descripcion as descripcion,
+                    SUM(stock) as stock_total,
+                    SUM(stock_valorizado) as valor_total,
+                    centro,
+                    centro_descripcion,
+                    almacen,
+                    regional
+                FROM stock
+                WHERE {where_sql}
+                GROUP BY material, material_descripcion, centro, centro_descripcion, almacen, regional
+                ORDER BY valor_total DESC
+                LIMIT 50
+            """
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            items = []
+            for row in rows:
+                row_dict = dict(row) if hasattr(row, "keys") else {
+                    "codigo": row[0],
+                    "descripcion": row[1],
+                    "stock_total": row[2],
+                    "valor_total": row[3],
+                    "centro": row[4],
+                    "centro_descripcion": row[5],
+                    "almacen": row[6],
+                    "regional": row[7],
+                }
+                # Descripcion corta (max 40 chars)
+                desc = row_dict.get("descripcion") or row_dict.get("codigo") or ""
+                desc_corta = desc[:40] + "..." if len(desc) > 40 else desc
+                items.append({
+                    "codigo": row_dict.get("codigo", ""),
+                    "descripcion": desc_corta,
+                    "stock": float(row_dict.get("stock_total") or 0),
+                    "valor": float(row_dict.get("valor_total") or 0),
+                    "centro": row_dict.get("centro", ""),
+                    "centroNombre": row_dict.get("centro_descripcion", ""),
+                    "almacen": row_dict.get("almacen", ""),
+                    "regional": row_dict.get("regional", ""),
+                })
+
+            # Total filtrado
+            count_query = f"""
+                SELECT
+                    COUNT(DISTINCT material) as total,
+                    SUM(stock_valorizado) as valor_total
+                FROM stock
+                WHERE {where_sql}
+            """
+            cursor.execute(count_query, params)
+            totals_row = cursor.fetchone()
+            if isinstance(totals_row, dict):
+                total_count = totals_row.get("total") or 0
+                valor_total = float(totals_row.get("valor_total") or 0)
+            else:
+                total_count = totals_row[0] if totals_row else 0
+                valor_total = float(totals_row[1]) if totals_row and totals_row[1] else 0
+
+            return jsonify({
+                "ok": True,
+                "items": items,
+                "total": total_count,
+                "valorTotal": valor_total,
+                "globalTotal": global_total,
+                "globalValorTotal": global_valor,
+            })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo stock inmovilizado: {e}")
+        return jsonify({
+            "ok": True,
+            "items": [],
+            "total": 0,
+            "valorTotal": 0,
+            "globalTotal": 0,
+            "globalValorTotal": 0,
+            "_error": str(e),
+        })
+
+
+@bp.route("/compras-evitadas-detalle", methods=["GET"])
+def get_compras_evitadas_detalle():
+    """
+    Obtiene detalle de compras evitadas por solicitud para filtrado en frontend.
+
+    Returns:
+        - items: lista de decisiones con solicitud_id, centro, sector, fecha, valor
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT
+                    d.solicitud_id,
+                    s.centro,
+                    s.sector,
+                    s.created_at,
+                    f.tipo_fuente,
+                    f.cantidad_asignada,
+                    f.precio_unitario,
+                    (f.cantidad_asignada * COALESCE(f.precio_unitario, 0)) as valor
+                FROM decision_abastecimiento_fuentes f
+                JOIN decision_abastecimiento d ON f.decision_id = d.id
+                JOIN solicitudes s ON d.solicitud_id = s.id
+                WHERE f.tipo_fuente IN ('stock', 'transferencia')
+                ORDER BY s.created_at DESC
+            """
+            )
+            rows = cursor.fetchall()
+
+            items = []
+            for row in rows:
+                if isinstance(row, dict):
+                    items.append({
+                        "solicitud_id": row.get("solicitud_id"),
+                        "centro": row.get("centro"),
+                        "sector": row.get("sector"),
+                        "fecha": row.get("created_at"),
+                        "tipo_fuente": row.get("tipo_fuente"),
+                        "cantidad": float(row.get("cantidad_asignada") or 0),
+                        "precio": float(row.get("precio_unitario") or 0),
+                        "valor": float(row.get("valor") or 0),
+                    })
+                else:
+                    items.append({
+                        "solicitud_id": row[0],
+                        "centro": row[1],
+                        "sector": row[2],
+                        "fecha": row[3],
+                        "tipo_fuente": row[4],
+                        "cantidad": float(row[5] or 0),
+                        "precio": float(row[6] or 0),
+                        "valor": float(row[7] or 0),
+                    })
+
+            return jsonify({
+                "ok": True,
+                "items": items,
+                "total": len(items),
+                "valorTotal": sum(i["valor"] for i in items),
+            })
+
+    except Exception as e:
+        logger.error(f"Error obteniendo compras evitadas detalle: {e}")
+        return jsonify({
+            "ok": True,
+            "items": [],
+            "total": 0,
+            "valorTotal": 0,
+            "_error": str(e),
+        })
 
 
 @bp.route("", methods=["GET"])
@@ -146,6 +376,82 @@ def get_kpis():
             percentage_used = (
                 round((total_utilizado / total_presupuesto) * 100) if total_presupuesto > 0 else 0
             )
+
+            # =============================================
+            # 2.0 COMPRAS EVITADAS (abastecimiento interno)
+            # =============================================
+            # Suma de items abastecidos desde stock o transferencia interna
+            try:
+                cursor.execute(
+                    """
+                    SELECT
+                        COALESCE(SUM(f.cantidad_asignada * COALESCE(f.precio_unitario, 0)), 0) as valor_evitado,
+                        COUNT(DISTINCT f.id) as items_internos
+                    FROM decision_abastecimiento_fuentes f
+                    JOIN decision_abastecimiento d ON f.decision_id = d.id
+                    WHERE f.tipo_fuente IN ('stock', 'transferencia')
+                """
+                )
+                row = cursor.fetchone()
+                if isinstance(row, dict):
+                    compras_evitadas_usd = float(row.get("valor_evitado") or 0)
+                    items_internos = row.get("items_internos") or 0
+                else:
+                    compras_evitadas_usd = float(row[0]) if row else 0
+                    items_internos = row[1] if row else 0
+            except Exception:
+                compras_evitadas_usd = 0
+                items_internos = 0
+
+            # =============================================
+            # 2.1 PRESUPUESTO POR CENTRO (Top 3 con %)
+            # =============================================
+            centros_agrupados = defaultdict(lambda: {"monto": 0, "utilizado": 0})
+            for row in presupuestos:
+                centro = row["centro"]
+                monto = row["monto_usd"] or 0
+                utilizado = monto - (row["saldo_usd"] or 0)
+                centros_agrupados[centro]["monto"] += monto
+                centros_agrupados[centro]["utilizado"] += utilizado
+
+            top_centros = []
+            for centro, datos in sorted(
+                centros_agrupados.items(),
+                key=lambda x: x[1]["utilizado"],
+                reverse=True
+            )[:3]:
+                pct = round((datos["utilizado"] / datos["monto"]) * 100) if datos["monto"] > 0 else 0
+                top_centros.append({
+                    "nombre": centro,
+                    "monto": datos["monto"],
+                    "utilizado": datos["utilizado"],
+                    "porcentaje": pct,
+                })
+
+            # =============================================
+            # 2.2 PRESUPUESTO POR SECTOR (Top 3 con %)
+            # =============================================
+            sectores_agrupados = defaultdict(lambda: {"monto": 0, "utilizado": 0})
+            for row in presupuestos:
+                sector = row["sector"]
+                monto = row["monto_usd"] or 0
+                utilizado = monto - (row["saldo_usd"] or 0)
+                sectores_agrupados[sector]["monto"] += monto
+                sectores_agrupados[sector]["utilizado"] += utilizado
+
+            top_sectores = []
+            for sector, datos in sorted(
+                sectores_agrupados.items(),
+                key=lambda x: x[1]["utilizado"],
+                reverse=True
+            )[:3]:
+                pct = round((datos["utilizado"] / datos["monto"]) * 100) if datos["monto"] > 0 else 0
+                top_sectores.append({
+                    "nombre": sector,
+                    "monto": datos["monto"],
+                    "utilizado": datos["utilizado"],
+                    "porcentaje": pct,
+                })
 
             # =============================================
             # 3. MATERIALES MÁS SOLICITADOS
@@ -320,6 +626,12 @@ def get_kpis():
                             "disponible": total_disponible,
                             "percentage": percentage_used,
                             "porCentro": presupuesto_por_centro,
+                            "topCentros": top_centros,
+                            "topSectores": top_sectores,
+                        },
+                        "comprasEvitadas": {
+                            "valor": compras_evitadas_usd,
+                            "items": items_internos,
                         },
                         "tiempoAprobacion": {
                             "promedio": promedio_dias,

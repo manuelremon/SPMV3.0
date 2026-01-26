@@ -121,7 +121,7 @@ const StatusBadge = memo(function StatusBadge({
           />
         )}
         <span
-          className={`text-xs font-semibold tracking-wide ${uppercase ? 'uppercase' : ''}`}
+          className="text-xs font-semibold"
           style={{ color: config.color }}
         >
           {getLabel()}

@@ -3,6 +3,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card"
 import { ModernDataTable as DataTable } from "../components/features/DataTable";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { ScrollReveal } from "../components/ui/ScrollReveal";
+import { ParallaxSection } from "../components/ui/ParallaxSection";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { solicitudes } from "../services/spm";
 import api from "../services/api";
 import { formatCurrency } from "../utils/formatters";
@@ -140,8 +142,17 @@ export default function DashboardSolicitante() {
     { key: "enviadas", label: t("dash_enviadas", "Enviadas"), count: stats.enviadas },
     { key: "aprobadas", label: t("dash_aprobadas", "Aprobadas"), count: stats.aprobadas },
     { key: "rechazadas", label: t("dash_rechazadas", "Rechazadas"), count: stats.rechazadas },
+    { key: "crear", label: t("btn_crear_solicitud", "+ Crear Solicitud"), isAction: true },
   ];
   const currentData = allData[activeTab] || [];
+
+  const handleTabChange = (value) => {
+    if (value === "crear") {
+      navigate("/solicitudes/nueva");
+    } else {
+      setActiveTab(value);
+    }
+  };
 
   const getTableTitle = () => {
     switch (activeTab) {
@@ -159,25 +170,21 @@ export default function DashboardSolicitante() {
       {/* Contenedor unificado: Tabs + Tabla de Solicitudes */}
       <Card>
         <CardContent className="p-0">
-          {/* Header con tabs y botón */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-            <div className="flex items-center gap-1 p-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-              {tabs.map((tab) => (
-                <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-                  className={clsx("flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200",
-                    activeTab === tab.key ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50")}>
-                  <span>{tab.label}</span>
-                  <span className={clsx("px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums", activeTab === tab.key ? "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400" : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400")}>{tab.count}</span>
-                </button>
-              ))}
-            </div>
-            <Button as={Link} to="/solicitudes/nueva" size="sm"><Plus className="w-4 h-4" />{t("dash_new_request", "Nueva Solicitud")}</Button>
-          </div>
-
-          {/* Subtítulo con contador */}
-          <div className="flex items-center justify-between px-6 py-3 bg-slate-50/50 dark:bg-slate-800/30">
-            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300">{getTableTitle()}</h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">{currentData.length} {t("dash_items", "items")}</span>
+          {/* Header con tabs */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <TabsList>
+                {tabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.key}
+                    value={tab.key}
+                    sx={tab.isAction ? { color: '#2196f3', fontWeight: 600 } : undefined}
+                  >
+                    {tab.isAction ? tab.label : `${tab.label} (${tab.count})`}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Tabla */}
@@ -195,8 +202,9 @@ export default function DashboardSolicitante() {
 
       {kpiLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div> : (
         <>
-          <ScrollReveal delay={100}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <ParallaxSection.Light>
+            <ScrollReveal delay={100}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="h-[150px] bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
                 <CardContent className="h-full flex flex-col justify-between py-5">
                   <div className="flex items-start justify-between">
@@ -271,10 +279,12 @@ export default function DashboardSolicitante() {
                   </Card>
                 );
               })()}
-            </div>
-          </ScrollReveal>
+              </div>
+            </ScrollReveal>
+          </ParallaxSection.Light>
 
-          <ScrollReveal delay={200}>
+          <ParallaxSection.Moderate>
+            <ScrollReveal delay={200}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* KPI Card compacta con sparkline */}
               <WeeklyRequestsKpiCard
@@ -300,8 +310,10 @@ export default function DashboardSolicitante() {
               </Card>
             </div>
           </ScrollReveal>
+          </ParallaxSection.Moderate>
 
-          <ScrollReveal delay={250}>
+          <ParallaxSection.Subtle>
+            <ScrollReveal delay={250}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="h-[320px] bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
                 <CardHeader className="px-5 pt-5 pb-3"><div className="flex items-center justify-between"><CardTitle className="text-base">Materiales Más Solicitados</CardTitle><Package className={`w-5 h-5 ${ICON_COLORS.logistics}`} /></div></CardHeader>
@@ -327,22 +339,25 @@ export default function DashboardSolicitante() {
               </Card>
             </div>
           </ScrollReveal>
+          </ParallaxSection.Subtle>
 
-          <ScrollReveal delay={300}>
-            <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-              <CardHeader className="px-6 pt-6 pb-4"><CardTitle>Resumen de Presupuesto</CardTitle></CardHeader>
-              <CardContent className="px-6 pb-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                  <div className="flex-shrink-0"><ProgressCircle percentage={kpiData.presupuesto.percentage} /></div>
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-                    <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Presupuesto Total</p><p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(kpiData.presupuesto.total)}</p></div>
-                    <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Utilizado</p><p className="text-2xl font-bold text-amber-500 dark:text-amber-400">{formatCurrency(kpiData.presupuesto.utilizado)}</p></div>
-                    <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Disponible</p><p className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">{formatCurrency(kpiData.presupuesto.disponible)}</p></div>
+          <ParallaxSection.Light>
+            <ScrollReveal delay={300}>
+              <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
+                <CardHeader className="px-6 pt-6 pb-4"><CardTitle>Resumen de Presupuesto</CardTitle></CardHeader>
+                <CardContent className="px-6 pb-6">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="flex-shrink-0"><ProgressCircle percentage={kpiData.presupuesto.percentage} /></div>
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+                      <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Presupuesto Total</p><p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{formatCurrency(kpiData.presupuesto.total)}</p></div>
+                      <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Utilizado</p><p className="text-2xl font-bold text-amber-500 dark:text-amber-400">{formatCurrency(kpiData.presupuesto.utilizado)}</p></div>
+                      <div className="text-center md:text-left"><p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Disponible</p><p className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">{formatCurrency(kpiData.presupuesto.disponible)}</p></div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </ScrollReveal>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
+          </ParallaxSection.Light>
         </>
       )}
     </div>

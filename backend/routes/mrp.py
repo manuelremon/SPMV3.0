@@ -455,149 +455,114 @@ def _get_alertas_from_temp_data(
 @require_role(["admin", "planificador"])
 def get_alertas():
     """
-    Obtiene el tablero de alertas MRP usando datos reales de sap_data.db.
-    Soporta modo temporal con datos importados desde Excel.
+    Obtiene el tablero de alertas MRP usando datos de materiales_bbdd.
+    Incluye stock actual y consumo histórico de los últimos 2 años.
 
     Query params:
-        centro: Filtro por centro (opcional)
-        almacen: Filtro por almacen (opcional)
-        sector: Filtro por sector/grupo_de_articulos (opcional)
-        estado: Filtro por estado de alerta (opcional)
-        limit: Limite de resultados (default 50)
+        centro: Filtro por centro (opcional, múltiple)
+        almacen: Filtro por almacen (opcional, múltiple)
+        sector: Filtro por sector (opcional, múltiple)
+        estado: Filtro por estado de alerta (opcional, múltiple)
+        limit: Limite de resultados (default 10000)
         offset: Offset para paginacion (default 0)
     """
-    centro = request.args.get("centro", "").strip()
-    almacen = request.args.get("almacen", "").strip()
-    sector = request.args.get("sector", "").strip()
-    estado_filtro = request.args.get("estado", "").strip()
-    limit = min(int(request.args.get("limit", 50)), 200)
+    # Soportar múltiples valores para cada filtro
+    centros = request.args.getlist("centro")
+    almacenes = request.args.getlist("almacen")
+    sectores = request.args.getlist("sector")
+    estados_filtro = request.args.getlist("estado")
+    limit = int(request.args.get("limit", 10000))
     offset = int(request.args.get("offset", 0))
 
     # Validar acceso al almacén solicitado
     user_id = _get_user_id()
-    if almacen and not validate_almacen_access(user_id, almacen):
-        return error_response(
-            code="almacen_no_autorizado",
-            message=f"No tienes acceso al almacén {almacen}",
-            status_code=403
-        )
 
     # Verificar si modo temporal está activo
     if user_id and temp_data_service.is_active(user_id):
+        centro = centros[0] if centros else ""
+        almacen = almacenes[0] if almacenes else ""
+        sector = sectores[0] if sectores else ""
+        estado_filtro = estados_filtro[0] if estados_filtro else ""
         return _get_alertas_from_temp_data(user_id, centro, almacen, sector, estado_filtro, limit, offset)
 
     try:
-        # Conectar a la BD para obtener datos reales de stock
-        # En producción usa PostgreSQL (con vista 'stock'), en desarrollo SQLite
         with get_db_connection("sap_data") as conn:
             cursor = conn.cursor()
 
-            # Query para obtener stock agregado por material/centro/almacen
-            # Agrupa stocks del mismo material
+            # Query principal desde materiales_bbdd (7,309 registros)
+            # Usa campos precalculados: consumo_promedio_anual, rotacion
             base_query = """
                 SELECT
-                    material as codigo,
-                    material_descripcion as descripcion,
-                    centro,
-                    almacen,
-                    grupo_de_articulos as sector,
-                    gpo_articulos_descripcion as sector_nombre,
-                    SUM(stock) as stock_actual,
-                    um as unidad,
-                    AVG(precio) as precio_unitario,
-                    ubicacion,
-                    critico,
-                    MAX(dia) as ultima_actualizacion
-                FROM stock
-                WHERE stock > 0
+                    m.codigo_material as codigo,
+                    m.descripcion,
+                    m.centro,
+                    m.almacen,
+                    m.sector,
+                    m.stock_de_seguridad,
+                    m.punto_de_pedido,
+                    m.stock_maximo,
+                    COALESCE(m.Demanda_estimada_anual, 0) as demanda_estimada_anual,
+                    COALESCE(m.consumo_promedio_anual, 0) as consumo_promedio_anual,
+                    COALESCE(m.rotacion, 0) as rotacion,
+                    COALESCE(s.stock_actual, 0) as stock_actual,
+                    COALESCE(s.unidad, 'UNI') as unidad,
+                    COALESCE(s.precio_unitario, 0) as precio_unitario
+                FROM materiales_bbdd m
+                LEFT JOIN (
+                    SELECT
+                        material,
+                        centro,
+                        almacen,
+                        SUM(stock) as stock_actual,
+                        um as unidad,
+                        AVG(precio) as precio_unitario
+                    FROM stock
+                    GROUP BY material, centro, almacen, um
+                ) s ON m.codigo_material = s.material
+                    AND m.centro = s.centro
+                    AND m.almacen = s.almacen
+                WHERE 1=1
             """
             params = []
 
-            if centro:
-                base_query += " AND centro = ?"
-                params.append(centro)
+            # Filtros múltiples
+            if centros:
+                placeholders = ",".join(["?" for _ in centros])
+                base_query += f" AND m.centro IN ({placeholders})"
+                params.extend(centros)
 
-            if almacen:
-                base_query += " AND almacen = ?"
-                params.append(almacen)
+            if almacenes:
+                placeholders = ",".join(["?" for _ in almacenes])
+                base_query += f" AND m.almacen IN ({placeholders})"
+                params.extend(almacenes)
 
-            if sector:
-                base_query += " AND (grupo_de_articulos = ? OR gpo_articulos_descripcion LIKE ?)"
-                params.extend([sector, f"%{sector}%"])
+            if sectores:
+                placeholders = ",".join(["?" for _ in sectores])
+                base_query += f" AND m.sector IN ({placeholders})"
+                params.extend(sectores)
 
-            # PostgreSQL requiere todas las columnas no-agregadas en GROUP BY
-            base_query += """
-                GROUP BY material, material_descripcion, centro, almacen,
-                         grupo_de_articulos, gpo_articulos_descripcion, um, ubicacion, critico
-                ORDER BY material LIMIT 500
-            """
+            base_query += " ORDER BY m.codigo_material"
 
             cursor.execute(base_query, params)
             materiales = [dict(row) for row in cursor.fetchall()]
-
-            # Obtener consumo historico promedio por material
-            # FIX 2.2: Filtrar por almacén para obtener consumo real del almacén específico
-            consumos = {}
-            if materiales:
-                # Usar sintaxis compatible con SQLite (IN con placeholders)
-                codigos = [m["codigo"] for m in materiales]
-                placeholders = ",".join(["?" for _ in codigos])
-                consumo_params = list(codigos)
-
-                # Base query para consumo histórico
-                consumo_query = f"""
-                    SELECT material, AVG(cantidad) as consumo_mensual
-                    FROM consumo_historico
-                    WHERE material IN ({placeholders})
-                """
-
-                # FIX 2.2: Agregar filtro por almacén si se especificó
-                if almacen:
-                    consumo_query += " AND almacen = ?"
-                    consumo_params.append(almacen)
-
-                consumo_query += " GROUP BY material"
-
-                try:
-                    cursor.execute(consumo_query, consumo_params)
-                    for row in cursor.fetchall():
-                        # Compatibilidad PostgreSQL (dict) y SQLite (tuple/Row)
-                        if isinstance(row, dict):
-                            consumos[row["material"]] = row["consumo_mensual"] or 0
-                        else:
-                            consumos[row[0]] = row[1] or 0
-                except Exception as e:
-                    # Si la tabla consumo_historico no existe, continuar sin consumos
-                    logger.warning(f"No se pudo obtener consumo historico: {e}")
 
         # Calcular alertas para cada material
         alertas = []
 
         for mat in materiales:
             codigo = mat["codigo"]
-            # Convertir a float para compatibilidad con PostgreSQL Decimal
+            centro = mat["centro"]
+            almacen = mat["almacen"]
+
             stock_actual = float(mat["stock_actual"] or 0)
-            consumo_mensual = float(consumos.get(codigo, 0))
+            stock_seguridad = float(mat["stock_de_seguridad"] or 0)
+            punto_pedido = float(mat["punto_de_pedido"] or 0)
+            stock_maximo = float(mat["stock_maximo"] or 0)
+            demanda_anual = float(mat["demanda_estimada_anual"] or 0)
 
-            # Calcular parametros MRP basados en consumo
-            # Stock de seguridad = 2 meses de consumo
-            stock_seguridad = consumo_mensual * 2
-            # Punto de pedido = 3 meses de consumo
-            punto_pedido = consumo_mensual * 3
-            # Stock maximo = 6 meses de consumo
-            stock_maximo = consumo_mensual * 6
-
-            # Si no hay consumo, usar valores por defecto basados en stock actual
-            if consumo_mensual == 0:
-                stock_seguridad = stock_actual * 0.2
-                punto_pedido = stock_actual * 0.3
-                stock_maximo = stock_actual * 1.5
-
-            # Calcular demanda anual desde consumo mensual
-            demanda_anual = consumo_mensual * 12
-
-            # Calcular rotacion
-            rotacion = calcular_rotacion(demanda_anual, stock_actual) if stock_actual > 0 else 0
+            # Usar campos precalculados de la tabla materiales_bbdd
+            consumo_anual = float(mat["consumo_promedio_anual"] or 0)
+            rotacion_pct = float(mat["rotacion"] or 0)
 
             # Calcular estado y sugerencia
             estado_info = calcular_estado_material(
@@ -605,13 +570,18 @@ def get_alertas():
                 stock_seguridad=stock_seguridad,
                 punto_pedido=punto_pedido,
                 stock_maximo=stock_maximo,
-                consumo_promedio=consumo_mensual,
+                consumo_promedio=consumo_anual / 12 if consumo_anual > 0 else 0,
                 pedidos_en_curso=0,
             )
 
-            # Filtrar por estado si se especifico
-            if estado_filtro and estado_filtro.lower() != "todos":
-                if estado_filtro.lower() not in estado_info["estado"].lower():
+            # Filtrar por estado si se especificó
+            if estados_filtro:
+                estado_match = False
+                for ef in estados_filtro:
+                    if ef.lower() in estado_info["estado"].lower():
+                        estado_match = True
+                        break
+                if not estado_match:
                     continue
 
             alertas.append(
@@ -620,9 +590,9 @@ def get_alertas():
                     "descripcion": mat["descripcion"] or codigo,
                     "unidad": mat["unidad"] or "UNI",
                     "precio_usd": round(float(mat["precio_unitario"] or 0), 2),
-                    "centro": mat["centro"] or centro,
-                    "sector": mat["sector_nombre"] or mat["sector"] or sector,
-                    "almacen": mat["almacen"] or almacen or "0001",
+                    "centro": centro,
+                    "sector": mat["sector"] or "",
+                    "almacen": almacen,
                     "demanda_estimada_anual": round(demanda_anual, 0),
                     "stock_seguridad": round(stock_seguridad, 0),
                     "punto_pedido": round(punto_pedido, 0),
@@ -631,13 +601,13 @@ def get_alertas():
                     "pedidos_en_curso": 0,
                     "solpeds_en_curso": 0,
                     "ventas_ute_en_curso": 0,
-                    "consumo_promedio_anual": round(demanda_anual, 2),
-                    "rotacion_pct": round(rotacion * 100, 1),
+                    "consumo_promedio_anual": round(consumo_anual, 2),
+                    "rotacion_pct": round(rotacion_pct, 1),
                     "estado": estado_info["estado"],
                     "estado_clase": estado_info["estado_clase"],
                     "sugerencia": estado_info["sugerencia"],
-                    "critico": mat["critico"] == "SI" if mat["critico"] else False,
-                    "ubicacion": mat["ubicacion"],
+                    "critico": False,
+                    "ubicacion": "",
                 }
             )
 

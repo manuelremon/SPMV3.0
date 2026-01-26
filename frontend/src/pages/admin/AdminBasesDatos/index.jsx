@@ -180,15 +180,12 @@ export default function AdminBasesDatos() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">
-            <Database className="w-4 h-4" />
             {t("db_overview", "Vista General")}
           </TabsTrigger>
           <TabsTrigger value="tables">
-            <List className="w-4 h-4" />
             {t("db_tables", "Tablas")}
           </TabsTrigger>
           <TabsTrigger value="tools">
-            <Settings className="w-4 h-4" />
             {t("db_tools", "Herramientas")}
           </TabsTrigger>
         </TabsList>

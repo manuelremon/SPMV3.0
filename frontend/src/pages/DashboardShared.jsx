@@ -55,6 +55,7 @@ export function getTableColumns(t) {
         return (
           <StatusBadge
             estado={row.estado || row.status || "Desconocido"}
+            showIcon={false}
             tooltipInfo={{
               aprobador: aprobadorNombre,
               planificador: plannerNombre,
@@ -71,14 +72,10 @@ export function getTableColumns(t) {
       render: (row) => {
         const criticidad = row.criticidad || "Normal";
         const config = getCriticidadConfig(criticidad);
-        const Icon = config.icon;
         return (
-          <div className="inline-flex items-center gap-1">
-            {Icon && <Icon className="w-4 h-4" style={{ color: config.color }} />}
-            <span className="text-[11px] font-medium" style={{ color: config.color }}>
-              {config.label}
-            </span>
-          </div>
+          <span className="text-xs font-semibold" style={{ color: config.color }}>
+            {config.label}
+          </span>
         );
       },
     },
