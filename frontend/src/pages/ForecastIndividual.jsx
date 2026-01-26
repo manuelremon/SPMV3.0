@@ -4,16 +4,18 @@
  * Permite analizar y predecir demanda para un material específico
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, lazy, Suspense } from 'react';
 import { useI18n } from '../context/i18n';
 import { useForecast } from '../hooks/useForecast';
+// Lazy load heavy chart components to reduce initial bundle
+const ForecastChart = lazy(() => import('../components/forecast/ForecastChart').then(m => ({ default: m.ForecastChart })));
+const ForecastKPIs = lazy(() => import('../components/forecast/ForecastKPIs').then(m => ({ default: m.ForecastKPIs })));
+const BacktestResults = lazy(() => import('../components/forecast/BacktestResults').then(m => ({ default: m.BacktestResults })));
+const ModelComparison = lazy(() => import('../components/forecast/ModelComparison').then(m => ({ default: m.ModelComparison })));
+const PatternCharts = lazy(() => import('../components/forecast/PatternCharts').then(m => ({ default: m.PatternCharts })));
+// Light components loaded normally
 import {
-  ForecastChart,
-  ForecastKPIs,
   ModelSelector,
-  BacktestResults,
-  ModelComparison,
-  PatternCharts,
   PredictionsTable,
   MaterialSearchInput
 } from '../components/forecast';
@@ -282,17 +284,21 @@ const ForecastIndividual = () => {
             {activeTab === 'forecast' && (
               <>
                 {/* KPIs */}
-                <ForecastKPIs metricas={metricas} />
+                <Suspense fallback={<div className="h-20 bg-slate-100 rounded animate-pulse" />}>
+                  <ForecastKPIs metricas={metricas} />
+                </Suspense>
 
                 {/* Gráfico principal */}
-                <div className="bg-white rounded-lg border p-4">
-                  <ForecastChart
-                    historico={historicoParaGrafico}
-                    predicciones={prediccionesParaGrafico}
-                    titulo={`Forecast: ${materialCodigo} (${getNombreModelo(modeloSeleccionado)})`}
-                    height={450}
-                  />
-                </div>
+                <Suspense fallback={<div className="bg-white rounded-lg border p-4 h-96 bg-slate-100 rounded animate-pulse" />}>
+                  <div className="bg-white rounded-lg border p-4">
+                    <ForecastChart
+                      historico={historicoParaGrafico}
+                      predicciones={prediccionesParaGrafico}
+                      titulo={`Forecast: ${materialCodigo} (${getNombreModelo(modeloSeleccionado)})`}
+                      height={450}
+                    />
+                  </div>
+                </Suspense>
 
                 {/* Acciones avanzadas */}
                 <div className="flex gap-4">
@@ -325,7 +331,9 @@ const ForecastIndividual = () => {
 
             {activeTab === 'metricas' && (
               <div className="space-y-6">
-                <ForecastKPIs metricas={metricas} />
+                <Suspense fallback={<div className="h-20 bg-slate-100 rounded animate-pulse" />}>
+                  <ForecastKPIs metricas={metricas} />
+                </Suspense>
 
                 {/* Detalles de métricas */}
                 <div className="bg-white rounded-lg border p-6">
@@ -362,32 +370,38 @@ const ForecastIndividual = () => {
             )}
 
             {activeTab === 'patrones' && (
-              <PatternCharts
-                patronSemanal={forecastData.patrones?.semanal}
-                patronMensual={forecastData.patrones?.mensual}
-              />
+              <Suspense fallback={<div className="h-96 bg-slate-100 rounded animate-pulse" />}>
+                <PatternCharts
+                  patronSemanal={forecastData.patrones?.semanal}
+                  patronMensual={forecastData.patrones?.mensual}
+                />
+              </Suspense>
             )}
           </div>
 
           {/* Panel de Backtesting */}
           {showBacktest && (
-            <div className="mt-6">
-              <BacktestResults
-                data={backtestData}
-                loading={loadingBacktest}
-              />
-            </div>
+            <Suspense fallback={<div className="mt-6 h-96 bg-slate-100 rounded animate-pulse" />}>
+              <div className="mt-6">
+                <BacktestResults
+                  data={backtestData}
+                  loading={loadingBacktest}
+                />
+              </div>
+            </Suspense>
           )}
 
           {/* Panel de Comparación */}
           {showComparacion && (
-            <div className="mt-6">
-              <ModelComparison
-                data={comparacionData}
-                loading={loadingComparacion}
-                onSelectModel={handleSelectModelFromComparison}
-              />
-            </div>
+            <Suspense fallback={<div className="mt-6 h-96 bg-slate-100 rounded animate-pulse" />}>
+              <div className="mt-6">
+                <ModelComparison
+                  data={comparacionData}
+                  loading={loadingComparacion}
+                  onSelectModel={handleSelectModelFromComparison}
+                />
+              </div>
+            </Suspense>
           )}
         </>
       )}

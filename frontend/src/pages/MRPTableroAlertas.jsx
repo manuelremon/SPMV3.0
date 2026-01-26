@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useI18n } from "../context/i18n";
 import api from "../services/api";
 import {
@@ -16,7 +16,8 @@ import {
   Tooltip,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { PieChart } from "@mui/x-charts/PieChart";
+// Lazy load PieChart to reduce initial bundle
+const PieChart = lazy(() => import("@mui/x-charts/PieChart").then(m => ({ default: m.PieChart })));
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 
@@ -431,25 +432,27 @@ export default function MRPTableroAlertas() {
               </Typography>
               {item.showChart && (
                 <Box sx={{ position: "relative", width: 60, height: 35, mt: 0.5 }}>
-                  <PieChart
-                    series={[
-                      {
-                        startAngle: -90,
-                        endAngle: 90,
-                        paddingAngle: 2,
-                        innerRadius: "55%",
-                        outerRadius: "100%",
-                        data: [
-                          { value: pct, color: item.color },
-                          { value: 100 - pct, color: "#e0e0e0" },
-                        ],
-                      },
-                    ]}
-                    width={60}
-                    height={35}
-                    slotProps={{ legend: { hidden: true } }}
-                    margin={{ top: 0, bottom: 0, left: 0, right: 0 }}
-                  />
+                  <Suspense fallback={<Box sx={{ width: 60, height: 35, bgcolor: "#f0f0f0", borderRadius: 1 }} />}>
+                    <PieChart
+                      series={[
+                        {
+                          startAngle: -90,
+                          endAngle: 90,
+                          paddingAngle: 2,
+                          innerRadius: "55%",
+                          outerRadius: "100%",
+                          data: [
+                            { value: pct, color: item.color },
+                            { value: 100 - pct, color: "#e0e0e0" },
+                          ],
+                        },
+                      ]}
+                      width={60}
+                      height={35}
+                      slotProps={{ legend: { hidden: true } }}
+                      margin={{ top: 0, bottom: 0, left: 0, right: 0 }}
+                    />
+                  </Suspense>
                   <Typography
                     variant="caption"
                     sx={{

@@ -4,10 +4,12 @@
  * Permite analizar múltiples materiales simultáneamente
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, Suspense, lazy } from 'react';
 import { useI18n } from '../context/i18n';
 import forecastService from '../services/forecast';
-import { ForecastKPIs, ModelSelector } from '../components/forecast';
+// Lazy load chart-heavy components to reduce initial bundle
+const ForecastKPIs = lazy(() => import('../components/forecast/ForecastKPIs').then(m => ({ default: m.ForecastKPIs })));
+const ModelSelector = lazy(() => import('../components/forecast/ModelSelector').then(m => ({ default: m.ModelSelector })));
 import Loading from '../components/Loading';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
@@ -183,13 +185,15 @@ const ForecastMasivo = () => {
 
           {/* Configuración */}
           <div className="space-y-4">
-            <ModelSelector
-              modelosDisponibles={modelosDisponibles}
-              modeloSeleccionado={modeloSeleccionado}
-              onChange={setModeloSeleccionado}
-              disabled={loading}
-              layout="dropdown"
-            />
+            <Suspense fallback={<div className="h-12 bg-slate-100 rounded animate-pulse" />}>
+              <ModelSelector
+                modelosDisponibles={modelosDisponibles}
+                modeloSeleccionado={modeloSeleccionado}
+                onChange={setModeloSeleccionado}
+                disabled={loading}
+                layout="dropdown"
+              />
+            </Suspense>
 
             <div>
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">

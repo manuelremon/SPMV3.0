@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 
 from flask import Blueprint, jsonify
 
+from backend.core.cache import cached, kpi_cache, invalidate_kpi_cache
 from backend.core.db import (
     get_db_connection,
     sql_date_diff_days,
@@ -33,9 +34,15 @@ def get_stock_inmovilizado():
     """
     Obtiene materiales inmovilizados con información de centro.
 
+    Stock inmovilizado se identifica por lotes especiales:
+    - G-INSPE: En inspección
+    - G-REZAG: Rezago/obsoleto
+    - G-REPAR: En reparación
+    - G-AREPA: A reparar
+    - G-SOBRA: Sobrantes
+
     Query params:
-        - centros: lista de centros (códigos de solicitudes, ej: AA101,AA102)
-        - almacenes: lista de almacenes (códigos de solicitudes, ej: AV001,AV002)
+        - centros: lista de centros (códigos, ej: AA101,AA102)
 
     Returns:
         - items: lista de materiales inmovilizados con codigo, descripcion, centro y almacen
@@ -46,26 +53,27 @@ def get_stock_inmovilizado():
     """
     from flask import request
 
+    # Lotes que indican stock inmovilizado/no disponible
+    LOTES_INMOVILIZADOS = ('G-INSPE', 'G-REZAG', 'G-REPAR', 'G-AREPA', 'G-SOBRA')
+
     try:
         # Obtener filtros de query params
         centros_param = request.args.get("centros", "")
-        almacenes_param = request.args.get("almacenes", "")
-
         centros = [c.strip() for c in centros_param.split(",") if c.strip()]
-        almacenes = [a.strip() for a in almacenes_param.split(",") if a.strip()]
 
         with get_db_connection("sap_data") as conn:
             cursor = conn.cursor()
 
-            # Primero obtener totales globales (sin filtros)
+            # Primero obtener totales globales (sin filtros de centro)
             cursor.execute(
                 """
                 SELECT
                     COUNT(DISTINCT material) as total,
                     SUM(stock_valorizado) as valor_total
                 FROM stock
-                WHERE inmovilizado = 'INMOVILIZADO'
-            """
+                WHERE lote IN (?, ?, ?, ?, ?)
+            """,
+                LOTES_INMOVILIZADOS,
             )
             global_row = cursor.fetchone()
             if isinstance(global_row, dict):
@@ -76,21 +84,14 @@ def get_stock_inmovilizado():
                 global_valor = float(global_row[1]) if global_row and global_row[1] else 0
 
             # Construir query con filtros
-            # En SAP: el campo 'almacen' contiene códigos como AA101 que coinciden con 'centro' de solicitudes
-            where_clauses = ["inmovilizado = 'INMOVILIZADO'"]
-            params = []
+            where_clauses = ["lote IN (?, ?, ?, ?, ?)"]
+            params = list(LOTES_INMOVILIZADOS)
 
             if centros:
-                # Los centros de solicitudes (AA101) mapean al campo 'almacen' de SAP
+                # Filtrar por centro (campo 'centro' en la tabla stock)
                 placeholders = ",".join(["?" for _ in centros])
-                where_clauses.append(f"almacen IN ({placeholders})")
+                where_clauses.append(f"centro IN ({placeholders})")
                 params.extend(centros)
-
-            if almacenes:
-                # Los almacenes virtuales de solicitudes (AV001) pueden tener otro mapeo
-                # Por ahora intentamos buscar en el campo almacen también
-                # Si hay centros y almacenes, buscar combinación
-                pass  # Los almacenes de solicitudes son diferentes, no aplican filtro adicional
 
             where_sql = " AND ".join(where_clauses)
 
@@ -104,10 +105,10 @@ def get_stock_inmovilizado():
                     centro,
                     centro_descripcion,
                     almacen,
-                    regional
+                    lote
                 FROM stock
                 WHERE {where_sql}
-                GROUP BY material, material_descripcion, centro, centro_descripcion, almacen, regional
+                GROUP BY material, material_descripcion, centro, centro_descripcion, almacen, lote
                 ORDER BY valor_total DESC
                 LIMIT 50
             """
@@ -124,7 +125,7 @@ def get_stock_inmovilizado():
                     "centro": row[4],
                     "centro_descripcion": row[5],
                     "almacen": row[6],
-                    "regional": row[7],
+                    "lote": row[7],
                 }
                 # Descripcion corta (max 40 chars)
                 desc = row_dict.get("descripcion") or row_dict.get("codigo") or ""
@@ -137,7 +138,7 @@ def get_stock_inmovilizado():
                     "centro": row_dict.get("centro", ""),
                     "centroNombre": row_dict.get("centro_descripcion", ""),
                     "almacen": row_dict.get("almacen", ""),
-                    "regional": row_dict.get("regional", ""),
+                    "lote": row_dict.get("lote", ""),
                 })
 
             # Total filtrado
@@ -255,6 +256,7 @@ def get_compras_evitadas_detalle():
 
 
 @bp.route("", methods=["GET"])
+@cached(kpi_cache, "kpis")
 def get_kpis():
     """
     Obtiene KPIs del sistema basados en datos reales.
@@ -531,6 +533,26 @@ def get_kpis():
                 round(row["promedio_dias"], 1) if row and row.get("promedio_dias") else 2.5
             )
 
+            # Calcular trend real de tiempo de aprobación (últimos 7 días)
+            tiempo_trend = []
+            for dias_atras in range(6, -1, -1):  # 6, 5, 4, 3, 2, 1, 0 (de más antiguo a hoy)
+                cursor.execute(
+                    f"""
+                    SELECT
+                        AVG({sql_date_diff_days('updated_at', 'created_at')}) as promedio
+                    FROM solicitudes
+                    WHERE status IN ('approved', 'processing', 'dispatched', 'closed')
+                    AND DATE(updated_at) = DATE({sql_date_relative(days=-dias_atras)})
+                """
+                )
+                row_trend = cursor.fetchone()
+                if row_trend:
+                    val = (row_trend.get("promedio") if isinstance(row_trend, dict)
+                           else row_trend[0])
+                    tiempo_trend.append(round(val, 1) if val else promedio_dias)
+                else:
+                    tiempo_trend.append(promedio_dias)
+
             # =============================================
             # 5. SOLICITUDES POR ESTADO (ÚLTIMOS 6 MESES)
             # =============================================
@@ -636,7 +658,7 @@ def get_kpis():
                         "tiempoAprobacion": {
                             "promedio": promedio_dias,
                             "meta": 3.0,
-                            "trend": [3.2, 2.9, 2.7, 2.5, 2.4, promedio_dias, promedio_dias],
+                            "trend": tiempo_trend,
                         },
                         "materialesMasSolicitados": top_materiales,
                         "gruposArticulosMasSolicitados": top_grupos,

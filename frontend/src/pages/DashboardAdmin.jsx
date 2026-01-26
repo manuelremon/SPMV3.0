@@ -6,6 +6,7 @@ import { ScrollReveal } from "../components/ui/ScrollReveal";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
 import { planner, solicitudes } from "../services/spm";
 import api from "../services/api";
+import { cachedGet, invalidateCache } from "../services/cachedApi";
 import { formatCurrency } from "../utils/formatters";
 import {
   Plus,
@@ -28,12 +29,13 @@ import clsx from "clsx";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate } from "react-router-dom";
 import { getTableColumns } from "./DashboardShared";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { Button } from "../components/ui/Button";
 import { WeeklyRequestsKpiCard } from "../components/dashboard/WeeklyRequestsKpiCard";
 import Slider from '@mui/material/Slider';
-import { BarChart } from '@mui/x-charts/BarChart';
-import { PieChart } from '@mui/x-charts/PieChart';
-import { Gauge, gaugeClasses } from '@mui/x-charts/Gauge';
+// Componentes Canvas (más ligeros que MUI X Charts)
+import { CanvasDonutChart } from '../components/canvas/CanvasDonutChart';
+import { CanvasGauge } from '../components/canvas/CanvasGauge';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
@@ -58,15 +60,8 @@ const MenuProps = {
 // KPI CHART COMPONENTS
 // ============================================================================
 
-// Componente Donut Chart con MUI X Charts - layout lateral
-function MuiDonutChart({ data, colors, labels }) {
-  // Datos sin label para evitar leyenda nativa
-  const pieData = labels.map((label, idx) => ({
-    id: idx,
-    value: data[idx] || 0,
-    color: colors[idx],
-  }));
-
+// Componente Donut Chart con Canvas - mucho más ligero que MUI X Charts
+function DonutChartComponent({ data, colors, labels }) {
   const total = data.reduce((sum, val) => sum + val, 0) || 0;
 
   return (
@@ -84,22 +79,16 @@ function MuiDonutChart({ data, colors, labels }) {
           </div>
         ))}
       </div>
-      {/* Donut a la derecha */}
+      {/* Donut a la derecha - Canvas version */}
       <div className="relative flex-shrink-0 ml-auto">
-        <PieChart
-          series={[{
-            data: pieData,
-            innerRadius: 30,
-            outerRadius: 45,
-            paddingAngle: 2,
-            cornerRadius: 3,
-            highlightScope: { fade: 'global', highlight: 'item' },
-            faded: { innerRadius: 25, additionalRadius: -10, color: 'gray' },
-          }]}
-          height={100}
+        <CanvasDonutChart
+          data={data}
+          colors={colors}
+          labels={labels}
           width={100}
-          skipAnimation={false}
-          margin={{ top: 5, bottom: 5, left: 5, right: 5 }}
+          height={100}
+          innerRadius={30}
+          outerRadius={45}
         />
         {/* Total en el centro */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -174,8 +163,11 @@ export default function DashboardAdmin() {
   const [loading, setLoading] = useState(true);
 
   // Filtros state
-  // rangoFechas: [valorIzq, valorDer] donde 0=hace 365 días, 365=hoy
-  const [rangoFechas, setRangoFechas] = useState([0, 365]); // Por defecto: un año completo
+  // rangoFechasLocal: para UI inmediata (actualización rápida en slider label)
+  // rangoFechas: debounced para filtrado real (evita 5 renders/sec)
+  const [rangoFechasLocal, setRangoFechasLocal] = useState([0, 365]); // Por defecto: un año completo
+  const rangoFechas = useDebouncedValue(rangoFechasLocal, 300); // Debounce 300ms para filtrado
+
   const [centrosSeleccionados, setCentrosSeleccionados] = useState([]);
   const [almacenesSeleccionados, setAlmacenesSeleccionados] = useState([]);
   const [sectoresSeleccionados, setSectoresSeleccionados] = useState([]);
@@ -222,19 +214,27 @@ export default function DashboardAdmin() {
   // Compras evitadas detalle (para filtrado)
   const [comprasEvitadasDetalle, setComprasEvitadasDetalle] = useState([]);
 
-  // Fetch solicitudes
+  // Fetch solicitudes - con AbortController para cleanup
   useEffect(() => {
-    setLoading(true);
+    const abortController = new AbortController();
+    let isMounted = true; // Flag para tracking de unmount
 
-    // Fetch ALL solicitudes for "Todas" tab (no estado filter)
-    const todasCall = solicitudes.listar({ page_size: 500 }).catch(() => null);
-    const pendientesCall = solicitudes.listar({ estado: "submitted", page_size: 500 }).catch(() => null);
-    const enProcesoCall = solicitudes.listar({ estado: "processing", page_size: 500 }).catch(() => null);
-    const completadasCall = solicitudes.listar({ estado: "approved", page_size: 500 }).catch(() => null);
-    const rechazadasCall = solicitudes.listar({ estado: "rejected", page_size: 500 }).catch(() => null);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
 
-    Promise.all([todasCall, pendientesCall, enProcesoCall, completadasCall, rechazadasCall])
-      .then(([todasRes, pendientesRes, enProcesoRes, completadasRes, rechazadasRes]) => {
+        // Fetch ALL solicitudes for "Todas" tab (no estado filter)
+        const [todasRes, pendientesRes, enProcesoRes, completadasRes, rechazadasRes] = await Promise.all([
+          solicitudes.listar({ page_size: 500, signal: abortController.signal }).catch(() => null),
+          solicitudes.listar({ estado: "submitted", page_size: 500, signal: abortController.signal }).catch(() => null),
+          solicitudes.listar({ estado: "processing", page_size: 500, signal: abortController.signal }).catch(() => null),
+          solicitudes.listar({ estado: "approved", page_size: 500, signal: abortController.signal }).catch(() => null),
+          solicitudes.listar({ estado: "rejected", page_size: 500, signal: abortController.signal }).catch(() => null),
+        ]);
+
+        // Verificar que el componente siga montado antes de updatear state
+        if (!isMounted) return;
+
         const todasLista = (todasRes?.data?.solicitudes || todasRes?.data?.items || [])
           .sort((a, b) => new Date(b.fecha_creacion || b.created_at || 0) - new Date(a.fecha_creacion || a.created_at || 0));
         const pendientesLista = pendientesRes?.data?.solicitudes || pendientesRes?.data?.items || [];
@@ -257,36 +257,72 @@ export default function DashboardAdmin() {
           completadas: completadasLista,
           rechazadas: rechazadasLista,
         });
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      } catch (err) {
+        // Ignorar AbortError y errores si componente fue unmounted
+        if (!isMounted || err?.name === 'AbortError') return;
+        console.error("Error fetching solicitudes:", err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    // Cleanup: abortar fetch y marcar como unmounted
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [user]);
 
-  // Fetch KPIs
+  // Fetch KPIs - con AbortController
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchKpis = async () => {
       try {
         setKpiLoading(true);
-        const response = await api.get("/kpis");
+        // Usar cachedGet para deduplicación automática (evita calls duplicados simultáneos)
+        const response = await cachedGet("/kpis");
+
+        if (!isMounted) return;
+
         if (response.data?.ok && response.data?.data) {
           setKpiData(response.data.data);
         }
       } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
         console.error("Error fetching KPIs:", err);
       } finally {
-        setKpiLoading(false);
+        if (isMounted) setKpiLoading(false);
       }
     };
+
     fetchKpis();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  // Fetch cumplimiento de proveedores
+  // Fetch cumplimiento de proveedores - con AbortController
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchCumplimiento = async () => {
       try {
-        // Intentar obtener datos de cumplimiento
-        const response = await api.get("/procurement/kpis/compliance", { params: { min_pedidos: 1 } });
+        // Intentar obtener datos de cumplimiento (con deduplicación)
+        const response = await cachedGet("/procurement/kpis/compliance", {
+          params: { min_pedidos: 1 },
+        });
+
+        if (!isMounted) return;
+
         const items = response.data?.items || [];
 
         if (items.length > 0) {
@@ -296,7 +332,12 @@ export default function DashboardAdmin() {
           }
         } else {
           // Fallback: obtener lista de proveedores externos activos
-          const provResponse = await api.get("/admin/proveedores/externos");
+          const provResponse = await api.get("/admin/proveedores/externos", {
+            signal: abortController.signal,
+          });
+
+          if (!isMounted) return;
+
           const proveedores = (provResponse.data?.data || provResponse.data || [])
             .filter(p => p.activo !== false && p.activo !== 0)
             .map(p => ({
@@ -312,9 +353,16 @@ export default function DashboardAdmin() {
           }
         }
       } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+
         // Si hay error, intentar fallback
         try {
-          const provResponse = await api.get("/admin/proveedores/externos");
+          const provResponse = await api.get("/admin/proveedores/externos", {
+            signal: abortController.signal,
+          });
+
+          if (!isMounted) return;
+
           const proveedores = (provResponse.data?.data || provResponse.data || [])
             .filter(p => p.activo !== false && p.activo !== 0)
             .map(p => ({
@@ -329,18 +377,33 @@ export default function DashboardAdmin() {
             setProveedoresSeleccionados(proveedores.map(p => p.proveedor_cuit || p.proveedor_nombre));
           }
         } catch {
-          setCumplimientoProveedores([]);
+          if (isMounted) {
+            setCumplimientoProveedores([]);
+          }
         }
       }
     };
+
     fetchCumplimiento();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  // Fetch stock inmovilizado (inicial - datos globales)
+  // Fetch stock inmovilizado (inicial - datos globales) - con AbortController
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchStockInmovilizado = async () => {
       try {
-        const response = await api.get("/kpis/stock-inmovilizado");
+        // Usar cachedGet para deduplicación
+        const response = await cachedGet("/kpis/stock-inmovilizado");
+
+        if (!isMounted) return;
+
         if (response.data?.ok) {
           setStockInmovilizado({
             items: response.data.items || [],
@@ -353,18 +416,28 @@ export default function DashboardAdmin() {
           console.error("Stock inmovilizado - respuesta no ok:", response.data);
         }
       } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
         console.error("Error fetching stock inmovilizado:", err.response?.status, err.message);
         setStockInmovilizado({ items: [], total: 0, valorTotal: 0, globalTotal: 0, globalValorTotal: 0 });
       }
     };
+
     fetchStockInmovilizado();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
-  // Refetch stock inmovilizado cuando cambian los filtros de Centro
+  // Refetch stock inmovilizado cuando cambian los filtros de Centro - con AbortController
   // Solo Centro aplica a esta card (no Sector, Solicitante ni Almacén de solicitudes)
   useEffect(() => {
     // Si no hay filtros inicializados, no hacer nada
     if (!filtrosInicializados) return;
+
+    const abortController = new AbortController();
+    let isMounted = true;
 
     const fetchStockFiltrado = async () => {
       try {
@@ -375,7 +448,9 @@ export default function DashboardAdmin() {
         }
 
         const url = params.toString() ? `/kpis/stock-inmovilizado?${params}` : "/kpis/stock-inmovilizado";
-        const response = await api.get(url);
+        const response = await api.get(url, { signal: abortController.signal });
+
+        if (!isMounted) return;
 
         if (response.data?.ok) {
           setStockInmovilizado(prev => ({
@@ -387,27 +462,47 @@ export default function DashboardAdmin() {
           }));
         }
       } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
         console.error("Error fetching stock inmovilizado filtrado:", err.message);
       }
     };
 
     fetchStockFiltrado();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [centrosSeleccionados, filtrosInicializados]);
 
-  // Fetch compras evitadas detalle
+  // Fetch compras evitadas detalle - con AbortController
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchComprasEvitadas = async () => {
       try {
-        const response = await api.get("/kpis/compras-evitadas-detalle");
+        // Usar cachedGet para deduplicación
+        const response = await cachedGet("/kpis/compras-evitadas-detalle");
+
+        if (!isMounted) return;
+
         if (response.data?.ok) {
           setComprasEvitadasDetalle(response.data.items || []);
         }
       } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
         console.error("Error fetching compras evitadas:", err.response?.status, err.message);
         setComprasEvitadasDetalle([]);
       }
     };
+
     fetchComprasEvitadas();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   // Extraer opciones de filtros de los datos e inicializar con todos seleccionados
@@ -449,7 +544,21 @@ export default function DashboardAdmin() {
     return fecha;
   };
 
-  // Datos filtrados basados en todos los filtros seleccionados
+  // Crear índices de filtrado O(1) para búsqueda rápida
+  const filterIndices = useMemo(() => ({
+    centros: new Set(centrosSeleccionados),
+    almacenes: new Set(almacenesSeleccionados),
+    sectores: new Set(sectoresSeleccionados),
+    solicitantes: new Set(solicitantesSeleccionados),
+    fechaDesde: sliderAFechaDate(rangoFechas[0]),
+    fechaHasta: (() => {
+      const d = sliderAFechaDate(rangoFechas[1]);
+      d.setHours(23, 59, 59, 999);
+      return d;
+    })(),
+  }), [rangoFechas, centrosSeleccionados, almacenesSeleccionados, sectoresSeleccionados, solicitantesSeleccionados]);
+
+  // Datos filtrados - UNA SOLA PASADA O(n) en lugar de 4-5 pasadas O(n²)
   const datosFiltrados = useMemo(() => {
     // Si no hay ningún filtro seleccionado, no mostrar datos
     const hayFiltrosSeleccionados = centrosSeleccionados.length > 0 ||
@@ -461,70 +570,61 @@ export default function DashboardAdmin() {
       return [];
     }
 
-    let filtered = [...allData.todas];
-
-    // Filtrar por rango de fechas
-    const fechaDesde = sliderAFechaDate(rangoFechas[0]);
-    const fechaHasta = sliderAFechaDate(rangoFechas[1]);
-    fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día
-
-    filtered = filtered.filter(s => {
+    // UNA SOLA PASADA: todas las condiciones en un solo filter()
+    return allData.todas.filter(s => {
+      // Filtro por rango de fechas
       const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
-      return fechaCreacion >= fechaDesde && fechaCreacion <= fechaHasta;
-    });
+      if (fechaCreacion < filterIndices.fechaDesde || fechaCreacion > filterIndices.fechaHasta) {
+        return false;
+      }
 
-    // Filtrar por centros
-    if (centrosSeleccionados.length > 0) {
-      filtered = filtered.filter(s => centrosSeleccionados.includes(s.centro));
-    }
+      // Filtro por centros - O(1) con Set.has()
+      if (filterIndices.centros.size > 0 && !filterIndices.centros.has(s.centro)) {
+        return false;
+      }
 
-    // Filtrar por almacenes
-    if (almacenesSeleccionados.length > 0) {
-      filtered = filtered.filter(s => almacenesSeleccionados.includes(s.almacen_virtual));
-    }
+      // Filtro por almacenes - O(1) con Set.has()
+      if (filterIndices.almacenes.size > 0 && !filterIndices.almacenes.has(s.almacen_virtual)) {
+        return false;
+      }
 
-    // Filtrar por sectores
-    if (sectoresSeleccionados.length > 0) {
-      filtered = filtered.filter(s => {
+      // Filtro por sectores - O(1) con Set.has()
+      if (filterIndices.sectores.size > 0) {
         const sectorSolicitud = s.sector_nombre || s.sector;
-        return sectoresSeleccionados.includes(sectorSolicitud);
-      });
-    }
+        if (!filterIndices.sectores.has(sectorSolicitud)) {
+          return false;
+        }
+      }
 
-    // Filtrar por solicitantes
-    if (solicitantesSeleccionados.length > 0) {
-      filtered = filtered.filter(s => {
+      // Filtro por solicitantes - O(1) con Set.has()
+      if (filterIndices.solicitantes.size > 0) {
         const apellido = s.solicitante_apellido || '';
         const nombre = s.solicitante_nombre || '';
-        const solicitanteCompleto = [apellido, nombre].filter(Boolean).join(' ').trim() || s.solicitante;
-        return solicitantesSeleccionados.includes(solicitanteCompleto);
-      });
-    }
+        const solicitanteCompleto = [apellido, nombre]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || s.solicitante;
+        if (!filterIndices.solicitantes.has(solicitanteCompleto)) {
+          return false;
+        }
+      }
 
-    return filtered;
-  }, [allData.todas, rangoFechas, centrosSeleccionados, almacenesSeleccionados, sectoresSeleccionados, solicitantesSeleccionados]);
+      return true;
+    });
+  }, [allData.todas, filterIndices]);
 
-  // Stock inmovilizado - filtrado por Centro (desde el endpoint)
+  // Stock inmovilizado - los datos ya vienen filtrados del endpoint
   // Solo el filtro Centro aplica. Sector, Solicitante y Almacén NO aplican a esta card.
   const stockInmovilizadoFiltrado = useMemo(() => {
-    // Si no hay centros seleccionados, mostrar vacío (consistente con otras cards)
-    if (centrosSeleccionados.length === 0) {
-      return {
-        items: [],
-        total: 0,
-        valorTotal: 0,
-        globalTotal: stockInmovilizado.globalTotal || 0,
-        globalValorTotal: stockInmovilizado.globalValorTotal || 0,
-      };
-    }
     return {
       items: stockInmovilizado.items.slice(0, 10),
       total: stockInmovilizado.total,
       valorTotal: stockInmovilizado.valorTotal,
       globalTotal: stockInmovilizado.globalTotal || 0,
       globalValorTotal: stockInmovilizado.globalValorTotal || 0,
+      hayDatos: stockInmovilizado.items.length > 0,
     };
-  }, [stockInmovilizado, centrosSeleccionados]);
+  }, [stockInmovilizado]);
 
   // Estadísticas filtradas
   const statsFiltrados = useMemo(() => {
@@ -671,15 +771,15 @@ export default function DashboardAdmin() {
       <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
         <CardContent className="py-2 px-6" style={{ height: '73px', maxWidth: '1850px' }}>
           <div className="flex items-center gap-6 h-full">
-            {/* Slider de rango de fechas */}
+            {/* Slider de rango de fechas - con debounce */}
             <div className="flex flex-col gap-0 min-w-[320px] ml-[180px]">
               <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-2">
-                Desde <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechas[0])}</span> hasta <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechas[1])}</span>
+                Desde <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechasLocal[0])}</span> hasta <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechasLocal[1])}</span>
               </label>
               <Slider
                 size="small"
-                value={rangoFechas}
-                onChange={(_, value) => setRangoFechas(value)}
+                value={rangoFechasLocal}
+                onChange={(_, value) => setRangoFechasLocal(value)}
                 min={0}
                 max={365}
                 valueLabelDisplay="auto"
@@ -857,7 +957,7 @@ export default function DashboardAdmin() {
             <button
               type="button"
               onClick={() => {
-                setRangoFechas([0, 365]); // Un año completo
+                setRangoFechasLocal([0, 365]); // Un año completo
                 setCentrosSeleccionados([]);
                 setAlmacenesSeleccionados([]);
                 setSectoresSeleccionados([]);
@@ -1041,7 +1141,7 @@ export default function DashboardAdmin() {
                 );
               })()}
 
-              {/* Tiempo Promedio */}
+              {/* Tiempo Promedio de Aprobación */}
               {(() => {
                 // Calcular tiempo promedio de aprobación desde datos filtrados
                 const solicitudesAprobadas = datosFiltrados.filter(s => {
@@ -1050,6 +1150,8 @@ export default function DashboardAdmin() {
                 });
 
                 let tiempoAprobacion = 0;
+                let tiempoMin = 0;
+                let tiempoMax = 0;
                 if (solicitudesAprobadas.length > 0) {
                   const tiempos = solicitudesAprobadas.map(s => {
                     const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
@@ -1058,66 +1160,63 @@ export default function DashboardAdmin() {
                     return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24))); // días
                   });
                   tiempoAprobacion = Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length);
+                  tiempoMin = Math.min(...tiempos);
+                  tiempoMax = Math.max(...tiempos);
                 }
 
-                const tiempoCompra = 5; // placeholder - requiere datos de compras
-                const tiempoEntrega = 5; // placeholder - requiere datos de entregas
-                const tiempoTotal = tiempoAprobacion + tiempoCompra + tiempoEntrega;
-
-                const pctAprobacion = tiempoTotal > 0 ? Math.round((tiempoAprobacion / tiempoTotal) * 100) : 0;
-                const pctCompra = tiempoTotal > 0 ? Math.round((tiempoCompra / tiempoTotal) * 100) : 0;
-                const pctEntrega = tiempoTotal > 0 ? Math.round((tiempoEntrega / tiempoTotal) * 100) : 0;
+                const metaTiempo = 3; // Meta en días
+                const cumpleMeta = tiempoAprobacion <= metaTiempo;
 
                 return (
                   <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '395px', height: '165px' }}>
                     <CardContent className="p-4">
                       {/* Header */}
-                      <div className="mb-2">
+                      <div className="mb-3">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          Tiempo Promedio
-                        </p>
-                        <p className="text-lg font-bold text-slate-800 dark:text-slate-100">
-                          {tiempoTotal}d total
+                          Tiempo Promedio de Aprobación
                         </p>
                       </div>
 
-                      {/* Barra de progreso horizontal */}
-                      <div className="flex h-8 rounded overflow-hidden mb-3">
-                        <div
-                          className="flex items-center justify-center text-white text-xs font-medium"
-                          style={{ width: `${pctAprobacion}%`, backgroundColor: '#9333ea' }}
-                        >
-                          {tiempoAprobacion}d={pctAprobacion}%
+                      {/* KPI Principal */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className={`text-4xl font-bold ${cumpleMeta ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {solicitudesAprobadas.length > 0 ? tiempoAprobacion : '-'}
+                            </span>
+                            <span className="text-lg text-slate-500">días</span>
+                          </div>
+                          {solicitudesAprobadas.length > 0 && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              Rango: {tiempoMin}d - {tiempoMax}d · {solicitudesAprobadas.length} solicitudes
+                            </p>
+                          )}
                         </div>
-                        <div
-                          className="flex items-center justify-center text-slate-800 text-xs font-medium"
-                          style={{ width: `${pctCompra}%`, backgroundColor: '#fbbf24' }}
-                        >
-                          {tiempoCompra}d={pctCompra}%
-                        </div>
-                        <div
-                          className="flex items-center justify-center text-white text-xs font-medium"
-                          style={{ width: `${pctEntrega}%`, backgroundColor: '#06b6d4' }}
-                        >
-                          {tiempoEntrega}d={pctEntrega}%
+
+                        {/* Indicador de meta */}
+                        <div className="flex flex-col items-center">
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center ${cumpleMeta ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                            {cumpleMeta ? (
+                              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                            ) : (
+                              <Clock className="w-8 h-8 text-amber-600" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1">Meta: {metaTiempo}d</p>
                         </div>
                       </div>
 
-                      {/* Leyenda */}
-                      <div className="flex gap-4 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#9333ea' }} />
-                          <span className="text-slate-600">Aprobación</span>
+                      {/* Barra de progreso vs meta */}
+                      {solicitudesAprobadas.length > 0 && (
+                        <div className="mt-3">
+                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${cumpleMeta ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                              style={{ width: `${Math.min(100, (tiempoAprobacion / (metaTiempo * 2)) * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#fbbf24' }} />
-                          <span className="text-slate-600">Compra</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-3 h-3 rounded" style={{ backgroundColor: '#06b6d4' }} />
-                          <span className="text-slate-600">Entrega</span>
-                        </div>
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -1125,38 +1224,46 @@ export default function DashboardAdmin() {
 
               {/* Compras Evitadas */}
               {(() => {
-                // Si no hay filtros seleccionados, no mostrar datos
-                const hayFiltrosSeleccionados = centrosSeleccionados.length > 0 ||
-                                                 almacenesSeleccionados.length > 0 ||
-                                                 sectoresSeleccionados.length > 0 ||
-                                                 solicitantesSeleccionados.length > 0;
+                // Filtrar compras evitadas según filtros seleccionados
+                const fechaDesde = sliderAFechaDate(rangoFechas[0]);
+                const fechaHasta = sliderAFechaDate(rangoFechas[1]);
+                fechaHasta.setHours(23, 59, 59, 999);
 
-                let itemsMostrar = 0;
-                let valorMostrar = 0;
-
-                if (hayFiltrosSeleccionados) {
-                  // Filtrar compras evitadas según filtros seleccionados
-                  const fechaDesde = sliderAFechaDate(rangoFechas[0]);
-                  const fechaHasta = sliderAFechaDate(rangoFechas[1]);
-                  fechaHasta.setHours(23, 59, 59, 999);
-
-                  const comprasFiltradas = comprasEvitadasDetalle.filter(item => {
-                    // Filtro por fecha
+                // Siempre filtrar por los criterios seleccionados
+                const comprasFiltradas = comprasEvitadasDetalle.filter(item => {
+                  // Filtro por fecha
+                  if (item.fecha) {
                     const fechaItem = new Date(item.fecha);
                     if (fechaItem < fechaDesde || fechaItem > fechaHasta) return false;
+                  }
 
-                    // Filtro por centro
-                    if (centrosSeleccionados.length > 0 && !centrosSeleccionados.includes(item.centro)) return false;
+                  // Filtro por centro - siempre aplicar si hay centros seleccionados
+                  if (centrosSeleccionados.length > 0) {
+                    if (!centrosSeleccionados.includes(item.centro)) return false;
+                  } else {
+                    // Si no hay centros seleccionados, no mostrar nada
+                    return false;
+                  }
 
-                    // Filtro por sector
-                    if (sectoresSeleccionados.length > 0 && !sectoresSeleccionados.includes(item.sector)) return false;
+                  // Filtro por sector - siempre aplicar si hay sectores seleccionados
+                  if (sectoresSeleccionados.length > 0) {
+                    if (!sectoresSeleccionados.includes(item.sector)) return false;
+                  } else {
+                    // Si no hay sectores seleccionados, no mostrar nada
+                    return false;
+                  }
 
-                    return true;
-                  });
+                  return true;
+                });
 
-                  itemsMostrar = comprasFiltradas.length;
-                  valorMostrar = comprasFiltradas.reduce((sum, item) => sum + (item.valor || 0), 0);
-                }
+                const itemsMostrar = comprasFiltradas.length;
+                const valorMostrar = comprasFiltradas.reduce((sum, item) => sum + (item.valor || 0), 0);
+
+                // Verificar si hay filtros activos
+                const todosLosCentros = centrosSeleccionados.length === filtrosOpciones.centros.length;
+                const todosLosSectores = sectoresSeleccionados.length === filtrosOpciones.sectores.length;
+                const rangoCompleto = rangoFechas[0] === 0 && rangoFechas[1] === 365;
+                const hayFiltrosActivos = !todosLosCentros || !todosLosSectores || !rangoCompleto;
 
                 // Formatear monto como KUSD o MUSD
                 const formatMontoResumido = (val) => {
@@ -1169,8 +1276,9 @@ export default function DashboardAdmin() {
                   <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ flex: 1, minWidth: '200px', height: '165px' }}>
                     <CardContent className="p-4">
                       <div className="mb-2">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                           Compras Evitadas
+                          {hayFiltrosActivos && <span className="text-[9px] text-blue-500">(filtrado)</span>}
                         </p>
                         <p className="text-2xl font-bold text-emerald-600">
                           {formatMontoResumido(valorMostrar)}
@@ -1180,7 +1288,9 @@ export default function DashboardAdmin() {
                         {itemsMostrar} ítems abastecidos internamente
                       </p>
                       <p className="text-[10px] text-slate-400 mt-1">
-                        Ahorro por uso de stock y transferencias
+                        {comprasEvitadasDetalle.length === 0
+                          ? 'Sin datos de abastecimiento interno'
+                          : 'Ahorro por uso de stock y transferencias'}
                       </p>
                     </CardContent>
                   </Card>
@@ -1227,7 +1337,7 @@ export default function DashboardAdmin() {
                       <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Distribución de Estados</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 flex items-center">
-                      <MuiDonutChart
+                      <DonutChartComponent
                         data={[estados.borrador, estados.enviadas, estados.aprobadas, estados.enProceso, estados.rechazadas, estados.cerradas]}
                         colors={["#94a3b8", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6"]}
                         labels={["Borrador", "Enviadas", "Aprobadas", "En Proceso", "Rechazadas", "Cerradas"]}
@@ -1262,7 +1372,7 @@ export default function DashboardAdmin() {
                       <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Solicitudes Abiertas</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 flex items-center">
-                      <MuiDonutChart
+                      <DonutChartComponent
                         data={[criticidades.Alta, criticidades.Media, criticidades.Normal, criticidades.Baja]}
                         colors={["#ef4444", "#f59e0b", "#3b82f6", "#10b981"]}
                         labels={["Alta", "Media", "Normal", "Baja"]}
@@ -1272,120 +1382,145 @@ export default function DashboardAdmin() {
                 );
               })()}
 
-              {/* Presupuesto Utilizado - Compacto horizontal */}
-              <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '590px', height: '191px', marginLeft: 'auto' }}>
-                <CardHeader className="px-4 pt-3 pb-1">
-                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuesto Global</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <div className="flex items-center gap-6">
-                    {/* Medidores con Gauge MUI */}
-                    <div className="flex gap-2">
-                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                        <Gauge
-                          value={100}
-                          valueMax={100}
-                          startAngle={-110}
-                          endAngle={110}
-                          width={70}
-                          height={70}
-                          sx={{
-                            [`& .${gaugeClasses.valueText}`]: {
-                              fontSize: 12,
-                              fontWeight: 'bold',
-                              transform: 'translate(0px, 0px)',
-                            },
-                            [`& .${gaugeClasses.valueArc}`]: {
-                              fill: '#3b82f6',
-                            },
-                          }}
-                          text={({ value }) => `${value}%`}
-                        />
-                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Total</p>
-                        <p className="text-[10px] font-bold text-slate-700 text-center">MUSD {(kpiData.presupuesto.total / 1000000).toFixed(2).replace('.', ',')}</p>
-                      </div>
-                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                        <Gauge
-                          value={kpiData.presupuesto.percentage}
-                          valueMax={100}
-                          startAngle={-110}
-                          endAngle={110}
-                          width={70}
-                          height={70}
-                          sx={{
-                            [`& .${gaugeClasses.valueText}`]: {
-                              fontSize: 12,
-                              fontWeight: 'bold',
-                              transform: 'translate(0px, 0px)',
-                            },
-                            [`& .${gaugeClasses.valueArc}`]: {
-                              fill: '#f59e0b',
-                            },
-                          }}
-                          text={({ value }) => `${value}%`}
-                        />
-                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Utilizado</p>
-                        <p className="text-[10px] font-bold text-amber-600 text-center">MUSD {(kpiData.presupuesto.utilizado / 1000000).toFixed(2).replace('.', ',')}</p>
-                      </div>
-                      <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                        <Gauge
-                          value={100 - kpiData.presupuesto.percentage}
-                          valueMax={100}
-                          startAngle={-110}
-                          endAngle={110}
-                          width={70}
-                          height={70}
-                          sx={{
-                            [`& .${gaugeClasses.valueText}`]: {
-                              fontSize: 12,
-                              fontWeight: 'bold',
-                              transform: 'translate(0px, 0px)',
-                            },
-                            [`& .${gaugeClasses.valueArc}`]: {
-                              fill: '#10b981',
-                            },
-                          }}
-                          text={({ value }) => `${value}%`}
-                        />
-                        <p className="text-[9px] text-slate-500 -mt-2 text-center">Disponible</p>
-                        <p className="text-[10px] font-bold text-emerald-600 text-center">MUSD {(kpiData.presupuesto.disponible / 1000000).toFixed(2).replace('.', ',')}</p>
-                      </div>
-                    </div>
-                    {/* Separador vertical */}
-                    <div className="w-px h-20 bg-slate-200 dark:bg-slate-600"></div>
-                    {/* Top 3 en dos columnas */}
-                    <div className="flex-1">
-                      <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">Consumido sobre Global</p>
-                      <div className="flex gap-6">
-                        {/* Top 3 Centros */}
-                        <div className="flex-1">
-                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">Top Centros</p>
-                          <div className="divide-y divide-slate-200">
-                            {(kpiData.presupuesto.topCentros || []).map((centro, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-[10px] text-slate-600 truncate flex-1">{centro.nombre}</span>
-                                <span className="text-[10px] font-semibold text-blue-600">{centro.porcentaje}%</span>
-                              </div>
-                            ))}
+              {/* Presupuesto - Filtrable por Centro/Sector */}
+              {(() => {
+                // Filtrar topCentros y topSectores según selección
+                const topCentros = (kpiData.presupuesto.topCentros || []);
+                const topSectores = (kpiData.presupuesto.topSectores || []);
+
+                // Filtrar centros seleccionados
+                const centrosFiltrados = centrosSeleccionados.length > 0
+                  ? topCentros.filter(c => centrosSeleccionados.includes(c.nombre))
+                  : topCentros;
+
+                // Filtrar sectores seleccionados
+                const sectoresFiltrados = sectoresSeleccionados.length > 0
+                  ? topSectores.filter(s => sectoresSeleccionados.includes(s.nombre))
+                  : topSectores;
+
+                // Calcular presupuesto filtrado desde topCentros si hay filtros
+                let presupuestoFiltrado = {
+                  total: kpiData.presupuesto.total,
+                  utilizado: kpiData.presupuesto.utilizado,
+                  disponible: kpiData.presupuesto.disponible,
+                  percentage: kpiData.presupuesto.percentage,
+                };
+
+                // Si hay centros seleccionados Y tenemos datos de esos centros, recalcular
+                if (centrosSeleccionados.length > 0 && centrosFiltrados.length > 0) {
+                  const utilizadoFiltrado = centrosFiltrados.reduce((sum, c) => sum + (c.utilizado || 0), 0);
+                  const totalFiltrado = centrosFiltrados.reduce((sum, c) => sum + (c.monto || 0), 0);
+                  presupuestoFiltrado = {
+                    total: totalFiltrado,
+                    utilizado: utilizadoFiltrado,
+                    disponible: totalFiltrado - utilizadoFiltrado,
+                    percentage: totalFiltrado > 0 ? Math.round((utilizadoFiltrado / totalFiltrado) * 100) : 0,
+                  };
+                }
+
+                const hayFiltrosActivos = centrosSeleccionados.length > 0 && centrosSeleccionados.length < filtrosOpciones.centros.length;
+                const mostrandoGlobal = !hayFiltrosActivos || centrosFiltrados.length === 0;
+
+                return (
+                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '590px', height: '191px', marginLeft: 'auto' }}>
+                    <CardHeader className="px-4 pt-3 pb-1">
+                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                        Presupuesto {mostrandoGlobal ? 'Global' : 'Filtrado'}
+                        {!mostrandoGlobal && (
+                          <span className="text-[9px] font-normal text-blue-500">({centrosFiltrados.length} centros)</span>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-3">
+                      <div className="flex items-center gap-6">
+                        {/* Medidores con Gauge MUI */}
+                        <div className="flex gap-2">
+                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                            <CanvasGauge
+                              value={100}
+                              valueMax={100}
+                              width={70}
+                              height={70}
+                              color="#3b82f6"
+                              text="100%"
+                            />
+                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Total</p>
+                            <p className="text-[10px] font-bold text-slate-700 text-center">MUSD {(presupuestoFiltrado.total / 1000000).toFixed(2).replace('.', ',')}</p>
+                          </div>
+                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                            <CanvasGauge
+                              value={presupuestoFiltrado.percentage}
+                              valueMax={100}
+                              width={70}
+                              height={70}
+                              color="#f59e0b"
+                              text={`${Math.round(presupuestoFiltrado.percentage)}%`}
+                            />
+                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Utilizado</p>
+                            <p className="text-[10px] font-bold text-amber-600 text-center">MUSD {(presupuestoFiltrado.utilizado / 1000000).toFixed(2).replace('.', ',')}</p>
+                          </div>
+                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
+                            <CanvasGauge
+                              value={100 - presupuestoFiltrado.percentage}
+                              valueMax={100}
+                              width={70}
+                              height={70}
+                              color="#10b981"
+                              text={`${Math.round(100 - presupuestoFiltrado.percentage)}%`}
+                            />
+                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Disponible</p>
+                            <p className="text-[10px] font-bold text-emerald-600 text-center">MUSD {(presupuestoFiltrado.disponible / 1000000).toFixed(2).replace('.', ',')}</p>
                           </div>
                         </div>
-                        {/* Top 3 Sectores */}
+                        {/* Separador vertical */}
+                        <div className="w-px h-20 bg-slate-200 dark:bg-slate-600"></div>
+                        {/* Top 3 en dos columnas */}
                         <div className="flex-1">
-                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">Top Sectores</p>
-                          <div className="divide-y divide-slate-200">
-                            {(kpiData.presupuesto.topSectores || []).map((sector, idx) => (
-                              <div key={idx} className="flex items-center justify-between py-1">
-                                <span className="text-[10px] text-slate-600 truncate flex-1">{sector.nombre}</span>
-                                <span className="text-[10px] font-semibold text-emerald-600">{sector.porcentaje}%</span>
+                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">
+                            {mostrandoGlobal ? 'Consumido sobre Global' : 'Centros/Sectores Seleccionados'}
+                          </p>
+                          <div className="flex gap-6">
+                            {/* Top Centros (filtrados o top 3) */}
+                            <div className="flex-1">
+                              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">
+                                {mostrandoGlobal ? 'Top Centros' : 'Centros'}
+                              </p>
+                              <div className="divide-y divide-slate-200">
+                                {(mostrandoGlobal ? topCentros : centrosFiltrados).slice(0, 3).map((centro, idx) => (
+                                  <div key={idx} className="flex items-center justify-between py-1">
+                                    <span className="text-[10px] text-slate-600 truncate flex-1">{centro.nombre}</span>
+                                    <span className="text-[10px] font-semibold text-blue-600">{centro.porcentaje}%</span>
+                                  </div>
+                                ))}
+                                {(mostrandoGlobal ? topCentros : centrosFiltrados).length === 0 && (
+                                  <p className="text-[9px] text-slate-400 text-center py-1">Sin datos</p>
+                                )}
                               </div>
-                            ))}
+                            </div>
+                            {/* Top Sectores (filtrados o top 3) */}
+                            <div className="flex-1">
+                              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">
+                                {mostrandoGlobal ? 'Top Sectores' : 'Sectores'}
+                              </p>
+                              <div className="divide-y divide-slate-200">
+                                {(mostrandoGlobal ? topSectores : sectoresFiltrados).slice(0, 3).map((sector, idx) => (
+                                  <div key={idx} className="flex items-center justify-between py-1">
+                                    <span className="text-[10px] text-slate-600 truncate flex-1">{sector.nombre}</span>
+                                    <span className="text-[10px] font-semibold text-emerald-600">{sector.porcentaje}%</span>
+                                  </div>
+                                ))}
+                                {(mostrandoGlobal ? topSectores : sectoresFiltrados).length === 0 && (
+                                  <p className="text-[9px] text-slate-400 text-center py-1">Sin datos</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
             </div>
           </ScrollReveal>
@@ -1399,16 +1534,18 @@ export default function DashboardAdmin() {
                 const materialesCount = {};
                 datosFiltrados.forEach(s => {
                   (s.items || []).forEach(item => {
-                    const codigo = item.codigo || item.codigo_sap || '';
-                    const nombre = item.descripcion || item.nombre || item.material_nombre || `Material ${item.material_id}`;
+                    // Campos correctos según estructura de BD: material, precio_usd, subtotal
+                    const codigo = item.material || item.codigo || item.codigo_sap || '';
+                    const nombre = item.descripcion || item.nombre || item.material_nombre || `Material ${item.material_id || codigo}`;
                     const cantidad = item.cantidad || 1;
-                    const precio = item.precio_unitario || item.precio || item.precio_estimado || 0;
+                    const precio = item.precio_usd || item.precio_unitario || item.precio || item.precio_estimado || 0;
+                    const subtotal = item.subtotal || (cantidad * precio);
                     const key = codigo || nombre;
                     if (!materialesCount[key]) {
                       materialesCount[key] = { codigo, nombre, cantidad: 0, monto: 0, precioUnitario: precio };
                     }
                     materialesCount[key].cantidad += cantidad;
-                    materialesCount[key].monto += cantidad * precio;
+                    materialesCount[key].monto += subtotal;
                     // Actualizar precio unitario si es mayor (para tener el más reciente o mayor)
                     if (precio > materialesCount[key].precioUnitario) {
                       materialesCount[key].precioUnitario = precio;
@@ -1502,7 +1639,7 @@ export default function DashboardAdmin() {
                           ))
                         ) : (
                           <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
-                            {centrosSeleccionados.length === 0 ? 'Seleccione un Centro para ver datos' : 'No hay stock inmovilizado en los centros seleccionados'}
+                            {kpiLoading ? 'Cargando...' : 'No hay stock inmovilizado disponible'}
                           </p>
                         )}
                       </div>
