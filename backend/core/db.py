@@ -480,9 +480,9 @@ def get_db_path(db_name: str = "spm") -> Path:
         "sap_data": "sap_data.db",
         # Nueva BD consolidada de materiales (v3.0)
         "master_materiales": "master_materiales.db",
-        # Alias para compatibilidad hacia atrás
-        "equivalentes": "master_materiales.db",
-        "catalogo_materiales": "master_materiales.db",
+        # Alias para compatibilidad hacia atrás (equivalentes.db tiene tabla "equivalencias")
+        "equivalentes": "equivalentes.db",
+        "catalogo_materiales": "catalogo_materiales.db",
     }
 
     filename = db_files.get(db_name, f"{db_name}.db")

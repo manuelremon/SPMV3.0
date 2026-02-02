@@ -37,8 +37,65 @@ def listar_equivalencias():
         with get_db_connection("equivalentes") as conn:
             cursor = conn.cursor()
 
-            # Query base
-            base_query = """
+            # Construir clausula WHERE dinamicamente
+            where_clauses = ["1=1"]
+            params = []
+
+            # Legacy search (q parameter)
+            if q:
+                where_clauses.append("""
+                    (
+                        CAST(material_base AS TEXT) LIKE ? OR
+                        CAST(material_equivalente AS TEXT) LIKE ? OR
+                        texto_breve_base LIKE ? OR
+                        texto_breve_equivalente LIKE ?
+                    )
+                """)
+                search_term = f"%{q}%"
+                params.extend([search_term, search_term, search_term, search_term])
+
+            # Filtro por código
+            if q_codigo:
+                where_clauses.append("""
+                    (
+                        CAST(material_base AS TEXT) LIKE ? OR
+                        CAST(material_equivalente AS TEXT) LIKE ?
+                    )
+                """)
+                codigo_term = f"%{q_codigo}%"
+                params.extend([codigo_term, codigo_term])
+
+            # Filtro por descripción
+            if q_descripcion:
+                where_clauses.append("""
+                    (
+                        UPPER(texto_breve_base) LIKE UPPER(?) OR
+                        UPPER(texto_breve_equivalente) LIKE UPPER(?)
+                    )
+                """)
+                desc_term = f"%{q_descripcion}%"
+                params.extend([desc_term, desc_term])
+
+            # Filtro por tipo de equivalencia
+            if q_tipo:
+                where_clauses.append("tipo_equiv = ?")
+                params.append(q_tipo)
+
+            # Construir WHERE
+            where_clause = " AND ".join(where_clauses)
+
+            # Contar total (sin subquery para compatibilidad SQLite)
+            count_query = f"""
+                SELECT COUNT(*) as total
+                FROM equivalencias
+                WHERE {where_clause}
+            """
+            cursor.execute(count_query, params)
+            count_row = cursor.fetchone()
+            total = count_row["total"] if isinstance(count_row, dict) else count_row[0]
+
+            # Query para obtener resultados con paginación
+            select_query = f"""
                 SELECT
                     rowid as id,
                     material_base,
@@ -49,61 +106,12 @@ def listar_equivalencias():
                     criterio,
                     motivo_equivalencia
                 FROM equivalencias
-                WHERE 1=1
+                WHERE {where_clause}
+                ORDER BY material_base
+                LIMIT ? OFFSET ?
             """
-
-            params = []
-
-            # Legacy search (q parameter)
-            if q:
-                base_query += """
-                    AND (
-                        CAST(material_base AS TEXT) LIKE ? OR
-                        CAST(material_equivalente AS TEXT) LIKE ? OR
-                        texto_breve_base LIKE ? OR
-                        texto_breve_equivalente LIKE ?
-                    )
-                """
-                search_term = f"%{q}%"
-                params.extend([search_term, search_term, search_term, search_term])
-
-            # Filtro por código
-            if q_codigo:
-                base_query += """
-                    AND (
-                        CAST(material_base AS TEXT) LIKE ? OR
-                        CAST(material_equivalente AS TEXT) LIKE ?
-                    )
-                """
-                codigo_term = f"%{q_codigo}%"
-                params.extend([codigo_term, codigo_term])
-
-            # Filtro por descripción
-            if q_descripcion:
-                base_query += """
-                    AND (
-                        UPPER(texto_breve_base) LIKE UPPER(?) OR
-                        UPPER(texto_breve_equivalente) LIKE UPPER(?)
-                    )
-                """
-                desc_term = f"%{q_descripcion}%"
-                params.extend([desc_term, desc_term])
-
-            # Filtro por tipo de equivalencia
-            if q_tipo:
-                base_query += " AND tipo_equiv = ?"
-                params.append(q_tipo)
-
-            # Contar total
-            count_query = f"SELECT COUNT(*) FROM ({base_query})"
-            cursor.execute(count_query, params)
-            total = cursor.fetchone()[0]
-
-            # Obtener resultados con paginación
-            base_query += " ORDER BY material_base LIMIT ? OFFSET ?"
-            params.extend([limit, offset])
-
-            cursor.execute(base_query, params)
+            select_params = params + [limit, offset]
+            cursor.execute(select_query, select_params)
             rows = cursor.fetchall()
 
         equivalencias = []
@@ -314,7 +322,7 @@ def crear_equivalencia():
         with get_db_connection("catalogo_materiales") as conn:
             cursor = conn.cursor()
             # En PostgreSQL usa cat_materiales, en SQLite usa materiales
-            from core.db import is_using_postgresql
+            from backend.core.db import is_using_postgresql
             tabla = "cat_materiales" if is_using_postgresql() else "materiales"
             # Validación explícita contra whitelist (defensa en profundidad)
             if tabla not in ALLOWED_CATALOG_TABLES:
