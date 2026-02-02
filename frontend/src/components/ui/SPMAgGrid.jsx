@@ -10,11 +10,8 @@ import PropTypes from 'prop-types';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import InputAdornment from '@mui/material/InputAdornment';
-import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import * as XLSX from 'xlsx';
 
@@ -150,7 +147,6 @@ export function SPMAgGrid({
   ...props
 }) {
   const gridRef = useRef(null);
-  const [quickFilterText, setQuickFilterText] = useState('');
 
   // Configuración por defecto de columnas
   const defaultColDef = useMemo(() => ({
@@ -165,15 +161,6 @@ export function SPMAgGrid({
     },
     ...customDefaultColDef,
   }), [customDefaultColDef]);
-
-  // Handler para búsqueda rápida
-  const onFilterTextChange = useCallback((e) => {
-    const text = e.target.value;
-    setQuickFilterText(text);
-    if (gridRef.current?.api) {
-      gridRef.current.api.setGridOption('quickFilterText', text);
-    }
-  }, []);
 
   // Handler para clic en fila
   const handleRowClicked = useCallback((event) => {
@@ -273,20 +260,6 @@ export function SPMAgGrid({
             gap: 1,
           }}
         >
-          <TextField
-            size="small"
-            placeholder="Buscar..."
-            value={quickFilterText}
-            onChange={onFilterTextChange}
-            sx={{ minWidth: 200, maxWidth: 300 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: 'action.active' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
           <Tooltip title="Descargar XLSX">
             <IconButton
               onClick={handleExportXLSX}
