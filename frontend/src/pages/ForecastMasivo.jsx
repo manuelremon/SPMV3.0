@@ -1,5 +1,6 @@
 /**
  * ForecastMasivo - Página de forecast masivo de materiales
+ * ✨ Migrado a SPMAgGrid para mejor rendimiento
  *
  * Permite analizar múltiples materiales simultáneamente
  * usando plantilla CSV para importación
@@ -10,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/i18n';
 import forecastService from '../services/forecast';
 import { TempDataBanner } from '../components/ui/TempDataBanner';
+import { SPMAgGrid } from '../components/ui/SPMAgGrid';
 
 // MUI Components
 import Container from '@mui/material/Container';
@@ -25,12 +27,6 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import LinearProgress from '@mui/material/LinearProgress';
 import Chip from '@mui/material/Chip';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import CircularProgress from '@mui/material/CircularProgress';
 import Tooltip from '@mui/material/Tooltip';
 
@@ -53,6 +49,97 @@ const MODELOS_INFO = {
   arima: { nombre: 'ARIMA', icono: '📊' },
   prophet: { nombre: 'Prophet', icono: '🔮' }
 };
+
+/**
+ * Tabla de resultados migrada a SPMAgGrid
+ */
+function ResultadosTable({ data }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item, idx) => ({ ...item, id: idx }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'codigo',
+      headerName: t('common_code', 'Código'),
+      flex: 0.4,
+      minWidth: 100,
+      valueFormatter: (params) => params.value || '-',
+    },
+    {
+      field: 'descripcion',
+      headerName: t('common_description', 'Descripción'),
+      flex: 0.8,
+      minWidth: 150,
+      valueFormatter: (params) => params.data?.descripcion || (params.data?.error ? params.data.error : '-'),
+    },
+    {
+      field: 'exito',
+      headerName: t('common_status', 'Estado'),
+      flex: 0.35,
+      minWidth: 100,
+      cellRenderer: (params) => (
+        <Chip
+          label={params.data.exito ? 'OK' : 'Error'}
+          size="small"
+          sx={{
+            bgcolor: params.data.exito ? 'var(--success-soft)' : 'var(--danger-soft)',
+            color: params.data.exito ? 'var(--success)' : 'var(--danger)',
+            fontWeight: 600,
+            fontSize: '0.7rem',
+          }}
+        />
+      ),
+    },
+    {
+      field: 'mae',
+      headerName: 'MAE',
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.data?.metricas?.mae?.toFixed(2) || '-',
+    },
+    {
+      field: 'rmse',
+      headerName: 'RMSE',
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.data?.metricas?.rmse?.toFixed(2) || '-',
+    },
+    {
+      field: 'r2',
+      headerName: 'R²',
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.data?.metricas?.r2?.toFixed(4) || '-',
+    },
+    {
+      field: 'prediccionTotal',
+      headerName: t('common_prediction', 'Predicción'),
+      flex: 0.3,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.data?.prediccionTotal?.toFixed(0) || '-',
+    },
+  ], [t]);
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={400}
+      pagination={true}
+      paginationPageSize={10}
+      enableQuickFilter={true}
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  );
+}
 
 const ForecastMasivo = () => {
   const { t } = useI18n();
@@ -530,47 +617,7 @@ const ForecastMasivo = () => {
             </Button>
           </Box>
 
-          <TableContainer sx={{ maxHeight: 400 }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>Código</TableCell>
-                  <TableCell sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>Descripción</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>Estado</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>MAE</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>RMSE</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>R²</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "var(--bg-soft)", borderBottom: "2px solid var(--border)" }}>Predicción</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {resultados.map((r, i) => (
-                  <TableRow key={i} sx={{ bgcolor: r.exito ? "inherit" : "var(--danger-soft)", "&:hover": { bgcolor: r.exito ? "var(--bg-soft)" : "var(--danger-soft)" } }}>
-                    <TableCell sx={{ fontWeight: 500, fontFamily: "monospace" }}>{r.codigo}</TableCell>
-                    <TableCell sx={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {r.descripcion || (r.error ? r.error : '-')}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={r.exito ? "OK" : "Error"}
-                        size="small"
-                        sx={{
-                          bgcolor: r.exito ? "var(--success-soft)" : "var(--danger-soft)",
-                          color: r.exito ? "var(--success)" : "var(--danger)",
-                          fontWeight: 600,
-                          fontSize: "0.7rem"
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">{r.metricas?.mae?.toFixed(2) || '-'}</TableCell>
-                    <TableCell align="right">{r.metricas?.rmse?.toFixed(2) || '-'}</TableCell>
-                    <TableCell align="right">{r.metricas?.r2?.toFixed(4) || '-'}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>{r.prediccionTotal?.toFixed(0) || '-'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ResultadosTable data={resultados} />
         </Paper>
       )}
 
