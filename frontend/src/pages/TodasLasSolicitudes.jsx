@@ -1,6 +1,6 @@
 /**
  * TodasLasSolicitudes - Lista de todas las solicitudes del sistema
- * MUI Components - Enterprise UI
+ * ✨ Migrado a SPMAgGrid para mejor rendimiento
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -24,13 +24,6 @@ import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Modal from "@mui/material/Modal";
 import Divider from "@mui/material/Divider";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableFooter from "@mui/material/TableFooter";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
@@ -44,6 +37,113 @@ import WarehouseIcon from "@mui/icons-material/Warehouse";
 import TagIcon from "@mui/icons-material/Tag";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AddIcon from "@mui/icons-material/Add";
+
+/**
+ * Tabla de items para el modal migrada a SPMAgGrid
+ */
+function ModalItemsTable({ items, totalMonto }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!items || items.length === 0) return [];
+    return items.map((item, idx) => {
+      const precio = Number(item.precio_unitario || item.precio || 0);
+      const cantidad = Number(item.cantidad || 0);
+      const subtotal = precio * cantidad;
+      return {
+        ...item,
+        id: idx,
+        precio_unitario: precio,
+        cantidad: cantidad,
+        subtotal: subtotal,
+      };
+    });
+  }, [items]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: "codigo",
+      headerName: "Código",
+      flex: 0.25,
+      minWidth: 80,
+      valueFormatter: (params) => params.data?.codigo || params.data?.codigo_sap || "-",
+    },
+    {
+      field: "descripcion",
+      headerName: "Descripción",
+      flex: 0.5,
+      minWidth: 120,
+      valueFormatter: (params) => params.value || "-",
+    },
+    {
+      field: "cantidad",
+      headerName: "Cant.",
+      flex: 0.2,
+      minWidth: 60,
+      type: "numericColumn",
+      valueFormatter: (params) => params.value || "0",
+    },
+    {
+      field: "precio_unitario",
+      headerName: "Precio",
+      flex: 0.25,
+      minWidth: 80,
+      type: "numericColumn",
+      valueFormatter: (params) => formatCurrency(params.data?.precio_unitario || 0),
+    },
+    {
+      field: "subtotal",
+      headerName: "Subtotal",
+      flex: 0.25,
+      minWidth: 80,
+      type: "numericColumn",
+      valueFormatter: (params) => formatCurrency(params.data?.subtotal || 0),
+    },
+  ], []);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <SPMAgGrid
+        rowData={rows}
+        columnDefs={columnDefs}
+        height={250}
+        pagination={false}
+        enableQuickFilter={false}
+        emptyMessage={t("common_no_data", "Sin items")}
+      />
+      {/* Total Footer */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "flex-end",
+          p: 1.5,
+          bgcolor: "grey.50",
+          borderRadius: 1,
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Stack direction="row" spacing={2} sx={{ width: "100%", maxWidth: 300 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, flex: 1, textAlign: "right" }}>
+            Total:
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              fontFamily: "monospace",
+              fontWeight: 700,
+              color: "primary.main",
+              minWidth: 100,
+              textAlign: "right",
+            }}
+          >
+            {formatCurrency(totalMonto || 0)}
+          </Typography>
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
 
 /* ─────────────────────────────────────────────────────────────
    Detail Modal
@@ -261,63 +361,7 @@ function DetalleModal({ open, solicitud, sectores, onClose, onViewFull }) {
                 >
                   Materiales ({solicitud.items.length})
                 </Typography>
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: "grey.50" }}>
-                        <TableCell sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase" }}>
-                          Código
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase" }}>
-                          Descripción
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase" }}>
-                          Cant.
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase" }}>
-                          Precio
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase" }}>
-                          Subtotal
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {solicitud.items.map((item, idx) => (
-                        <TableRow
-                          key={idx}
-                          sx={{ "&:hover": { bgcolor: "grey.50" } }}
-                        >
-                          <TableCell sx={{ fontFamily: "monospace", fontSize: "0.75rem", color: "text.secondary" }}>
-                            {item.codigo || item.codigo_sap}
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.875rem", color: "text.primary" }}>
-                            {item.descripcion}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.875rem", color: "text.primary" }}>
-                            {item.cantidad}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
-                            {formatCurrency(item.precio_unitario || 0)}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.875rem", color: "text.primary" }}>
-                            {formatCurrency((item.cantidad || 0) * (item.precio_unitario || 0))}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow sx={{ bgcolor: "grey.50" }}>
-                        <TableCell colSpan={4} align="right" sx={{ fontWeight: 700, fontSize: "0.875rem", color: "text.primary" }}>
-                          Total:
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.875rem", color: "primary.main" }}>
-                          {formatCurrency(solicitud.total_monto || 0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </TableContainer>
+                <ModalItemsTable items={solicitud.items} totalMonto={solicitud.total_monto} />
               </Box>
             )}
           </Stack>
