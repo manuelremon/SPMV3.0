@@ -3,7 +3,8 @@
  * Dashboard consolidado mostrando el impacto del modulo en produccion
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { SPMAgGrid } from '../components/ui/SPMAgGrid';
 import { useI18n } from '../context/i18n';
 import { procurementService } from '../services/procurement';
 import {
@@ -13,12 +14,6 @@ import {
   Button,
   Stack,
   Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
   Alert
 } from '@mui/material';
@@ -251,54 +246,44 @@ const OTIFGaugeCard = ({ data }) => {
   );
 };
 
-// Tabla de proveedores
+// Tabla de proveedores migrada a SPMAgGrid
 const ProveedoresTable = ({ data, columns }) => {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((row, idx) => ({ ...row, id: idx }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => {
+    return columns.map((col) => ({
+      field: col.key,
+      headerName: col.header,
+      flex: 1,
+      minWidth: 120,
+      cellRenderer: col.render
+        ? (params) => col.render(params.value, params.data)
+        : undefined,
+    }));
+  }, [columns]);
+
   if (!data || data.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-        No hay datos disponibles
+        {t("common_no_data", "No hay datos disponibles")}
       </Typography>
     );
   }
 
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow sx={{ bgcolor: 'grey.50' }}>
-            {columns.map((col, idx) => (
-              <TableCell
-                key={idx}
-                align={col.align || 'left'}
-                sx={{
-                  fontWeight: 500,
-                  fontSize: '0.75rem',
-                  textTransform: 'uppercase',
-                  color: 'text.secondary'
-                }}
-              >
-                {col.header}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((row, idx) => (
-            <TableRow key={idx} hover>
-              {columns.map((col, cidx) => (
-                <TableCell
-                  key={cidx}
-                  align={col.align || 'left'}
-                  sx={{ fontSize: '0.875rem' }}
-                >
-                  {col.render ? col.render(row[col.key], row) : row[col.key]}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={300}
+      pagination={false}
+      enableQuickFilter={false}
+      emptyMessage={t("common_no_data", "Sin datos")}
+    />
   );
 };
 
