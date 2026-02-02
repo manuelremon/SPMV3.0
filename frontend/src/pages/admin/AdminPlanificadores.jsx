@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
 import { useNavigate } from "react-router-dom";
+import { SPMAgGrid } from "../../components/ui/SPMAgGrid";
 
 // MUI Components
 import Box from "@mui/material/Box";
@@ -13,11 +14,6 @@ import IconButton from "@mui/material/IconButton";
 import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
 import Drawer from "@mui/material/Drawer";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Checkbox from "@mui/material/Checkbox";
@@ -115,6 +111,212 @@ function EmptyState({ message, onAction, actionLabel }) {
           {actionLabel}
         </Button>
       )}
+    </Box>
+  );
+}
+
+/**
+ * Tabla de planificadores migrada a SPMAgGrid
+ */
+function PlanificadoresTable({
+  data,
+  onEdit,
+  onDelete,
+  deletingId,
+  onCancelDelete,
+  onConfirmDelete,
+  submitting,
+}) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item) => ({ ...item, id: item.usuario_id }));
+  }, [data]);
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "usuario_id",
+        headerName: "Usuario ID",
+        flex: 0.25,
+        minWidth: 100,
+        valueFormatter: (params) => params.value || "-",
+      },
+      {
+        field: "nombre",
+        headerName: "Nombre",
+        flex: 0.4,
+        minWidth: 150,
+        valueFormatter: (params) => params.value || "-",
+      },
+      {
+        field: "activo",
+        headerName: "Estado",
+        flex: 0.25,
+        minWidth: 100,
+        cellRenderer: (params) => (
+          <Chip
+            label={
+              params.data.activo === 1 || params.data.activo === true
+                ? "Activo"
+                : "Inactivo"
+            }
+            size="small"
+            sx={{
+              fontSize: "0.625rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              height: 20,
+              bgcolor:
+                params.data.activo === 1 || params.data.activo === true
+                  ? "success.lighter"
+                  : "grey.200",
+              color:
+                params.data.activo === 1 || params.data.activo === true
+                  ? "success.dark"
+                  : "text.secondary",
+            }}
+          />
+        ),
+      },
+      {
+        field: "asignaciones_text",
+        headerName: "Asignaciones",
+        flex: 0.6,
+        minWidth: 200,
+        cellRenderer: (params) =>
+          params.data?.asignaciones_text ? (
+            <Box
+              component="pre"
+              sx={{
+                whiteSpace: "pre-wrap",
+                fontFamily: "monospace",
+                m: 0,
+                fontSize: "0.75rem",
+              }}
+            >
+              {params.data.asignaciones_text}
+            </Box>
+          ) : (
+            <Typography variant="caption" sx={{ color: "text.disabled" }}>
+              Sin asignaciones
+            </Typography>
+          ),
+      },
+      {
+        field: "acciones",
+        headerName: "Acciones",
+        flex: 0.25,
+        minWidth: 100,
+        sortable: false,
+        filter: false,
+        cellRenderer: (params) => (
+          <Stack direction="row" spacing={0.5} justifyContent="center">
+            <IconButton
+              size="small"
+              onClick={() => onEdit && onEdit(params.data)}
+              title="Editar"
+              disabled={!!deletingId}
+              sx={{
+                color: "text.secondary",
+                "&:hover": {
+                  color: "primary.main",
+                  bgcolor: "primary.lighter",
+                },
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => onDelete && onDelete(params.data.usuario_id)}
+              title="Eliminar"
+              disabled={!!deletingId}
+              sx={{
+                color: "text.secondary",
+                "&:hover": {
+                  color: "error.main",
+                  bgcolor: "error.lighter",
+                },
+              }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        ),
+      },
+    ],
+    [onEdit, onDelete, deletingId]
+  );
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {/* Si hay eliminación en progreso, mostrar confirmación encima */}
+      {deletingId && (
+        <Box
+          sx={{
+            p: 2,
+            bgcolor: "error.lighter",
+            border: "1px solid",
+            borderColor: "error.light",
+            borderRadius: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography variant="body2" sx={{ color: "error.dark" }}>
+            Eliminar al planificador{" "}
+            <strong>
+              {data.find((r) => r.usuario_id === deletingId)?.nombre ||
+                deletingId}
+            </strong>
+            ?
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={onCancelDelete}
+              disabled={submitting}
+              sx={{
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                fontSize: "0.75rem",
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              onClick={() => onConfirmDelete && onConfirmDelete(deletingId)}
+              disabled={submitting}
+              sx={{
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                fontSize: "0.75rem",
+              }}
+            >
+              {submitting ? "..." : "Eliminar"}
+            </Button>
+          </Stack>
+        </Box>
+      )}
+
+      {/* Tabla SPMAgGrid */}
+      <SPMAgGrid
+        rowData={rows}
+        columnDefs={columnDefs}
+        height={500}
+        pagination={true}
+        paginationPageSize={10}
+        enableQuickFilter={false}
+        emptyMessage={t("common_no_data", "Sin planificadores")}
+      />
     </Box>
   );
 }
@@ -400,7 +602,7 @@ return (
         </Box>
 
         {/* Table */}
-        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+        <Paper variant="outlined">
           {loading ? (
             <TableSkeleton rows={5} />
           ) : filteredPlanificadores.length === 0 ? (
@@ -410,253 +612,15 @@ return (
               actionLabel="Crear primer planificador"
             />
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "grey.50" }}>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      width: 100,
-                      fontWeight: 600,
-                      fontSize: "0.6875rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "text.secondary",
-                      borderRight: 1,
-                      borderColor: "divider",
-                    }}
-                  >
-                    Usuario ID
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      width: 180,
-                      fontWeight: 600,
-                      fontSize: "0.6875rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "text.secondary",
-                      borderRight: 1,
-                      borderColor: "divider",
-                    }}
-                  >
-                    Nombre
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      width: 90,
-                      fontWeight: 600,
-                      fontSize: "0.6875rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "text.secondary",
-                      borderRight: 1,
-                      borderColor: "divider",
-                    }}
-                  >
-                    Estado
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      fontWeight: 600,
-                      fontSize: "0.6875rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "text.secondary",
-                      borderRight: 1,
-                      borderColor: "divider",
-                    }}
-                  >
-                    Asignaciones
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    sx={{
-                      width: 100,
-                      fontWeight: 600,
-                      fontSize: "0.6875rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      color: "text.secondary",
-                    }}
-                  >
-                    Acciones
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredPlanificadores.map((row) =>
-                  deletingId === row.usuario_id ? (
-                    <TableRow key={row.usuario_id} sx={{ bgcolor: "error.lighter" }}>
-                      <TableCell colSpan={5}>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          justifyContent="space-between"
-                        >
-                          <Typography variant="body2" sx={{ color: "error.dark" }}>
-                            Eliminar al planificador <strong>{row.nombre || row.usuario_id}</strong>?
-                          </Typography>
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              onClick={() => setDeletingId(null)}
-                              disabled={submitting}
-                              sx={{
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                                fontSize: "0.75rem",
-                              }}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="error"
-                              onClick={() => handleDelete(row.usuario_id)}
-                              disabled={submitting}
-                              sx={{
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                                fontSize: "0.75rem",
-                              }}
-                            >
-                              {submitting ? "..." : "Eliminar"}
-                            </Button>
-                          </Stack>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow
-                      key={row.usuario_id}
-                      hover
-                      sx={{
-                        "&:last-child td": { borderBottom: 0 },
-                      }}
-                    >
-                      <TableCell
-                        align="center"
-                        sx={{
-                          fontFamily: "monospace",
-                          fontSize: "0.875rem",
-                          color: "text.primary",
-                          borderRight: 1,
-                          borderColor: "grey.100",
-                        }}
-                      >
-                        {row.usuario_id}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          fontSize: "0.875rem",
-                          color: "text.primary",
-                          borderRight: 1,
-                          borderColor: "grey.100",
-                        }}
-                      >
-                        {row.nombre || "-"}
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        sx={{
-                          borderRight: 1,
-                          borderColor: "grey.100",
-                        }}
-                      >
-                        <Chip
-                          label={row.activo === 1 || row.activo === true ? "Activo" : "Inactivo"}
-                          size="small"
-                          sx={{
-                            fontSize: "0.625rem",
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                            height: 20,
-                            bgcolor:
-                              row.activo === 1 || row.activo === true
-                                ? "success.lighter"
-                                : "grey.200",
-                            color:
-                              row.activo === 1 || row.activo === true
-                                ? "success.dark"
-                                : "text.secondary",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          fontSize: "0.75rem",
-                          color: "text.secondary",
-                          borderRight: 1,
-                          borderColor: "grey.100",
-                        }}
-                      >
-                        {row.asignaciones_text ? (
-                          <Box
-                            component="pre"
-                            sx={{
-                              whiteSpace: "pre-wrap",
-                              fontFamily: "monospace",
-                              m: 0,
-                              fontSize: "inherit",
-                            }}
-                          >
-                            {row.asignaciones_text}
-                          </Box>
-                        ) : (
-                          <Typography
-                            variant="caption"
-                            sx={{ color: "text.disabled" }}
-                          >
-                            Sin asignaciones
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell align="center">
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          justifyContent="center"
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEdit(row)}
-                            title="Editar"
-                            sx={{
-                              color: "text.secondary",
-                              "&:hover": {
-                                color: "primary.main",
-                                bgcolor: "primary.lighter",
-                              },
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => setDeletingId(row.usuario_id)}
-                            title="Eliminar"
-                            sx={{
-                              color: "text.secondary",
-                              "&:hover": {
-                                color: "error.main",
-                                bgcolor: "error.lighter",
-                              },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  )
-                )}
-              </TableBody>
-            </Table>
+            <PlanificadoresTable
+              data={filteredPlanificadores}
+              onEdit={handleEdit}
+              onDelete={(id) => setDeletingId(id)}
+              deletingId={deletingId}
+              onCancelDelete={() => setDeletingId(null)}
+              onConfirmDelete={handleDelete}
+              submitting={submitting}
+            />
           )}
         </Paper>
 
