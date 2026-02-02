@@ -64,7 +64,9 @@ class Settings(BaseSettings):
     # - Desarrollo: SQLite en data/spm.db
     _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # SPMv2.0/
     _DEFAULT_DB = _PROJECT_ROOT / "data" / "spm.db"
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{_DEFAULT_DB}")
+    # Convertir Path a string con forward slashes para SQLite en Windows
+    _DB_PATH = str(_DEFAULT_DB).replace("\\", "/")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{_DB_PATH}")
 
     # Logging
     LOG_LEVEL: str = "INFO"

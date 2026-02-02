@@ -435,7 +435,8 @@ function UsuariosTable({
         height={500}
         pagination={true}
         paginationPageSize={10}
-        enableQuickFilter={false}
+        enableQuickFilter={true}
+        exportFileName="usuarios"
         emptyMessage={t("common_no_data", "Sin usuarios")}
         onRowClicked={(data) => onEdit && onEdit(data)}
         sx={{
