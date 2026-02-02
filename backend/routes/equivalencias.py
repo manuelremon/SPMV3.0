@@ -87,7 +87,7 @@ def listar_equivalencias():
             # Contar total (sin subquery para compatibilidad SQLite)
             count_query = f"""
                 SELECT COUNT(*) as total
-                FROM equivalencias
+                FROM materiales_equivalencias
                 WHERE {where_clause}
             """
             cursor.execute(count_query, params)
@@ -97,7 +97,7 @@ def listar_equivalencias():
             # Query para obtener resultados con paginación
             select_query = f"""
                 SELECT
-                    rowid as id,
+                    id,
                     material_base,
                     texto_breve_base,
                     material_equivalente,
@@ -105,7 +105,7 @@ def listar_equivalencias():
                     tipo_equiv,
                     criterio,
                     motivo_equivalencia
-                FROM equivalencias
+                FROM materiales_equivalencias
                 WHERE {where_clause}
                 ORDER BY material_base
                 LIMIT ? OFFSET ?
@@ -160,7 +160,7 @@ def get_tipos_equivalencia():
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT DISTINCT tipo_equiv
-                FROM equivalencias
+                FROM materiales_equivalencias
                 WHERE tipo_equiv IS NOT NULL
                 ORDER BY tipo_equiv
             """)
@@ -196,7 +196,7 @@ def equivalencias_por_material(codigo):
     Busca en equivalentes.db tabla equivalencias.
     """
     try:
-        # Buscar en equivalentes.db (tabla real con datos SAP)
+        # Buscar en master_materiales.db (tabla con datos SAP)
         with get_db_connection("equivalentes") as conn:
             cursor = conn.cursor()
             # Buscar donde el material es base O es equivalente (bidireccional)
@@ -210,7 +210,7 @@ def equivalencias_por_material(codigo):
                     tipo_equiv,
                     criterio,
                     motivo_equivalencia
-                FROM equivalencias
+                FROM materiales_equivalencias
                 WHERE material_base = ? OR material_equivalente = ?
             """,
                 (codigo, codigo),
@@ -315,22 +315,22 @@ def crear_equivalencia():
             400,
         )
 
-    # Fase 1: Verificar que los materiales existen en cat_materiales (PostgreSQL) o catalogo_materiales.db (SQLite)
+    # Fase 1: Verificar que los materiales existen en master_materiales.db
     # Whitelist de tablas permitidas para catálogo de materiales
-    ALLOWED_CATALOG_TABLES = {"cat_materiales", "materiales"}
+    ALLOWED_CATALOG_TABLES = {"cat_materiales", "catalogo_materiales"}
     try:
         with get_db_connection("catalogo_materiales") as conn:
             cursor = conn.cursor()
-            # En PostgreSQL usa cat_materiales, en SQLite usa materiales
+            # En PostgreSQL usa cat_materiales, en SQLite usa catalogo_materiales
             from backend.core.db import is_using_postgresql
-            tabla = "cat_materiales" if is_using_postgresql() else "materiales"
+            tabla = "cat_materiales" if is_using_postgresql() else "catalogo_materiales"
             # Validación explícita contra whitelist (defensa en profundidad)
             if tabla not in ALLOWED_CATALOG_TABLES:
                 raise ValueError(f"Tabla no permitida: {tabla}")
-            cursor.execute(f"SELECT codigo FROM {tabla} WHERE codigo = ?", (codigo_original,))
+            cursor.execute(f"SELECT id_material FROM {tabla} WHERE id_material = ?", (codigo_original,))
             original_exists = cursor.fetchone() is not None
 
-            cursor.execute(f"SELECT codigo FROM {tabla} WHERE codigo = ?", (codigo_equivalente,))
+            cursor.execute(f"SELECT id_material FROM {tabla} WHERE id_material = ?", (codigo_equivalente,))
             equivalente_exists = cursor.fetchone() is not None
 
     except Exception as e:
