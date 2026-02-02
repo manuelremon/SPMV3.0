@@ -1,11 +1,13 @@
 /**
  * ProcurementDashboard - Dashboard de Procurement SAP
+ * ✨ Migrado a SPMAgGrid para mejor rendimiento
  * Visualizacion de KPIs de requisiciones, ordenes de compra, lead times y cumplimiento
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useI18n } from '../context/i18n';
 import { procurementService } from '../services/procurement';
+import { SPMAgGrid } from '../components/ui/SPMAgGrid';
 
 // MUI Components
 import Container from '@mui/material/Container';
@@ -19,12 +21,6 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Skeleton from '@mui/material/Skeleton';
@@ -134,6 +130,263 @@ const OTIFGauge = ({ value }) => {
     </Box>
   );
 };
+
+/**
+ * Tabla Top Proveedores migrada a SPMAgGrid
+ */
+function TopProveedoresTable({ data }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item, idx) => ({ ...item, id: idx }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'proveedor_nombre',
+      headerName: t('common_supplier', 'Proveedor'),
+      flex: 0.6,
+      minWidth: 150,
+      valueFormatter: (params) => params.value || 'Sin nombre',
+    },
+    {
+      field: 'pedidos',
+      headerName: t('procurement_orders', 'Pedidos'),
+      flex: 0.3,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toLocaleString() || '0',
+    },
+    {
+      field: 'valor_total',
+      headerName: t('common_total_value', 'Valor Total'),
+      flex: 0.4,
+      minWidth: 120,
+      type: 'numericColumn',
+      valueFormatter: (params) =>
+        `$${(params.value || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 })}`,
+    },
+  ], [t]);
+
+  if (!data || data.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+        {t('common_no_data', 'No hay datos disponibles')}
+      </Typography>
+    );
+  }
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={250}
+      pagination={false}
+      enableQuickFilter={false}
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  );
+}
+
+/**
+ * Tabla Cumplimiento por Proveedor migrada a SPMAgGrid
+ */
+function ComplianceTable({ data }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.slice(0, 10).map((item, idx) => ({ ...item, id: idx }));
+  }, [data]);
+
+  const getColor = (value) => {
+    if (value >= 80) return 'var(--success)';
+    if (value >= 60) return 'var(--warning)';
+    return 'var(--danger)';
+  };
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'proveedor_nombre',
+      headerName: t('common_supplier', 'Proveedor'),
+      flex: 0.5,
+      minWidth: 150,
+      valueFormatter: (params) => params.value || 'Sin nombre',
+    },
+    {
+      field: 'total_pedidos',
+      headerName: t('procurement_orders', 'Pedidos'),
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+    },
+    {
+      field: 'pct_a_tiempo',
+      headerName: '% A Tiempo',
+      flex: 0.25,
+      minWidth: 100,
+      cellRenderer: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            color: getColor(params.value),
+            fontWeight: 500,
+          }}
+        >
+          {params.value}%
+        </Typography>
+      ),
+    },
+    {
+      field: 'pct_completas',
+      headerName: '% Completas',
+      flex: 0.25,
+      minWidth: 100,
+      cellRenderer: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            color: getColor(params.value),
+            fontWeight: 500,
+          }}
+        >
+          {params.value}%
+        </Typography>
+      ),
+    },
+    {
+      field: 'pct_otif',
+      headerName: '% OTIF',
+      flex: 0.25,
+      minWidth: 80,
+      cellRenderer: (params) => (
+        <Typography
+          variant="body2"
+          sx={{
+            color: getColor(params.value),
+            fontWeight: 600,
+          }}
+        >
+          {params.value}%
+        </Typography>
+      ),
+    },
+  ], [t]);
+
+  if (!data || data.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+        {t('common_no_data', 'No hay datos disponibles')}
+      </Typography>
+    );
+  }
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={350}
+      pagination={true}
+      paginationPageSize={10}
+      enableQuickFilter={true}
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  );
+}
+
+/**
+ * Tabla Historial de Importaciones migrada a SPMAgGrid
+ */
+function ImportHistoryTable({ data }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item, idx) => ({ ...item, id: idx }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'filename',
+      headerName: t('common_file', 'Archivo'),
+      flex: 0.4,
+      minWidth: 150,
+    },
+    {
+      field: 'started_at',
+      headerName: t('common_date', 'Fecha'),
+      flex: 0.4,
+      minWidth: 150,
+      valueFormatter: (params) =>
+        params.value
+          ? new Date(params.value).toLocaleString('es-AR')
+          : '-',
+    },
+    {
+      field: 'records_inserted',
+      headerName: t('procurement_inserted', 'Insertados'),
+      flex: 0.25,
+      minWidth: 100,
+      type: 'numericColumn',
+    },
+    {
+      field: 'records_updated',
+      headerName: t('procurement_updated', 'Actualizados'),
+      flex: 0.25,
+      minWidth: 100,
+      type: 'numericColumn',
+    },
+    {
+      field: 'status',
+      headerName: t('common_status', 'Estado'),
+      flex: 0.25,
+      minWidth: 100,
+      cellRenderer: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          sx={{
+            fontSize: "0.7rem",
+            bgcolor:
+              params.value === 'completed'
+                ? 'color-mix(in srgb, var(--success) 15%, transparent)'
+                : params.value === 'failed'
+                ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
+                : 'color-mix(in srgb, var(--warning) 15%, transparent)',
+            color:
+              params.value === 'completed'
+                ? 'var(--success)'
+                : params.value === 'failed'
+                ? 'var(--danger)'
+                : 'var(--warning)',
+            fontWeight: 500,
+          }}
+        />
+      ),
+    },
+  ], [t]);
+
+  if (!data || data.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+        {t('common_no_data', 'No hay datos disponibles')}
+      </Typography>
+    );
+  }
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={300}
+      pagination={true}
+      paginationPageSize={10}
+      enableQuickFilter={false}
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  );
+}
 
 // Componente principal
 export default function ProcurementDashboard() {
@@ -328,34 +581,7 @@ export default function ProcurementDashboard() {
           <Typography variant="subtitle1" fontWeight={600} color="var(--fg-strong)" sx={{ mb: 2 }}>
             Top 5 Proveedores por Volumen
           </Typography>
-          {kpis?.top_proveedores?.length > 0 ? (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "var(--bg-soft)" }}>
-                    <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>PROVEEDOR</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>PEDIDOS</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>VALOR TOTAL</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {kpis.top_proveedores.map((p, idx) => (
-                    <TableRow key={idx} hover>
-                      <TableCell sx={{ fontSize: "0.875rem" }}>{p.proveedor_nombre || 'Sin nombre'}</TableCell>
-                      <TableCell align="right" sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>{p.pedidos?.toLocaleString()}</TableCell>
-                      <TableCell align="right" sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>
-                        ${(p.valor_total || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-              No hay datos disponibles
-            </Typography>
-          )}
+          <TopProveedoresTable data={kpis?.top_proveedores} />
         </Paper>
       </Box>
 
@@ -401,60 +627,7 @@ export default function ProcurementDashboard() {
           <Typography variant="subtitle1" fontWeight={600} color="var(--fg-strong)" sx={{ mb: 2 }}>
             Cumplimiento por Proveedor
           </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "var(--bg-soft)" }}>
-                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>PROVEEDOR</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>PEDIDOS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>% A TIEMPO</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>% COMPLETAS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>% OTIF</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {compliance.slice(0, 10).map((item, idx) => (
-                  <TableRow key={idx} hover>
-                    <TableCell sx={{ fontSize: "0.875rem" }}>{item.proveedor_nombre || 'Sin nombre'}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>{item.total_pedidos}</TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: item.pct_a_tiempo >= 80 ? "var(--success)" : item.pct_a_tiempo >= 60 ? "var(--warning)" : "var(--danger)",
-                          fontWeight: 500
-                        }}
-                      >
-                        {item.pct_a_tiempo}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: item.pct_completas >= 80 ? "var(--success)" : item.pct_completas >= 60 ? "var(--warning)" : "var(--danger)",
-                          fontWeight: 500
-                        }}
-                      >
-                        {item.pct_completas}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: item.pct_otif >= 80 ? "var(--success)" : item.pct_otif >= 60 ? "var(--warning)" : "var(--danger)",
-                          fontWeight: 600
-                        }}
-                      >
-                        {item.pct_otif}%
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ComplianceTable data={compliance} />
         </Paper>
       )}
 
@@ -464,43 +637,7 @@ export default function ProcurementDashboard() {
           <Typography variant="subtitle1" fontWeight={600} color="var(--fg-strong)" sx={{ mb: 2 }}>
             Últimas Importaciones
           </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "var(--bg-soft)" }}>
-                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>ARCHIVO</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>FECHA</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>INSERTADOS</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>ACTUALIZADOS</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "var(--fg-muted)" }}>ESTADO</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {importHistory.map((item, idx) => (
-                  <TableRow key={idx} hover>
-                    <TableCell sx={{ fontSize: "0.875rem" }}>{item.filename}</TableCell>
-                    <TableCell sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>
-                      {new Date(item.started_at).toLocaleString('es-AR')}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>{item.records_inserted}</TableCell>
-                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "var(--fg-muted)" }}>{item.records_updated}</TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={item.status}
-                        size="small"
-                        sx={{
-                          fontSize: "0.7rem",
-                          bgcolor: item.status === 'completed' ? 'color-mix(in srgb, var(--success) 15%, transparent)' : item.status === 'failed' ? 'color-mix(in srgb, var(--danger) 15%, transparent)' : 'color-mix(in srgb, var(--warning) 15%, transparent)',
-                          color: item.status === 'completed' ? 'var(--success)' : item.status === 'failed' ? 'var(--danger)' : 'var(--warning)',
-                          fontWeight: 500
-                        }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ImportHistoryTable data={importHistory} />
         </Paper>
       )}
 
