@@ -40,11 +40,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import CategoryIcon from "@mui/icons-material/Category";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import Tooltip from "@mui/material/Tooltip";
-import CircularProgress from "@mui/material/CircularProgress";
 
 // Services
 import { exportToXLSX } from "../../services/export";
-import CircularProgress from "@mui/material/CircularProgress";
 
 // ============================================================================
 // CONSTANTES

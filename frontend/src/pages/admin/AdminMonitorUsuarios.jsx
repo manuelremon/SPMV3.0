@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../context/i18n";
 import api from "../../services/api";
+import { SPMAgGrid } from "../../components/ui/SPMAgGrid";
 
 // MUI Components
 import {
@@ -11,12 +12,6 @@ import {
   Button,
   IconButton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   TextField,
   Select,
@@ -47,7 +42,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import Tooltip from "@mui/material/Tooltip";
-import CircularProgress from "@mui/material/CircularProgress";
 
 // Services
 import { exportToXLSX } from "../../services/export";
@@ -608,6 +602,103 @@ function ErrorAlert({ message, onDismiss }) {
 // COMPONENTE PRINCIPAL
 // ============================================================================
 
+/**
+ * Componente tabla de actividad migrado a SPMAgGrid
+ */
+function ActivityTable({ data, selectedUser }) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+
+  const rows = useMemo(() => {
+    return data.map((row, idx) => ({
+      ...row,
+      id: row.id || `${row.created_at}-${row.action}-${row.entity_id}-${idx}`,
+      formatted_date: formatDateTime(row.created_at),
+      entity_display: row.entity_type || '—',
+      ip_display: row.ip_address || '—',
+    }))
+  }, [data])
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'formatted_date',
+      headerName: t('common_date_time', 'Fecha / Hora'),
+      flex: 0.7,
+      minWidth: 160,
+      cellRenderer: (params) => (
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <AccessTimeIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+          <Typography
+            variant="body2"
+            sx={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontSize: '13px', color: 'text.secondary' }}
+          >
+            {params.value}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'action',
+      headerName: t('common_action', 'Acción'),
+      flex: 0.5,
+      minWidth: 130,
+      cellRenderer: (params) => <ActionBadge action={params.value} />,
+    },
+    {
+      field: 'entity_display',
+      headerName: t('common_entity', 'Entidad'),
+      flex: 0.4,
+      minWidth: 120,
+      valueFormatter: (params) => params.value,
+    },
+    {
+      field: 'entity_id',
+      headerName: t('common_id', 'ID'),
+      flex: 0.3,
+      minWidth: 100,
+      cellRenderer: (params) => (
+        <EntityIdChip
+          entityType={params.data.entity_type}
+          entityId={params.value}
+          onClick={() => navigate(`/solicitudes/${params.value}`)}
+        />
+      ),
+    },
+    {
+      field: 'details',
+      headerName: t('common_details', 'Detalles'),
+      flex: 1,
+      minWidth: 200,
+      valueFormatter: (params) => formatDetails(params.value),
+    },
+    {
+      field: 'ip_display',
+      headerName: 'IP',
+      flex: 0.4,
+      minWidth: 120,
+      cellStyle: {
+        textAlign: 'right',
+        fontFamily: 'monospace',
+        fontVariantNumeric: 'tabular-nums',
+        fontSize: '12px',
+      },
+    },
+  ], [t, navigate])
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={500}
+      pagination={true}
+      paginationPageSize={25}
+      enableQuickFilter={true}
+      exportFileName={`audit_logs_${selectedUser.id_spm}`}
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  )
+}
+
 export default function AdminMonitorUsuarios() {
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -924,132 +1015,13 @@ export default function AdminMonitorUsuarios() {
               message={t("monitor_no_activity", "No hay actividad registrada para este usuario")}
             />
           ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "grey.50" }}>
-                    {columns.map((col) => (
-                      <TableCell
-                        key={col.key}
-                        align={col.align}
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                          color: "text.secondary",
-                          whiteSpace: "nowrap",
-                          borderBottom: 2,
-                          borderColor: "grey.200",
-                          width: col.width !== "auto" ? col.width : undefined,
-                        }}
-                      >
-                        {col.header}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {actividad.map((row, idx) => (
-                    <TableRow
-                      key={row.id || `${row.created_at}-${row.action}-${row.entity_id}-${idx}`}
-                      hover
-                      sx={{
-                        "&:hover": {
-                          bgcolor: "grey.50",
-                        },
-                      }}
-                    >
-                      {/* Fecha/Hora */}
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <AccessTimeIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-                          <Typography
-                            variant="body2"
-                            sx={{ fontFamily: "monospace", fontVariantNumeric: "tabular-nums", fontSize: "13px", color: "text.secondary" }}
-                          >
-                            {formatDateTime(row.created_at)}
-                          </Typography>
-                        </Stack>
-                      </TableCell>
-
-                      {/* Acción */}
-                      <TableCell sx={{ py: 1.5 }}>
-                        <ActionBadge action={row.action} />
-                      </TableCell>
-
-                      {/* Entidad */}
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Typography variant="body2" sx={{ color: "text.primary", textTransform: "capitalize", fontSize: "13px" }}>
-                          {row.entity_type || "—"}
-                        </Typography>
-                      </TableCell>
-
-                      {/* ID Entidad */}
-                      <TableCell align="center" sx={{ py: 1.5 }}>
-                        <EntityIdChip
-                          entityType={row.entity_type}
-                          entityId={row.entity_id}
-                          onClick={() => navigate(`/solicitudes/${row.entity_id}`)}
-                        />
-                      </TableCell>
-
-                      {/* Detalles */}
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Typography
-                          variant="body2"
-                          title={formatDetails(row.details)}
-                          sx={{
-                            fontFamily: "monospace",
-                            fontSize: "12px",
-                            color: "text.secondary",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            maxWidth: 400,
-                          }}
-                        >
-                          {formatDetails(row.details)}
-                        </Typography>
-                      </TableCell>
-
-                      {/* IP */}
-                      <TableCell align="right" sx={{ py: 1.5 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ fontFamily: "monospace", fontVariantNumeric: "tabular-nums", fontSize: "12px", color: "text.secondary" }}
-                        >
-                          {row.ip_address || "—"}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <ActivityTable
+              data={actividad}
+              onRowClick={(id) => {}}
+              selectedUser={selectedUser}
+            />
           )}
 
-          {/* Table Footer */}
-          {selectedUser && !loading && actividad.length > 0 && (
-            <Box
-              sx={{
-                px: 2,
-                py: 1.5,
-                borderTop: 1,
-                borderColor: "grey.200",
-                bgcolor: "grey.50",
-              }}
-            >
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  Mostrando {actividad.length} de {actividad.length} registros
-                </Typography>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  Usuario: <strong>{selectedUser.id_spm}</strong>
-                </Typography>
-              </Stack>
-            </Box>
-          )}
         </Paper>
       </Box>
     </Box>

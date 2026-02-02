@@ -5,12 +5,13 @@
  * Reutiliza la logica de MRPTableroAlertas pero fuerza el uso de datos temporales.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Layout from '../../components/Layout'
 import { TempDataBanner } from '../../components/ui/TempDataBanner'
 import { useI18n } from '../../context/i18n'
 import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
+import { SPMAgGrid } from '../../components/ui/SPMAgGrid'
 import {
   Box,
   Paper,
@@ -18,12 +19,6 @@ import {
   Button,
   Stack,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
   Chip,
   Grid
@@ -33,6 +28,95 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import InventoryIcon from '@mui/icons-material/Inventory'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
+
+/**
+ * Componente tabla de alertas MRP migrado a SPMAgGrid
+ */
+function AlertasTable({ data, getEstadoColor }) {
+  const { t } = useI18n()
+
+  const rows = useMemo(() => {
+    return data.map((alerta, idx) => ({
+      ...alerta,
+      id: idx,
+    }))
+  }, [data])
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'material',
+      headerName: t('common_material', 'Material'),
+      flex: 0.5,
+      minWidth: 100,
+      cellStyle: {
+        fontFamily: 'monospace',
+      },
+    },
+    {
+      field: 'descripcion',
+      headerName: t('common_description', 'Descripción'),
+      flex: 1,
+      minWidth: 150,
+    },
+    {
+      field: 'stock_actual',
+      headerName: t('mrp_stock', 'Stock'),
+      flex: 0.4,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toLocaleString() || '0',
+    },
+    {
+      field: 'stock_minimo',
+      headerName: t('mrp_min', 'Mínimo'),
+      flex: 0.4,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toLocaleString() || '-',
+    },
+    {
+      field: 'punto_pedido',
+      headerName: t('mrp_reorder_point', 'Pto Pedido'),
+      flex: 0.4,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toLocaleString() || '-',
+    },
+    {
+      field: 'estado',
+      headerName: t('common_status', 'Estado'),
+      flex: 0.5,
+      minWidth: 120,
+      cellRenderer: (params) => (
+        <Chip
+          label={params.value?.replace(/_/g, ' ') || 'N/A'}
+          color={getEstadoColor(params.value)}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      field: 'centro',
+      headerName: t('common_center', 'Centro'),
+      flex: 0.4,
+      minWidth: 100,
+    },
+  ], [t, getEstadoColor])
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={500}
+      pagination={true}
+      paginationPageSize={25}
+      enableQuickFilter={true}
+      exportFileName="alertas_mrp"
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  )
+}
 
 export default function AnalisisPuntualMRP() {
   const { t } = useI18n()
@@ -225,91 +309,22 @@ export default function AnalisisPuntualMRP() {
             </Grid>
 
             {/* Tabla de Alertas */}
-            <Paper elevation={1}>
+            <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
               <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                 <Typography variant="h6" fontWeight={600}>
-                  Alertas de Stock ({alertas.length})
+                  {t('mrp_alerts', 'Alertas de Stock')} ({alertas.length})
                 </Typography>
               </Box>
-              <Box sx={{ p: 2 }}>
-                {alertas.length === 0 ? (
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ textAlign: 'center', py: 4 }}
-                  >
-                    No hay alertas de stock con los datos importados
+              {alertas.length > 0 && (
+                <AlertasTable data={alertas} getEstadoColor={getEstadoColor} />
+              )}
+              {alertas.length === 0 && (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('common_no_data', 'No hay alertas de stock con los datos importados')}
                   </Typography>
-                ) : (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 500, color: 'text.secondary' }}>Material</TableCell>
-                          <TableCell sx={{ fontWeight: 500, color: 'text.secondary' }}>Descripcion</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Stock</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Minimo</TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Pto Pedido</TableCell>
-                          <TableCell align="center" sx={{ fontWeight: 500, color: 'text.secondary' }}>Estado</TableCell>
-                          <TableCell sx={{ fontWeight: 500, color: 'text.secondary' }}>Centro</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {alertas.slice(0, 50).map((alerta, idx) => (
-                          <TableRow
-                            key={`${alerta.material}-${idx}`}
-                            sx={{ '&:hover': { bgcolor: 'action.hover' } }}
-                          >
-                            <TableCell sx={{ fontFamily: 'monospace', color: 'text.primary' }}>
-                              {alerta.material}
-                            </TableCell>
-                            <TableCell
-                              sx={{
-                                color: 'text.secondary',
-                                maxWidth: 200,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {alerta.descripcion}
-                            </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                              {alerta.stock_actual?.toLocaleString() || 0}
-                            </TableCell>
-                            <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                              {alerta.stock_minimo?.toLocaleString() || '-'}
-                            </TableCell>
-                            <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                              {alerta.punto_pedido?.toLocaleString() || '-'}
-                            </TableCell>
-                            <TableCell align="center">
-                              <Chip
-                                label={alerta.estado?.replace(/_/g, ' ') || 'N/A'}
-                                color={getEstadoColor(alerta.estado)}
-                                size="small"
-                                variant="outlined"
-                              />
-                            </TableCell>
-                            <TableCell sx={{ color: 'text.secondary' }}>
-                              {alerta.centro}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    {alertas.length > 50 && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ textAlign: 'center', py: 2 }}
-                      >
-                        Mostrando 50 de {alertas.length} alertas
-                      </Typography>
-                    )}
-                  </TableContainer>
-                )}
-              </Box>
+                </Box>
+              )}
             </Paper>
           </>
         )}

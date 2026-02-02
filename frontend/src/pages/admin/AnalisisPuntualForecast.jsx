@@ -5,12 +5,13 @@
  * de consumo historico importados desde Excel.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Layout from '../../components/Layout'
 import { TempDataBanner } from '../../components/ui/TempDataBanner'
 import { useI18n } from '../../context/i18n'
 import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
+import { SPMAgGrid } from '../../components/ui/SPMAgGrid'
 import {
   Box,
   Paper,
@@ -18,12 +19,6 @@ import {
   Button,
   Stack,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
   Grid,
   FormControl,
@@ -36,6 +31,66 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SearchIcon from '@mui/icons-material/Search'
 import ShowChartIcon from '@mui/icons-material/ShowChart'
 import BarChartIcon from '@mui/icons-material/BarChart'
+
+/**
+ * Componente tabla de predicciones migrado a SPMAgGrid
+ */
+function PredictionTable({ data }) {
+  const { t } = useI18n()
+
+  const rows = useMemo(() => {
+    return data.map((pred, idx) => ({
+      ...pred,
+      id: idx,
+    }))
+  }, [data])
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'fecha',
+      headerName: t('common_date', 'Fecha'),
+      flex: 0.4,
+      minWidth: 100,
+    },
+    {
+      field: 'prediccion',
+      headerName: t('forecast_prediction', 'Predicción'),
+      flex: 0.3,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toFixed(2) || '0',
+    },
+    {
+      field: 'intervalo_min',
+      headerName: t('forecast_min', 'Mín'),
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toFixed(2) || '-',
+    },
+    {
+      field: 'intervalo_max',
+      headerName: t('forecast_max', 'Máx'),
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => params.value?.toFixed(2) || '-',
+    },
+  ], [t])
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={300}
+      pagination={true}
+      paginationPageSize={10}
+      enableQuickFilter={true}
+      exportFileName="predicciones_forecast"
+      emptyMessage={t('common_no_data', 'Sin datos')}
+    />
+  )
+}
 
 export default function AnalisisPuntualForecast() {
   const { t } = useI18n()
@@ -343,60 +398,27 @@ export default function AnalisisPuntualForecast() {
 
             {/* Predicciones */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={1}>
+              <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <ShowChartIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
                     <Typography variant="h6" fontWeight={600}>
-                      Predicciones
+                      {t('forecast_predictions', 'Predicciones')}
                     </Typography>
                   </Stack>
                 </Box>
-                <Box sx={{ p: 2 }}>
-                  {forecastData.predicciones?.length > 0 ? (
-                    <TableContainer sx={{ maxHeight: 300 }}>
-                      <Table size="small" stickyHeader>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell sx={{ fontWeight: 500, color: 'text.secondary' }}>Fecha</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Prediccion</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Min</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 500, color: 'text.secondary' }}>Max</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {forecastData.predicciones.map((pred, idx) => (
-                            <TableRow
-                              key={idx}
-                              sx={{ '&:hover': { bgcolor: 'action.hover' } }}
-                            >
-                              <TableCell sx={{ color: 'text.secondary' }}>
-                                {pred.fecha}
-                              </TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                                {pred.prediccion?.toFixed(2) || 0}
-                              </TableCell>
-                              <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                                {pred.intervalo_min?.toFixed(2) || '-'}
-                              </TableCell>
-                              <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                                {pred.intervalo_max?.toFixed(2) || '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  ) : (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ textAlign: 'center', py: 4 }}
-                    >
-                      No hay predicciones disponibles
+                {forecastData.predicciones?.length > 0 && (
+                  <Box sx={{ flex: 1, minHeight: 300 }}>
+                    <PredictionTable data={forecastData.predicciones} />
+                  </Box>
+                )}
+                {!forecastData.predicciones?.length && (
+                  <Box sx={{ p: 4, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {t('common_no_data', 'No hay predicciones disponibles')}
                     </Typography>
-                  )}
-                </Box>
+                  </Box>
+                )}
               </Paper>
             </Grid>
           </Grid>
