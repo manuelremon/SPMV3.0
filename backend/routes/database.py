@@ -1507,7 +1507,7 @@ def get_audit_logs():
                 details = row[5]
                 try:
                     details = json.loads(details) if details else None
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
                 logs.append({
                     "id": row[0],

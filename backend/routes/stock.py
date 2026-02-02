@@ -163,7 +163,7 @@ def get_stock():
                     try:
                         ultimo = datetime.strptime(item["ultimo_consumo"], "%Y-%m-%d")
                         item["dias_sin_movimiento"] = (datetime.now() - ultimo).days
-                    except:
+                    except (ValueError, TypeError):
                         item["dias_sin_movimiento"] = None
                 else:
                     item["dias_sin_movimiento"] = 999  # Never consumed
