@@ -30,6 +30,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import Divider from "@mui/material/Divider";
 import FormHelperText from "@mui/material/FormHelperText";
 import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
 
 // MUI Icons
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -279,6 +280,10 @@ function UsuariosTable({
       headerName: "Roles",
       flex: 0.4,
       minWidth: 200,
+      valueFormatter: (params) => {
+        const roles = parseRoles(params.value || params.data?.rol);
+        return roles.length > 0 ? roles.join(", ") : "-";
+      },
       cellRenderer: (params) => {
         const roles = parseRoles(params.data?.roles || params.data?.rol);
         return (
@@ -429,7 +434,7 @@ function UsuariosTable({
         columnDefs={columnDefs}
         height={500}
         pagination={true}
-        paginationPageSize={15}
+        paginationPageSize={10}
         enableQuickFilter={false}
         emptyMessage={t("common_no_data", "Sin usuarios")}
         onRowClicked={(data) => onEdit && onEdit(data)}
