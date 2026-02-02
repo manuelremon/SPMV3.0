@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { solicitudes } from "../services/spm";
 import { useI18n } from "../context/i18n";
 import { formatDate, formatCurrency, getSectorNombre, formatAlmacen } from "../utils/formatters";
+import { SPMAgGrid } from "../components/ui/SPMAgGrid";
 
 // MUI Components
 import Box from "@mui/material/Box";
@@ -11,13 +12,6 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableFooter from "@mui/material/TableFooter";
 import Divider from "@mui/material/Divider";
 import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
@@ -36,6 +30,137 @@ import PersonIcon from "@mui/icons-material/Person";
 import TagIcon from "@mui/icons-material/Tag";
 
 import StatusBadge from "../components/ui/StatusBadge";
+
+/**
+ * Tabla de items migrada a SPMAgGrid
+ */
+function ItemsTable({ items, totalMonto }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!items || items.length === 0) return [];
+    return items.map((item, idx) => {
+      const precio = Number(item.precio_unitario || item.precio || 0);
+      const cantidad = Number(item.cantidad || 0);
+      const subtotal = precio * cantidad;
+      return {
+        ...item,
+        id: idx,
+        precio_unitario: precio,
+        cantidad: cantidad,
+        subtotal: subtotal,
+      };
+    });
+  }, [items]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'codigo',
+      headerName: t('detalle_item_codigo', 'Código'),
+      flex: 0.3,
+      minWidth: 100,
+      valueFormatter: (params) => params.data?.codigo || params.data?.material_codigo || '-',
+    },
+    {
+      field: 'descripcion',
+      headerName: t('detalle_item_descripcion', 'Descripción'),
+      flex: 0.8,
+      minWidth: 200,
+      cellRenderer: (params) => (
+        <Box sx={{ maxWidth: 280 }}>
+          <Typography
+            variant="body2"
+            noWrap
+            title={params.data?.descripcion || params.data?.material_descripcion}
+          >
+            {params.data?.descripcion || params.data?.material_descripcion || '-'}
+          </Typography>
+          {params.data?.comentario && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              component="p"
+              title={params.data?.comentario}
+            >
+              {params.data?.comentario}
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: 'cantidad',
+      headerName: t('detalle_item_cantidad', 'Cantidad'),
+      flex: 0.25,
+      minWidth: 80,
+      type: 'numericColumn',
+      valueFormatter: (params) => `${params.data?.cantidad || 0} ${params.data?.unidad || ''}`,
+    },
+    {
+      field: 'precio_unitario',
+      headerName: t('detalle_item_precio', 'Precio Unit.'),
+      flex: 0.3,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => formatCurrency(params.data?.precio_unitario || 0),
+    },
+    {
+      field: 'subtotal',
+      headerName: t('detalle_item_subtotal', 'Subtotal'),
+      flex: 0.3,
+      minWidth: 100,
+      type: 'numericColumn',
+      valueFormatter: (params) => formatCurrency(params.data?.subtotal || 0),
+    },
+  ], [t]);
+
+  return (
+    <Stack spacing={1.5}>
+      <SPMAgGrid
+        rowData={rows}
+        columnDefs={columnDefs}
+        height={300}
+        pagination={false}
+        enableQuickFilter={false}
+        emptyMessage={t('detalle_sin_items', 'No hay materiales en esta solicitud')}
+      />
+      {/* Total Footer */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          p: 2,
+          bgcolor: 'action.hover',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack direction="row" spacing={2} sx={{ width: '100%', maxWidth: 400 }}>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, flex: 1, textAlign: 'right' }}
+          >
+            {t('detalle_total', 'Total')}:
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              fontFamily: 'monospace',
+              fontWeight: 700,
+              color: 'primary.main',
+              minWidth: 120,
+              textAlign: 'right',
+            }}
+          >
+            {formatCurrency(totalMonto || 0)}
+          </Typography>
+        </Stack>
+      </Box>
+    </Stack>
+  );
+}
 
 // DetailRow component using MUI
 function DetailRow({ icon: Icon, label, value }) {
@@ -408,88 +533,7 @@ export default function SolicitudDetalle() {
               </Typography>
             </Box>
           ) : (
-            <TableContainer sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "action.hover" }}>
-                    <TableCell sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                      {t("detalle_item_codigo", "Codigo")}
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                      {t("detalle_item_descripcion", "Descripcion")}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                      {t("detalle_item_cantidad", "Cantidad")}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                      {t("detalle_item_precio", "Precio Unit.")}
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: "0.05em" }}>
-                      {t("detalle_item_subtotal", "Subtotal")}
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {items.map((item, idx) => {
-                    const precio = Number(item.precio_unitario || item.precio || 0);
-                    const cantidad = Number(item.cantidad || 0);
-                    const subtotal = precio * cantidad;
-                    return (
-                      <TableRow
-                        key={idx}
-                        hover
-                        sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                      >
-                        <TableCell sx={{ fontFamily: "monospace" }}>
-                          {item.codigo || item.material_codigo || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ maxWidth: 280 }}>
-                            <Typography
-                              variant="body2"
-                              noWrap
-                              title={item.descripcion || item.material_descripcion}
-                            >
-                              {item.descripcion || item.material_descripcion || "-"}
-                            </Typography>
-                            {item.comentario && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                noWrap
-                                component="p"
-                                title={item.comentario}
-                              >
-                                {item.comentario}
-                              </Typography>
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 500 }}>
-                          {cantidad} {item.unidad || ""}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontFamily: "monospace", color: "text.secondary" }}>
-                          {formatCurrency(precio)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 500 }}>
-                          {formatCurrency(subtotal)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-                <TableFooter>
-                  <TableRow sx={{ bgcolor: "action.hover" }}>
-                    <TableCell colSpan={4} align="right" sx={{ fontWeight: 600 }}>
-                      {t("detalle_total", "Total")}:
-                    </TableCell>
-                    <TableCell align="right" sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "primary.main" }}>
-                      {formatCurrency(solicitud.total_monto || 0)}
-                    </TableCell>
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            </TableContainer>
+            <ItemsTable items={items} totalMonto={solicitud.total_monto} />
           )}
         </Box>
       </Paper>
