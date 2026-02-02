@@ -52,9 +52,6 @@ export default function AnalisisPuntualHome() {
           <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             {t("admin_ap_titulo", "ANÁLISIS PUNTUAL")}
           </Typography>
-          <Typography variant="body2" sx={{ color: "#606d80" }}>
-            {t("admin_ap_descripcion", "Importa un archivo Excel para analizar MRP y Forecast sin afectar los datos del sistema.")}
-          </Typography>
         </Box>
       </Box>
 

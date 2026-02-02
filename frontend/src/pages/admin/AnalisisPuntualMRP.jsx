@@ -135,9 +135,6 @@ export default function AnalisisPuntualMRP() {
           <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             MRP - Alertas con Datos Temporales
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Analisis de stock y alertas utilizando los datos del Excel importado
-          </Typography>
         </Box>
 
         {/* Error */}

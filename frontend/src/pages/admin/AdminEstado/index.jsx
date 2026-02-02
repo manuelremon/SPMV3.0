@@ -110,9 +110,6 @@ function LoadingState({ t, navigate }) {
           <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             {t("admin_estado", "ESTADO DEL SISTEMA")}
           </Typography>
-          <Typography variant="body2" sx={{ color: "#606d80" }}>
-            {t("admin_estado_subtitle", "Monitoreo en tiempo real")}
-          </Typography>
         </Box>
       </Box>
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>

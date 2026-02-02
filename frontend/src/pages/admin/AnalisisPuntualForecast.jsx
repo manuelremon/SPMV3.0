@@ -156,9 +156,6 @@ export default function AnalisisPuntualForecast() {
           <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             Forecast - Pronósticos con Datos Temporales
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Genera pronosticos de demanda utilizando el consumo historico del Excel importado
-          </Typography>
         </Box>
 
         {/* Formulario de busqueda */}
