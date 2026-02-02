@@ -314,19 +314,53 @@ return (
               {t("admin_planificadores", "Planificadores")}
             </Typography>
           </Stack>
-          <Button
-            variant="contained"
-            onClick={handleNew}
-            size="small"
-            sx={{
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              fontSize: "0.75rem",
-              px: 2,
-            }}
-          >
-            {t("crud_new", "Nuevo")}
-          </Button>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Tooltip title="Descargar XLSX">
+              <span>
+                <IconButton
+                  onClick={handleExport}
+                  disabled={loading || exporting || filteredPlanificadores.length === 0}
+                  size="small"
+                  sx={{
+                    color: "var(--success)",
+                    border: "1px solid var(--success)",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    "&:hover": {
+                      backgroundColor: "var(--success)",
+                      color: "var(--card)",
+                    },
+                    "&:disabled": {
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    },
+                  }}
+                >
+                  {exporting ? (
+                    <CircularProgress size={14} sx={{ color: "var(--success)" }} />
+                  ) : (
+                    <>
+                      <FileDownloadIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                      <span style={{ fontSize: "0.75rem", fontWeight: 500 }}>XLSX</span>
+                    </>
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Button
+              variant="contained"
+              onClick={handleNew}
+              size="small"
+              sx={{
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                fontSize: "0.75rem",
+                px: 2,
+              }}
+            >
+              {t("crud_new", "Nuevo")}
+            </Button>
+          </Box>
         </Stack>
 
         {/* Alerts */}
