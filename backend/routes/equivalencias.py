@@ -158,12 +158,13 @@ def get_tipos_equivalencia():
     try:
         with get_db_connection("equivalentes") as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            query = """
                 SELECT DISTINCT tipo_equiv
                 FROM materiales_equivalencias
                 WHERE tipo_equiv IS NOT NULL
                 ORDER BY tipo_equiv
-            """)
+            """
+            cursor.execute(query)
             rows = cursor.fetchall()
 
         tipos = []
