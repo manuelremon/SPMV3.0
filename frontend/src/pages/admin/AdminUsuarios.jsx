@@ -1,6 +1,6 @@
 /**
  * AdminUsuarios - Administracion de usuarios del sistema
- * Full MUI Migration
+ * ✨ Migrado a SPMAgGrid para mejor rendimiento
  */
 
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
 import { exportUsuarios } from "../../services/export";
+import { SPMAgGrid } from "../../components/ui/SPMAgGrid";
 
 // MUI Components
 import Box from "@mui/material/Box";
@@ -24,11 +25,6 @@ import Alert from "@mui/material/Alert";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Chip from "@mui/material/Chip";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
 import Drawer from "@mui/material/Drawer";
 import InputAdornment from "@mui/material/InputAdornment";
 import Divider from "@mui/material/Divider";
@@ -239,6 +235,208 @@ function FormSection({ title, children }) {
         {title}
       </Typography>
       <Stack spacing={2}>{children}</Stack>
+    </Box>
+  );
+}
+
+/**
+ * Tabla de usuarios migrada a SPMAgGrid
+ */
+function UsuariosTable({
+  data,
+  onEdit,
+  onDelete,
+  deletingId,
+  onCancelDelete,
+  onConfirmDelete,
+  submitting,
+}) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item) => ({ ...item, id: item.id_spm }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: "id_spm",
+      headerName: "ID",
+      flex: 0.15,
+      minWidth: 80,
+      valueFormatter: (params) => params.value || "-",
+    },
+    {
+      field: "nombre_apellido",
+      headerName: "Nombre",
+      flex: 0.35,
+      minWidth: 150,
+      valueFormatter: (params) =>
+        `${params.data?.nombre || ""} ${params.data?.apellido || ""}`.trim() || "-",
+    },
+    {
+      field: "roles",
+      headerName: "Roles",
+      flex: 0.4,
+      minWidth: 200,
+      cellRenderer: (params) => {
+        const roles = parseRoles(params.data?.roles || params.data?.rol);
+        return (
+          <Stack direction="row" flexWrap="wrap" gap={0.5}>
+            {roles.length > 0 ? (
+              roles.map((rol, idx) => <RoleBadge key={idx} role={rol} />)
+            ) : (
+              <Typography color="text.disabled" variant="caption">
+                -
+              </Typography>
+            )}
+          </Stack>
+        );
+      },
+    },
+    {
+      field: "mail",
+      headerName: "Email",
+      flex: 0.35,
+      minWidth: 150,
+      valueFormatter: (params) => params.value || "-",
+    },
+    {
+      field: "estado",
+      headerName: "Estado",
+      flex: 0.2,
+      minWidth: 100,
+      cellRenderer: (params) => {
+        const isActive =
+          params.data?.estado_registro?.toLowerCase() === "activo";
+        return (
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: isActive ? "success.main" : "grey.400",
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "10px",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                color: isActive ? "success.700" : "text.disabled",
+              }}
+            >
+              {isActive ? "Activo" : "Inactivo"}
+            </Typography>
+          </Stack>
+        );
+      },
+    },
+    {
+      field: "acciones",
+      headerName: "Acciones",
+      flex: 0.15,
+      minWidth: 80,
+      sortable: false,
+      filter: false,
+      cellRenderer: (params) => (
+        <IconButton
+          size="small"
+          onClick={() => onDelete && onDelete(params.data.id_spm)}
+          disabled={!!deletingId}
+          sx={{
+            color: "grey.400",
+            transition: "all 0.15s",
+            "&:hover": { color: "error.main", bgcolor: "error.50" },
+          }}
+          aria-label="Eliminar usuario"
+        >
+          <DeleteIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+      ),
+    },
+  ], [onDelete, deletingId]);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {/* Confirmación de eliminación */}
+      {deletingId && (
+        <Box
+          sx={{
+            p: 2,
+            bgcolor: "error.50",
+            borderLeft: 4,
+            borderLeftColor: "error.400",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            borderRadius: 1,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ color: "error.800" }}>
+            <WarningIcon sx={{ fontSize: 18 }} />
+            <Typography variant="body2" fontWeight={500}>
+              Eliminar a{" "}
+              <Box component="strong">
+                {data.find((u) => u.id_spm === deletingId)?.nombre}{" "}
+                {data.find((u) => u.id_spm === deletingId)?.apellido}
+              </Box>
+              ?
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={onCancelDelete}
+              disabled={submitting}
+              sx={{
+                fontSize: "11px",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                borderRadius: 0,
+                color: "text.secondary",
+                borderColor: "grey.200",
+                "&:hover": { bgcolor: "grey.50" },
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              onClick={() => onConfirmDelete && onConfirmDelete(deletingId)}
+              disabled={submitting}
+              sx={{
+                fontSize: "11px",
+                fontWeight: 600,
+                textTransform: "uppercase",
+                borderRadius: 0,
+              }}
+            >
+              Eliminar
+            </Button>
+          </Stack>
+        </Box>
+      )}
+
+      {/* Tabla SPMAgGrid */}
+      <SPMAgGrid
+        rowData={rows}
+        columnDefs={columnDefs}
+        height={500}
+        pagination={true}
+        paginationPageSize={15}
+        enableQuickFilter={false}
+        emptyMessage={t("common_no_data", "Sin usuarios")}
+        onRowClicked={(data) => onEdit && onEdit(data)}
+        sx={{
+          cursor: "pointer",
+        }}
+      />
     </Box>
   );
 }
@@ -958,120 +1156,15 @@ export default function AdminUsuarios() {
           ) : filteredUsuarios.length === 0 ? (
             <EmptyState type={hasActiveFilters ? "no-results" : "no-data"} onClearFilters={clearFilters} />
           ) : (
-            <Box sx={{ overflowX: "auto", border: 1, borderColor: "grey.200" }}>
-              <Table sx={{ minWidth: 650 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "grey.50", borderBottom: 2, borderColor: "grey.200" }}>
-                    <TableCell
-                      sx={{
-                        px: 1.5,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        width: 70,
-                        borderRight: 1,
-                        borderColor: "grey.200",
-                      }}
-                    >
-                      ID
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        px: 1.5,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        width: 180,
-                        borderRight: 1,
-                        borderColor: "grey.200",
-                      }}
-                    >
-                      Nombre
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        px: 1.5,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        borderRight: 1,
-                        borderColor: "grey.200",
-                      }}
-                    >
-                      Roles
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        px: 1.5,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        width: 200,
-                        borderRight: 1,
-                        borderColor: "grey.200",
-                      }}
-                    >
-                      Email
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        px: 1.5,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        width: 90,
-                        borderRight: 1,
-                        borderColor: "grey.200",
-                      }}
-                    >
-                      Estado
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        px: 1,
-                        py: 1.5,
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "text.secondary",
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                        width: 50,
-                      }}
-                    />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredUsuarios.map((user) => (
-                    <UserRow
-                      key={user.id_spm}
-                      user={user}
-                      onEdit={() => handleEdit(user)}
-                      onDelete={() => setDeletingId(user.id_spm)}
-                      isDeleting={deletingId === user.id_spm}
-                      onCancelDelete={() => setDeletingId(null)}
-                      onConfirmDelete={() => handleDelete(user.id_spm)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
+            <UsuariosTable
+              data={filteredUsuarios}
+              onEdit={handleEdit}
+              onDelete={(id) => setDeletingId(id)}
+              deletingId={deletingId}
+              onCancelDelete={() => setDeletingId(null)}
+              onConfirmDelete={handleDelete}
+              submitting={submitting}
+            />
           )}
 
           {/* Footer */}
