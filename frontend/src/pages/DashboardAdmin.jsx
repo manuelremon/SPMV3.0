@@ -799,6 +799,7 @@ export default function DashboardAdmin() {
                   onRowClick={(row) => navigate(`/solicitudes/${row.id}`)}
                   height={500}
                   enableQuickFilter={true}
+                  exportFileName="dashboard_admin"
                 />
               )}
             </Box>

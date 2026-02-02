@@ -775,6 +775,7 @@ export default function TodasLasSolicitudes() {
           height={600}
           paginationPageSize={25}
           paginationPageSizeSelector={[10, 25, 50, 100]}
+          enableQuickFilter={true}
           onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
           exportFileName="solicitudes"
           emptyMessage={t("todas_empty", "No hay solicitudes")}

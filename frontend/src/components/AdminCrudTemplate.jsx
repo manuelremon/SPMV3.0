@@ -51,6 +51,7 @@ export default function AdminCrudTemplate({
   customUpdate,
   hideCardTitle = true,
   hideDescription = false,
+  exportFileName,
 }) {
   const { t } = useI18n();
   const initialForm = useMemo(() => {
@@ -339,7 +340,8 @@ export default function AdminCrudTemplate({
                       : `${t("crud_no_hay", "No hay")} ${title.toLowerCase()} ${t("crud_no_items_created", "creados")}`
                   }
                   pagination={false}
-                  enableQuickFilter={false}
+                  enableQuickFilter={true}
+                  exportFileName={exportFileName || resource}
                   height={400}
                 />
 

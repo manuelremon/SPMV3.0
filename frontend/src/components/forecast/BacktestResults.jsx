@@ -239,6 +239,8 @@ const BacktestResults = ({ data, loading = false }) => {
             pagination={true}
             paginationPageSize={5}
             paginationPageSizeSelector={[5, 10, 25]}
+            enableQuickFilter={true}
+            exportFileName="backtest_resultados"
           />
         </Box>
       )}

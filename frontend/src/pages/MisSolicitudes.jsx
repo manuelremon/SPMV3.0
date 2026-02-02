@@ -810,6 +810,7 @@ export default function MisSolicitudes() {
             height={600}
             paginationPageSize={25}
             paginationPageSizeSelector={[10, 25, 50, 100]}
+            enableQuickFilter={true}
             onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
             exportFileName="mis_solicitudes"
             emptyMessage={t("mis_empty_title", "No tienes solicitudes")}

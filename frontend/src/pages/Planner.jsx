@@ -828,7 +828,9 @@ export default function Planner({ filterMode }) {
             pagination={true}
             paginationPageSize={25}
             paginationPageSizeSelector={[10, 25, 50, 100]}
+            enableQuickFilter={true}
             onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
+            exportFileName="planner_solicitudes"
             emptyMessage={t("planner_empty_full", "Sin solicitudes asignadas")}
           />
         </Paper>

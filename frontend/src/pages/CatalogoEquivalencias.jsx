@@ -1100,7 +1100,7 @@ export default function CatalogoEquivalencias() {
               pagination={true}
               paginationPageSize={20}
               paginationPageSizeSelector={[20, 50, 100]}
-              enableQuickFilter={false}
+              enableQuickFilter={true}
               exportFileName="equivalencias"
               emptyMessage={t("equivalencias_sin_resultados", "No se encontraron equivalencias")}
               gridOptions={{

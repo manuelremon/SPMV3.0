@@ -862,7 +862,7 @@ export default function CatalogoMateriales() {
               pagination={true}
               paginationPageSize={100}
               paginationPageSizeSelector={[25, 50, 100]}
-              enableQuickFilter={false}
+              enableQuickFilter={true}
               onRowClick={(data) => loadDetail(data)}
               exportFileName="catalogo_materiales"
               emptyMessage={t("catalogo_sin_resultados", "No se encontraron materiales")}

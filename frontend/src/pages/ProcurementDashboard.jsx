@@ -183,7 +183,8 @@ function TopProveedoresTable({ data }) {
       columnDefs={columnDefs}
       height={250}
       pagination={false}
-      enableQuickFilter={false}
+      enableQuickFilter={true}
+      exportFileName="procurement_top_proveedores"
       emptyMessage={t('common_no_data', 'Sin datos')}
     />
   );
@@ -290,6 +291,7 @@ function ComplianceTable({ data }) {
       pagination={true}
       paginationPageSize={10}
       enableQuickFilter={true}
+      exportFileName="procurement_cumplimiento"
       emptyMessage={t('common_no_data', 'Sin datos')}
     />
   );
@@ -382,7 +384,8 @@ function ImportHistoryTable({ data }) {
       height={300}
       pagination={true}
       paginationPageSize={10}
-      enableQuickFilter={false}
+      enableQuickFilter={true}
+      exportFileName="procurement_historial_importaciones"
       emptyMessage={t('common_no_data', 'Sin datos')}
     />
   );

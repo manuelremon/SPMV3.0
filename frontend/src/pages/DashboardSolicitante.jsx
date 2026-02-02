@@ -463,6 +463,7 @@ export default function DashboardSolicitante() {
               pagination={true}
               paginationPageSize={10}
               enableQuickFilter={true}
+              exportFileName="dashboard_solicitante"
             />
           )}
         </Box>

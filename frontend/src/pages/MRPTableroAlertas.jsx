@@ -987,7 +987,7 @@ export default function MRPTableroAlertas() {
             height={600}
             paginationPageSize={50}
             paginationPageSizeSelector={[20, 50, 100]}
-            enableQuickFilter={false}
+            enableQuickFilter={true}
             exportFileName="alertas_mrp"
             emptyMessage="No hay alertas para mostrar"
             getRowId={(params) => params.data.codigo}

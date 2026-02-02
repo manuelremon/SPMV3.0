@@ -281,7 +281,8 @@ const ProveedoresTable = ({ data, columns }) => {
       columnDefs={columnDefs}
       height={300}
       pagination={false}
-      enableQuickFilter={false}
+      enableQuickFilter={true}
+      exportFileName="procurement_analytics"
       emptyMessage={t("common_no_data", "Sin datos")}
     />
   );

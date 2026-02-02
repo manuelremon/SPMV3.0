@@ -481,6 +481,7 @@ export default function DashboardAprobador() {
               height={400}
               pagination={true}
               paginationPageSize={25}
+              enableQuickFilter={true}
               exportFileName="solicitudes_aprobador"
             />
           )}

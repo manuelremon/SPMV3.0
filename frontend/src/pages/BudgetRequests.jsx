@@ -808,6 +808,7 @@ export default function BudgetRequests() {
               height={600}
               paginationPageSize={25}
               paginationPageSizeSelector={[10, 25, 50, 100]}
+              enableQuickFilter={true}
               exportFileName="historial_presupuesto"
               emptyMessage={t("ledger_empty", "No hay movimientos de presupuesto")}
               gridOptions={{
@@ -825,6 +826,7 @@ export default function BudgetRequests() {
               height={600}
               paginationPageSize={25}
               paginationPageSizeSelector={[10, 25, 50, 100]}
+              enableQuickFilter={true}
               exportFileName="incorporaciones_presupuesto"
               emptyMessage={t("bur_empty", "No hay solicitudes de presupuesto")}
               gridOptions={{

@@ -136,6 +136,7 @@ function ResultadosTable({ data }) {
       pagination={true}
       paginationPageSize={10}
       enableQuickFilter={true}
+      exportFileName="forecast_resultados_masivos"
       emptyMessage={t('common_no_data', 'Sin datos')}
     />
   );

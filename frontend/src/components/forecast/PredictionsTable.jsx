@@ -301,6 +301,8 @@ const PredictionsTable = ({
         pagination={true}
         paginationPageSize={10}
         paginationPageSizeSelector={[10, 25, 50]}
+        enableQuickFilter={true}
+        exportFileName="predicciones_pronostico"
       />
 
       {/* Resumen detallado */}

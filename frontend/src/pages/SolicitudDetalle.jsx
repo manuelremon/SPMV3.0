@@ -122,7 +122,8 @@ function ItemsTable({ items, totalMonto }) {
         columnDefs={columnDefs}
         height={300}
         pagination={false}
-        enableQuickFilter={false}
+        enableQuickFilter={true}
+        exportFileName="items_solicitud"
         emptyMessage={t('detalle_sin_items', 'No hay materiales en esta solicitud')}
       />
       {/* Total Footer */}

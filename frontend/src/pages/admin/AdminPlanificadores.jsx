@@ -314,7 +314,8 @@ function PlanificadoresTable({
         height={500}
         pagination={true}
         paginationPageSize={10}
-        enableQuickFilter={false}
+        enableQuickFilter={true}
+        exportFileName="planificadores"
         emptyMessage={t("common_no_data", "Sin planificadores")}
       />
     </Box>

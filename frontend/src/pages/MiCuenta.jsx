@@ -453,7 +453,8 @@ function SolicitudesTable({ data, onMessage, onCancel }) {
       height={300}
       pagination={true}
       paginationPageSize={10}
-      enableQuickFilter={false}
+      enableQuickFilter={true}
+      exportFileName="cambios_perfil_pendientes"
       emptyMessage={t('common_no_data', 'Sin solicitudes pendientes')}
     />
   );

@@ -469,6 +469,8 @@ export default function AdminProveedores() {
             paginationPageSize={20}
             paginationPageSizeSelector={[20, 50, 100]}
             rowHeight={67}
+            enableQuickFilter={true}
+            exportFileName="proveedores_internos"
           />
         </Paper>
       )}
@@ -486,6 +488,8 @@ export default function AdminProveedores() {
             paginationPageSize={20}
             paginationPageSizeSelector={[20, 50, 100]}
             rowHeight={67}
+            enableQuickFilter={true}
+            exportFileName="proveedores_externos"
           />
         </Paper>
       )}

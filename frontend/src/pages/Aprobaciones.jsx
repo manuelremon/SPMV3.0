@@ -1012,6 +1012,7 @@ export default function Aprobaciones() {
               height={600}
               paginationPageSize={25}
               paginationPageSizeSelector={[10, 25, 50, 100]}
+              enableQuickFilter={true}
               onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
               exportFileName="aprobaciones_pendientes"
               emptyMessage={t("aprov_no_items", "No hay solicitudes pendientes de aprobacion")}
@@ -1024,6 +1025,7 @@ export default function Aprobaciones() {
               height={600}
               paginationPageSize={25}
               paginationPageSizeSelector={[10, 25, 50, 100]}
+              enableQuickFilter={true}
               onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
               exportFileName="historial_aprobaciones"
               emptyMessage={t("aprov_no_historial", "No hay registros en el historial")}
