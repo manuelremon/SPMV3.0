@@ -86,6 +86,7 @@ def _save_uploaded_file(file, solicitud_id: int) -> dict:
         "id": uuid.uuid4().hex[:8],
         "nombre": original_filename,
         "nombre_almacenado": unique_filename,
+        "path": str(file_path),
         "ruta": str(file_path.relative_to(Path(__file__).parent.parent.parent)),
         "mime_type": file.content_type or "application/octet-stream",
         "tamanio": file_size,
