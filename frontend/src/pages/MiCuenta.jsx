@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import * as account from "../services/account";
+import { useI18n } from "../context/i18n";
+import { SPMAgGrid } from "../components/ui/SPMAgGrid";
 import {
   Box,
   Paper,
@@ -20,12 +22,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   Grid,
 } from "@mui/material";
@@ -318,9 +314,14 @@ export default function MiCuenta() {
         {solicitudes.length === 0 ? (
           <Typography variant="body2" color="text.secondary">Sin solicitudes pendientes.</Typography>
         ) : (
-          <TableContainer>
-            {/* Requests table */}
-          </TableContainer>
+          <SolicitudesTable
+            data={solicitudes}
+            onMessage={(solicitud) => {
+              setSelectedSolicitud(solicitud);
+              setMessageModalOpen(true);
+            }}
+            onCancel={(solicitud) => setCancelingRequest(solicitud.id)}
+          />
         )}
       </Paper>
 
@@ -328,6 +329,133 @@ export default function MiCuenta() {
         {/* Message Dialog */}
       </Dialog>
     </Stack>
+  );
+}
+
+/**
+ * Tabla de solicitudes de cambio de perfil migrada a SPMAgGrid
+ */
+function SolicitudesTable({ data, onMessage, onCancel }) {
+  const { t } = useI18n();
+
+  const rows = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    return data.map((item, idx) => ({ ...item, id: item.id || idx }));
+  }, [data]);
+
+  const columnDefs = useMemo(() => [
+    {
+      field: 'tipo_cambio',
+      headerName: t('common_type', 'Tipo de cambio'),
+      flex: 0.35,
+      minWidth: 120,
+      valueFormatter: (params) => {
+        const types = {
+          'sector': 'Sector',
+          'centros': 'Centros',
+          'almacenes': 'Almacenes',
+          'jefe': 'Jefe',
+          'gerente': 'Gerente'
+        };
+        return types[params.value] || params.value || '-';
+      },
+    },
+    {
+      field: 'estado',
+      headerName: t('common_status', 'Estado'),
+      flex: 0.25,
+      minWidth: 110,
+      cellRenderer: (params) => {
+        const estado = params.data?.estado?.toLowerCase() || 'pendiente';
+        const statusConfig = {
+          'aprobado': { bg: 'var(--success-soft)', color: 'var(--success)' },
+          'rechazado': { bg: 'var(--danger-soft)', color: 'var(--danger)' },
+          'pendiente': { bg: 'var(--warning-soft)', color: 'var(--warning)' },
+        };
+        const config = statusConfig[estado] || statusConfig.pendiente;
+        return (
+          <Chip
+            label={estado.charAt(0).toUpperCase() + estado.slice(1)}
+            size="small"
+            sx={{
+              bgcolor: config.bg,
+              color: config.color,
+              fontWeight: 600,
+              fontSize: '0.7rem',
+            }}
+          />
+        );
+      },
+    },
+    {
+      field: 'fecha_solicitud',
+      headerName: t('common_date', 'Fecha solicitud'),
+      flex: 0.3,
+      minWidth: 100,
+      valueFormatter: (params) => {
+        if (!params.value) return '-';
+        try {
+          return new Date(params.value).toLocaleDateString('es-AR');
+        } catch {
+          return params.value;
+        }
+      },
+    },
+    {
+      field: 'mensaje_admin',
+      headerName: t('common_admin_message', 'Comentario'),
+      flex: 0.8,
+      minWidth: 180,
+      valueFormatter: (params) => params.value || '-',
+    },
+    {
+      field: 'acciones',
+      headerName: t('common_actions', 'Acciones'),
+      flex: 0.3,
+      minWidth: 100,
+      sortable: false,
+      filter: false,
+      cellRenderer: (params) => {
+        const estado = params.data?.estado?.toLowerCase() || 'pendiente';
+        return (
+          <Stack direction="row" spacing={0.5}>
+            {estado === 'pendiente' && (
+              <>
+                <Button
+                  variant="text"
+                  size="small"
+                  startIcon={<MessageIcon sx={{ fontSize: 16 }} />}
+                  onClick={() => onMessage && onMessage(params.data)}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', p: 0.5 }}
+                >
+                  Mensaje
+                </Button>
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => onCancel && onCancel(params.data)}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', p: 0.5, color: 'var(--danger)' }}
+                >
+                  Cancelar
+                </Button>
+              </>
+            )}
+          </Stack>
+        );
+      },
+    },
+  ], [t, onMessage, onCancel]);
+
+  return (
+    <SPMAgGrid
+      rowData={rows}
+      columnDefs={columnDefs}
+      height={300}
+      pagination={true}
+      paginationPageSize={10}
+      enableQuickFilter={false}
+      emptyMessage={t('common_no_data', 'Sin solicitudes pendientes')}
+    />
   );
 }
 
