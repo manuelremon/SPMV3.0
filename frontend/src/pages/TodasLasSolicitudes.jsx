@@ -650,9 +650,6 @@ export default function TodasLasSolicitudes() {
             >
               {t("todas_page_title", "Todas las Solicitudes")}
             </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              {t("todas_page_subtitle", "Vista general de todas las solicitudes del sistema")}
-            </Typography>
           </Box>
         </Box>
         <Button
