@@ -52,7 +52,7 @@ def search_materiales():
     # Búsqueda por código o descripción (OR)
     search_conditions = []
     if q_codigo:
-        search_conditions.append("UPPER(codigo_material) LIKE UPPER(?)")
+        search_conditions.append("UPPER(id_material) LIKE UPPER(?)")
         params.append(f"%{q_codigo}%")
     if q_desc:
         search_conditions.append("UPPER(descripcion) LIKE UPPER(?)")
@@ -69,11 +69,11 @@ def search_materiales():
     where = "WHERE " + " AND ".join(filters) if filters else ""
 
     query = f"""
-        SELECT codigo_material AS codigo, descripcion, descripcion AS descripcion_larga,
+        SELECT id_material AS codigo, descripcion, descripcion_larga,
                grupo_articulo AS grupo_articulos, unidad_medida, precio_usd
         FROM catalogo_materiales
         {where}
-        ORDER BY codigo_material ASC
+        ORDER BY id_material ASC
         LIMIT ?
     """
     params.append(limit)
@@ -95,14 +95,14 @@ def get_material(codigo: str):
     """
     query = """
         SELECT
-            codigo_material AS codigo,
+            id_material AS codigo,
             descripcion,
-            descripcion AS descripcion_larga,
+            descripcion_larga,
             grupo_articulo AS grupo_articulos,
             unidad_medida,
             precio_usd
         FROM catalogo_materiales
-        WHERE codigo_material = ?
+        WHERE id_material = ?
     """
 
     try:
