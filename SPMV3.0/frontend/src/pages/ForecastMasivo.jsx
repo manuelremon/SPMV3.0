@@ -1,0 +1,611 @@
+/**
+ * ForecastMasivo - Página de forecast masivo de materiales
+ *
+ * Permite analizar múltiples materiales simultáneamente
+ * usando plantilla CSV para importación
+ */
+
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../context/i18n';
+import forecastService from '../services/forecast';
+import { TempDataBanner } from '../components/ui/TempDataBanner';
+
+// MUI Components
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Alert from '@mui/material/Alert';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import LinearProgress from '@mui/material/LinearProgress';
+import Chip from '@mui/material/Chip';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import CircularProgress from '@mui/material/CircularProgress';
+import Tooltip from '@mui/material/Tooltip';
+
+// MUI Icons
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import DownloadIcon from '@mui/icons-material/Download';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+// Modelos disponibles
+const MODELOS_INFO = {
+  random_forest: { nombre: 'Random Forest', icono: '🌲' },
+  gradient_boosting: { nombre: 'Gradient Boosting', icono: '🚀' },
+  linear: { nombre: 'Regresión Lineal', icono: '📈' },
+  xgboost: { nombre: 'XGBoost', icono: '⚡' },
+  arima: { nombre: 'ARIMA', icono: '📊' },
+  prophet: { nombre: 'Prophet', icono: '🔮' }
+};
+
+const ForecastMasivo = () => {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  // Estado
+  const [materialesImportados, setMaterialesImportados] = useState([]);
+  const [modeloSeleccionado, setModeloSeleccionado] = useState('random_forest');
+  const [diasPrediccion, setDiasPrediccion] = useState(30);
+  const [modelosDisponibles, setModelosDisponibles] = useState(['random_forest', 'gradient_boosting', 'linear']);
+  const [resultados, setResultados] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [progreso, setProgreso] = useState({ actual: 0, total: 0 });
+  const [error, setError] = useState(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+
+  // Cargar modelos disponibles
+  useEffect(() => {
+    const loadModelos = async () => {
+      try {
+        const response = await forecastService.getModelsDisponibles();
+        if (response.modelos) {
+          setModelosDisponibles(response.modelos);
+        }
+      } catch (err) {
+        console.error('Error cargando modelos:', err);
+      }
+    };
+    loadModelos();
+  }, []);
+
+  // Descargar plantilla CSV
+  const descargarPlantilla = useCallback(() => {
+    const headers = ['codigo_material'];
+    const ejemplos = [
+      ['# Ingrese un código de material por fila'],
+      ['# Ejemplo:'],
+      ['MAT001'],
+      ['MAT002'],
+      ['MAT003']
+    ];
+
+    const csv = [headers.join(','), ...ejemplos.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla_forecast_masivo.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  // Importar archivo CSV
+  const importarArchivo = useCallback((event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') return;
+
+        const lines = text.split(/\r?\n/);
+        const materiales = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          // Ignorar líneas vacías y comentarios
+          if (!line || line.startsWith('#') || line.toLowerCase() === 'codigo_material') continue;
+
+          // Tomar el primer valor (en caso de CSV con múltiples columnas)
+          const codigo = line.split(',')[0].trim().toUpperCase();
+          if (codigo && !materiales.some(m => m.codigo === codigo)) {
+            materiales.push({ codigo, id: `${codigo}-${i}` });
+          }
+        }
+
+        if (materiales.length === 0) {
+          setError(t('forecast_masivo_archivo_vacio', 'El archivo no contiene códigos de materiales válidos'));
+          return;
+        }
+
+        setMaterialesImportados(materiales);
+        setImportSuccess(true);
+        setError(null);
+        setResultados([]);
+
+        // Limpiar mensaje de éxito después de 3 segundos
+        setTimeout(() => setImportSuccess(false), 3000);
+      } catch (err) {
+        setError(t('forecast_masivo_error_importar', 'Error al procesar el archivo'));
+      }
+    };
+
+    reader.readAsText(file);
+    // Limpiar el input para permitir reimportar el mismo archivo
+    event.target.value = '';
+  }, [t]);
+
+  // Eliminar material de la lista
+  const eliminarMaterial = useCallback((id) => {
+    setMaterialesImportados(prev => prev.filter(m => m.id !== id));
+  }, []);
+
+  // Ejecutar forecast masivo
+  const ejecutarForecastMasivo = useCallback(async () => {
+    if (materialesImportados.length === 0) {
+      setError(t('forecast_masivo_sin_materiales', 'Importe una plantilla con códigos de materiales'));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResultados([]);
+    setProgreso({ actual: 0, total: materialesImportados.length });
+
+    const resultadosTemp = [];
+
+    for (let i = 0; i < materialesImportados.length; i++) {
+      const { codigo } = materialesImportados[i];
+      setProgreso({ actual: i + 1, total: materialesImportados.length });
+
+      try {
+        const resultado = await forecastService.getForecast(codigo, {
+          dias: diasPrediccion,
+          modelo: modeloSeleccionado
+        });
+
+        resultadosTemp.push({
+          codigo,
+          exito: true,
+          metricas: resultado.metricas,
+          prediccionTotal: resultado.predicciones?.reduce((sum, p) => sum + (p.prediccion || p.cantidad_predicha || 0), 0) || 0,
+          descripcion: resultado.material?.descripcion || '',
+          modelo: modeloSeleccionado
+        });
+      } catch (err) {
+        resultadosTemp.push({
+          codigo,
+          exito: false,
+          error: err.response?.data?.error || 'Error desconocido'
+        });
+      }
+
+      setResultados([...resultadosTemp]);
+    }
+
+    setLoading(false);
+  }, [materialesImportados, diasPrediccion, modeloSeleccionado, t]);
+
+  // Exportar resultados a CSV
+  const exportarCSV = useCallback(() => {
+    if (resultados.length === 0) return;
+
+    const headers = ['Código', 'Descripción', 'Estado', 'MAE', 'RMSE', 'R²', 'Predicción Total', 'Modelo'];
+    const rows = resultados.map(r => [
+      r.codigo,
+      `"${(r.descripcion || '').replace(/"/g, '""')}"`,
+      r.exito ? 'OK' : 'Error',
+      r.metricas?.mae?.toFixed(2) || '',
+      r.metricas?.rmse?.toFixed(2) || '',
+      r.metricas?.r2?.toFixed(4) || '',
+      r.prediccionTotal?.toFixed(0) || '',
+      r.modelo || ''
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `forecast_masivo_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [resultados]);
+
+  // Estadísticas de resultados
+  const stats = useMemo(() => {
+    if (resultados.length === 0) return null;
+
+    const exitosos = resultados.filter(r => r.exito);
+    const fallidos = resultados.filter(r => !r.exito);
+
+    return {
+      total: resultados.length,
+      exitosos: exitosos.length,
+      fallidos: fallidos.length,
+      maePromedio: exitosos.length > 0
+        ? exitosos.reduce((sum, r) => sum + (r.metricas?.mae || 0), 0) / exitosos.length
+        : 0,
+      r2Promedio: exitosos.length > 0
+        ? exitosos.reduce((sum, r) => sum + (r.metricas?.r2 || 0), 0) / exitosos.length
+        : 0,
+      prediccionTotal: exitosos.reduce((sum, r) => sum + (r.prediccionTotal || 0), 0)
+    };
+  }, [resultados]);
+
+  const limpiar = useCallback(() => {
+    setMaterialesImportados([]);
+    setResultados([]);
+    setError(null);
+    setProgreso({ actual: 0, total: 0 });
+    setImportSuccess(false);
+  }, []);
+
+  return (
+    <Container maxWidth={false} sx={{ py: 2, px: "75px" }}>
+      {/* Header */}
+      <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1.5 }}>
+        <IconButton onClick={() => navigate(-1)} size="small" sx={{ color: "#606d80" }}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: "#1f1f20", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          {t('forecast_masivo_titulo', 'FORECAST MASIVO')}
+        </Typography>
+      </Box>
+
+      {/* Banner de Modo Temporal */}
+      <TempDataBanner />
+
+      {/* Input file oculto */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={importarArchivo}
+        accept=".csv,.txt"
+        style={{ display: 'none' }}
+      />
+
+      {/* Filtros - estilo Dashboard */}
+      <Paper elevation={0} sx={{ mb: 3, border: "1px solid #dce0e6", borderRadius: 2, overflow: "hidden" }}>
+        <div className="py-3 px-6" style={{ minHeight: "73px" }}>
+          <div className="flex items-center gap-4 h-full">
+            {/* Plantilla */}
+            <div className="flex flex-col gap-0">
+              <label className="text-xs font-medium text-slate-600 mb-1">
+                {t('forecast_masivo_plantilla', 'Plantilla')}
+              </label>
+              <div className="flex gap-2">
+                <Tooltip title="Descargar plantilla CSV">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={descargarPlantilla}
+                    startIcon={<FileDownloadIcon />}
+                    sx={{
+                      height: 36,
+                      textTransform: "none",
+                      fontSize: "0.75rem",
+                      borderColor: "#dce0e6",
+                      color: "#606d80",
+                      "&:hover": { borderColor: "#1976d2", color: "#1976d2" }
+                    }}
+                  >
+                    Descargar
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Importar archivo CSV con códigos">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                    startIcon={<FileUploadIcon />}
+                    sx={{
+                      height: 36,
+                      textTransform: "none",
+                      fontSize: "0.75rem",
+                      borderColor: materialesImportados.length > 0 ? "#16a34a" : "#dce0e6",
+                      color: materialesImportados.length > 0 ? "#16a34a" : "#606d80",
+                      bgcolor: materialesImportados.length > 0 ? "#f0fdf4" : "transparent",
+                      "&:hover": { borderColor: "#16a34a", color: "#16a34a", bgcolor: "#f0fdf4" }
+                    }}
+                  >
+                    Importar
+                  </Button>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Materiales importados */}
+            <div className="flex flex-col gap-0 min-w-[140px]">
+              <label className="text-xs font-medium text-slate-600 mb-1">
+                {t('forecast_masivo_materiales', 'Materiales')}
+              </label>
+              <Chip
+                icon={materialesImportados.length > 0 ? <CheckCircleIcon sx={{ fontSize: 16 }} /> : undefined}
+                label={`${materialesImportados.length} importados`}
+                size="small"
+                sx={{
+                  height: 36,
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  bgcolor: materialesImportados.length > 0 ? "#dcfce7" : "#f1f5f9",
+                  color: materialesImportados.length > 0 ? "#16a34a" : "#64748b",
+                  "& .MuiChip-icon": { color: "#16a34a" }
+                }}
+              />
+            </div>
+
+            {/* Separador */}
+            <div className="h-10 w-px bg-slate-200" />
+
+            {/* Modelo */}
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <InputLabel sx={{ fontSize: "0.75rem" }}>Modelo</InputLabel>
+              <Select
+                value={modeloSeleccionado}
+                onChange={(e) => setModeloSeleccionado(e.target.value)}
+                disabled={loading}
+                label="Modelo"
+                sx={{ fontSize: "0.75rem" }}
+              >
+                {modelosDisponibles.map((modelo) => (
+                  <MenuItem key={modelo} value={modelo} sx={{ fontSize: "0.75rem" }}>
+                    {MODELOS_INFO[modelo]?.icono} {MODELOS_INFO[modelo]?.nombre || modelo}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Horizonte */}
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel sx={{ fontSize: "0.75rem" }}>Horizonte</InputLabel>
+              <Select
+                value={diasPrediccion}
+                onChange={(e) => setDiasPrediccion(Number(e.target.value))}
+                disabled={loading}
+                label="Horizonte"
+                sx={{ fontSize: "0.75rem" }}
+              >
+                <MenuItem value={7}>7 días</MenuItem>
+                <MenuItem value={14}>14 días</MenuItem>
+                <MenuItem value={30}>1 mes</MenuItem>
+                <MenuItem value={60}>2 meses</MenuItem>
+                <MenuItem value={90}>3 meses</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Separador */}
+            <div className="h-10 w-px bg-slate-200" />
+
+            {/* Botón Ejecutar */}
+            <Button
+              variant="contained"
+              onClick={ejecutarForecastMasivo}
+              disabled={loading || materialesImportados.length === 0}
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RocketLaunchIcon />}
+              sx={{ height: 40, minWidth: 140, textTransform: "none", fontWeight: 600 }}
+            >
+              {loading ? `${progreso.actual}/${progreso.total}` : 'Ejecutar'}
+            </Button>
+
+            {/* Limpiar */}
+            <Tooltip title="Limpiar todo">
+              <IconButton
+                onClick={limpiar}
+                disabled={loading}
+                size="small"
+                sx={{ color: "#606d80", "&:hover": { color: "#dc2626" } }}
+              >
+                <DeleteOutlineIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </div>
+      </Paper>
+
+      {/* Mensaje de éxito de importación */}
+      {importSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircleIcon />}>
+          {t('forecast_masivo_import_success', `Se importaron ${materialesImportados.length} materiales correctamente`)}
+        </Alert>
+      )}
+
+      {/* Lista de materiales importados (preview) */}
+      {materialesImportados.length > 0 && resultados.length === 0 && !loading && (
+        <Paper elevation={0} sx={{ mb: 3, border: "1px solid #dce0e6", borderRadius: 2, overflow: "hidden" }}>
+          <Box sx={{ p: 2, borderBottom: "1px solid #dce0e6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="subtitle2" fontWeight={600} color="#1f1f20">
+              {t('forecast_masivo_preview', 'Materiales a procesar')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {materialesImportados.length} materiales
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2, display: "flex", flexWrap: "wrap", gap: 1, maxHeight: 150, overflow: "auto" }}>
+            {materialesImportados.map((m) => (
+              <Chip
+                key={m.id}
+                label={m.codigo}
+                size="small"
+                onDelete={() => eliminarMaterial(m.id)}
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: "0.75rem",
+                  bgcolor: "#f8fafc",
+                  "&:hover": { bgcolor: "#f1f5f9" }
+                }}
+              />
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Error */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Progreso */}
+      {loading && (
+        <Paper elevation={0} sx={{ mb: 3, p: 2, border: "1px solid #dce0e6", borderRadius: 2 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+            <Typography variant="body2" fontWeight={500}>Procesando materiales...</Typography>
+            <Typography variant="caption" color="text.secondary">{progreso.actual} de {progreso.total}</Typography>
+          </Box>
+          <LinearProgress variant="determinate" value={(progreso.actual / progreso.total) * 100} sx={{ height: 8, borderRadius: 4 }} />
+        </Paper>
+      )}
+
+      {/* Estadísticas */}
+      {stats && (
+        <Paper elevation={0} sx={{ mb: 3, border: "1px solid #dce0e6", borderRadius: 2, overflow: "hidden" }}>
+          <Box sx={{ display: "flex", alignItems: "stretch" }}>
+            {[
+              { label: "Total", value: stats.total, color: "#1f1f20", bg: "#ffffff" },
+              { label: "Exitosos", value: stats.exitosos, color: "#16a34a", bg: "#f0fdf4" },
+              { label: "Fallidos", value: stats.fallidos, color: "#dc2626", bg: "#fef2f2" },
+              { label: "MAE Prom.", value: stats.maePromedio.toFixed(2), color: "#2563eb", bg: "#eff6ff" },
+              { label: "R² Prom.", value: stats.r2Promedio.toFixed(4), color: "#7c3aed", bg: "#f5f3ff" },
+              { label: "Demanda Total", value: Math.round(stats.prediccionTotal).toLocaleString(), color: "#ea580c", bg: "#fff7ed" },
+            ].map((item, idx, arr) => (
+              <Box
+                key={item.label}
+                sx={{
+                  flex: 1,
+                  p: 2,
+                  textAlign: "center",
+                  bgcolor: item.bg,
+                  borderRight: idx < arr.length - 1 ? "1px solid #dce0e6" : "none",
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: 700, color: item.color }}>
+                  {item.value}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#606d80", textTransform: "uppercase", fontWeight: 600, fontSize: "0.65rem" }}>
+                  {item.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Tabla de resultados */}
+      {resultados.length > 0 && (
+        <Paper elevation={0} sx={{ border: "1px solid #dce0e6", borderRadius: 2, overflow: "hidden" }}>
+          <Box sx={{ p: 2, borderBottom: "1px solid #dce0e6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="subtitle1" fontWeight={600} color="#1f1f20">
+              {t('forecast_masivo_resultados', 'Resultados')}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={exportarCSV}
+              sx={{ textTransform: "none", color: "#16a34a", borderColor: "#16a34a", "&:hover": { bgcolor: "#f0fdf4", borderColor: "#16a34a" } }}
+            >
+              Exportar CSV
+            </Button>
+          </Box>
+
+          <TableContainer sx={{ maxHeight: 400 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>Código</TableCell>
+                  <TableCell sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>Descripción</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>Estado</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>MAE</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>RMSE</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>R²</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, bgcolor: "#f9fafb", borderBottom: "2px solid #dce0e6" }}>Predicción</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {resultados.map((r, i) => (
+                  <TableRow key={i} sx={{ bgcolor: r.exito ? "inherit" : "#fef2f2", "&:hover": { bgcolor: r.exito ? "#f9fafb" : "#fee2e2" } }}>
+                    <TableCell sx={{ fontWeight: 500, fontFamily: "monospace" }}>{r.codigo}</TableCell>
+                    <TableCell sx={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.descripcion || (r.error ? r.error : '-')}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={r.exito ? "OK" : "Error"}
+                        size="small"
+                        sx={{
+                          bgcolor: r.exito ? "#dcfce7" : "#fee2e2",
+                          color: r.exito ? "#16a34a" : "#dc2626",
+                          fontWeight: 600,
+                          fontSize: "0.7rem"
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{r.metricas?.mae?.toFixed(2) || '-'}</TableCell>
+                    <TableCell align="right">{r.metricas?.rmse?.toFixed(2) || '-'}</TableCell>
+                    <TableCell align="right">{r.metricas?.r2?.toFixed(4) || '-'}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>{r.prediccionTotal?.toFixed(0) || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* Estado vacío */}
+      {materialesImportados.length === 0 && resultados.length === 0 && !loading && (
+        <Paper elevation={0} sx={{ p: 8, border: "1px solid #dce0e6", borderRadius: 2, textAlign: "center" }}>
+          <PlaylistAddIcon sx={{ fontSize: 64, color: "#dce0e6", mb: 2 }} />
+          <Typography variant="h6" fontWeight={600} color="#1f1f20" gutterBottom>
+            {t('forecast_masivo_empty_titulo', 'Analiza múltiples materiales')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480, mx: "auto", mb: 3 }}>
+            {t('forecast_masivo_empty_descripcion', 'Descarga la plantilla CSV, complétala con los códigos de materiales e impórtala para ejecutar el forecast masivo.')}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
+            <Button
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              onClick={descargarPlantilla}
+              sx={{ textTransform: "none" }}
+            >
+              1. Descargar plantilla
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<FileUploadIcon />}
+              onClick={() => fileInputRef.current?.click()}
+              sx={{ textTransform: "none" }}
+            >
+              2. Importar plantilla
+            </Button>
+          </Box>
+        </Paper>
+      )}
+    </Container>
+  );
+};
+
+export default ForecastMasivo;

@@ -9,6 +9,7 @@ import MuiTabsBase from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
+import Badge from "@mui/material/Badge";
 
 // Context for Tabs state
 const TabsContext = createContext(null);
@@ -68,12 +69,46 @@ export function TabsList({ children, className, ...props }) {
         aria-label="tabs"
       >
         {tabs.map((child) => {
-          const { value, children: label, disabled, className: tabClassName, tooltip, sx: tabSx } = child.props;
+          const { value, children: label, disabled, className: tabClassName, tooltip, count, icon, sx: tabSx } = child.props;
+
+          // Build label with optional badge and icon
+          let tabLabel = label;
+          if (count !== undefined) {
+            tabLabel = (
+              <Badge
+                badgeContent={count}
+                color="primary"
+                max={99}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    right: -12,
+                    top: 2,
+                    fontSize: '0.65rem',
+                    minWidth: 18,
+                    height: 18,
+                  },
+                }}
+              >
+                <span style={{ paddingRight: count > 0 ? 8 : 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {icon}
+                  {label}
+                </span>
+              </Badge>
+            );
+          } else if (icon) {
+            tabLabel = (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {icon}
+                {label}
+              </span>
+            );
+          }
+
           const tabElement = (
             <Tab
               key={value}
               value={value}
-              label={label}
+              label={tabLabel}
               disabled={disabled}
               className={tabClassName}
               sx={tabSx}
@@ -94,8 +129,15 @@ export function TabsList({ children, className, ...props }) {
 
 /**
  * TabsTrigger - Tab button (usado para definir tabs, renderizado por TabsList)
+ *
+ * @param {string} value - Unique value for this tab
+ * @param {ReactNode} children - Tab label
+ * @param {boolean} disabled - Whether tab is disabled
+ * @param {string} tooltip - Optional tooltip text
+ * @param {number} count - Optional badge count
+ * @param {ReactNode} icon - Optional icon to display before label
  */
-export function TabsTrigger({ children, value, className, disabled = false, ...props }) {
+export function TabsTrigger({ children, value, className, disabled = false, tooltip = null, count, icon, ...props }) {
   // Este componente solo se usa para definir la estructura
   // El renderizado real lo hace TabsList con MUI Tab
   return null;
@@ -133,10 +175,6 @@ Tabs.propTypes = {
   className: PropTypes.string,
 };
 
-Tabs.defaultProps = {
-  variant: "default",
-};
-
 TabsList.propTypes = {
   children: PropTypes.node,
   className: PropTypes.string,
@@ -148,11 +186,8 @@ TabsTrigger.propTypes = {
   className: PropTypes.string,
   disabled: PropTypes.bool,
   tooltip: PropTypes.string,
-};
-
-TabsTrigger.defaultProps = {
-  disabled: false,
-  tooltip: null,
+  count: PropTypes.number,
+  icon: PropTypes.node,
 };
 
 TabsContent.propTypes = {

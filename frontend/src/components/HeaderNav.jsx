@@ -24,6 +24,8 @@ function HeaderNav() {
   const [solicitudesAnchor, setSolicitudesAnchor] = useState(null);
   const [materialesAnchor, setMaterialesAnchor] = useState(null);
   const [planificadorAnchor, setPlanificadorAnchor] = useState(null);
+  const [mrpAnchor, setMrpAnchor] = useState(null);
+  const [forecastAnchor, setForecastAnchor] = useState(null);
   const [adminAnchor, setAdminAnchor] = useState(null);
 
   // Role helpers
@@ -64,6 +66,8 @@ function HeaderNav() {
     setSolicitudesAnchor(null);
     setMaterialesAnchor(null);
     setPlanificadorAnchor(null);
+    setMrpAnchor(null);
+    setForecastAnchor(null);
     setAdminAnchor(null);
   }, [location.pathname]);
 
@@ -75,9 +79,9 @@ function HeaderNav() {
     py: 1,
     px: 2,
     color: 'white',
-    borderBottom: '1px solid #424242',
+    borderBottom: '1px solid var(--header-border, #424242)',
     '&:hover': {
-      backgroundColor: '#424242',
+      backgroundColor: 'var(--header-border, #424242)',
     },
     '&:last-child': {
       borderBottom: 'none',
@@ -86,23 +90,23 @@ function HeaderNav() {
 
   const activeMenuItemSx = {
     ...menuItemSx,
-    backgroundColor: '#1976d2',
+    backgroundColor: 'var(--primary)',
     color: 'white',
     '&:hover': {
-      backgroundColor: '#1565c0',
+      backgroundColor: 'var(--primary-dark)',
       color: 'white',
     },
   };
 
   const menuPaperSx = {
-    backgroundColor: '#212121',
-    border: '1px solid #424242',
+    backgroundColor: 'var(--header-bg, #212121)',
+    border: '1px solid var(--header-border, #424242)',
   };
 
   return (
     <nav className="flex items-center h-[43px]">
       {/* SOLICITUDES */}
-      <div className="border-r border-[#424242]">
+      <div className="border-r border-[var(--header-border,#424242)]">
         <button
           type="button"
           onClick={(e) => setSolicitudesAnchor(e.currentTarget)}
@@ -110,8 +114,8 @@ function HeaderNav() {
             "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
             "text-[10px] font-semibold uppercase tracking-wide",
             solicitudesAnchor || isPathActive("/solicitudes") || isPathActive("/mis-solicitudes") || isPathActive("/aprobaciones")
-              ? "bg-[#1976d2] text-white"
-              : "text-white hover:bg-[#424242]"
+              ? "bg-[var(--primary)] text-white"
+              : "text-white hover:bg-[var(--header-border,#424242)]"
           )}
         >
           <span>{t("nav_solicitudes", "Solicitudes")}</span>
@@ -133,6 +137,7 @@ function HeaderNav() {
           >
             {t("nav_nueva", "Nueva Solicitud")}
           </MenuItem>
+          <Divider />
           <MenuItem
             component={NavLink}
             to="/mis-solicitudes"
@@ -163,7 +168,7 @@ function HeaderNav() {
       </div>
 
       {/* MATERIALES */}
-      <div className="border-r border-[#424242]">
+      <div className="border-r border-[var(--header-border,#424242)]">
         <button
           type="button"
           onClick={(e) => setMaterialesAnchor(e.currentTarget)}
@@ -171,8 +176,8 @@ function HeaderNav() {
             "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
             "text-[10px] font-semibold uppercase tracking-wide",
             materialesAnchor || isPathActive("/materiales")
-              ? "bg-[#1976d2] text-white"
-              : "text-white hover:bg-[#424242]"
+              ? "bg-[var(--primary)] text-white"
+              : "text-white hover:bg-[var(--header-border,#424242)]"
           )}
         >
           <span>{t("nav_materiales", "Materiales")}</span>
@@ -202,6 +207,14 @@ function HeaderNav() {
           >
             {t("nav_equivalencias", "Alternativos")}
           </MenuItem>
+          <MenuItem
+            component={NavLink}
+            to="/materiales/stock"
+            onClick={() => setMaterialesAnchor(null)}
+            sx={isPathActive("/materiales/stock") ? activeMenuItemSx : menuItemSx}
+          >
+            {t("nav_stock", "Stock")}
+          </MenuItem>
         </Menu>
       </div>
 
@@ -210,11 +223,11 @@ function HeaderNav() {
         <NavLink
           to="/presupuestos"
           className={clsx(
-            "flex items-center px-4 h-[43px] border-r border-[#424242] transition-all duration-200",
+            "flex items-center px-4 h-[43px] border-r border-[var(--header-border,#424242)] transition-all duration-200",
             "text-[10px] font-semibold uppercase tracking-wide",
             isPathActive("/presupuestos")
-              ? "bg-[#1976d2] text-white"
-              : "text-white hover:bg-[#424242]"
+              ? "bg-[var(--primary)] text-white"
+              : "text-white hover:bg-[var(--header-border,#424242)]"
           )}
         >
           {t("nav_presupuesto", "Presupuesto")}
@@ -223,7 +236,7 @@ function HeaderNav() {
 
       {/* PLANIFICADOR */}
       {canSeePlanner && (
-        <div className="border-r border-[#424242]">
+        <div className="border-r border-[var(--header-border,#424242)]">
           <button
             type="button"
             onClick={(e) => setPlanificadorAnchor(e.currentTarget)}
@@ -231,8 +244,8 @@ function HeaderNav() {
               "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
               "text-[10px] font-semibold uppercase tracking-wide",
               planificadorAnchor || isPathActive("/planificador") || isPathActive("/procurement")
-                ? "bg-[#1976d2] text-white"
-                : "text-white hover:bg-[#424242]"
+                ? "bg-[var(--primary)] text-white"
+                : "text-white hover:bg-[var(--header-border,#424242)]"
             )}
           >
             <span>{t("nav_planificador", "Planificador")}</span>
@@ -273,40 +286,6 @@ function HeaderNav() {
             <Divider />
             <MenuItem
               component={NavLink}
-              to="/planificador/mrp/alertas"
-              onClick={() => setPlanificadorAnchor(null)}
-              sx={isPathActive("/planificador/mrp/alertas") ? activeMenuItemSx : menuItemSx}
-            >
-              {t("nav_mrp_alertas", "MRP Alertas")}
-            </MenuItem>
-            <MenuItem
-              component={NavLink}
-              to="/planificador/mrp/kpis"
-              onClick={() => setPlanificadorAnchor(null)}
-              sx={isPathActive("/planificador/mrp/kpis") ? activeMenuItemSx : menuItemSx}
-            >
-              {t("nav_mrp_kpis", "MRP KPIs")}
-            </MenuItem>
-            <Divider />
-            <MenuItem
-              component={NavLink}
-              to="/planificador/forecast"
-              onClick={() => setPlanificadorAnchor(null)}
-              sx={isPathActive("/planificador/forecast") && !isPathActive("/planificador/forecast/") ? activeMenuItemSx : menuItemSx}
-            >
-              {t("nav_forecast_individual", "Forecast")}
-            </MenuItem>
-            <MenuItem
-              component={NavLink}
-              to="/planificador/forecast/masivo"
-              onClick={() => setPlanificadorAnchor(null)}
-              sx={isPathActive("/planificador/forecast/masivo") ? activeMenuItemSx : menuItemSx}
-            >
-              {t("nav_forecast_masivo", "Forecast Masivo")}
-            </MenuItem>
-            <Divider />
-            <MenuItem
-              component={NavLink}
               to="/procurement"
               onClick={() => setPlanificadorAnchor(null)}
               sx={isPathActive("/procurement") ? activeMenuItemSx : menuItemSx}
@@ -325,9 +304,107 @@ function HeaderNav() {
         </div>
       )}
 
+      {/* MRP */}
+      {canSeePlanner && (
+        <div className="border-r border-[var(--header-border,#424242)]">
+          <button
+            type="button"
+            onClick={(e) => setMrpAnchor(e.currentTarget)}
+            className={clsx(
+              "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
+              "text-[10px] font-semibold uppercase tracking-wide",
+              mrpAnchor || isPathActive("/mrp")
+                ? "bg-[var(--primary)] text-white"
+                : "text-white hover:bg-[var(--header-border,#424242)]"
+            )}
+          >
+            <span>{t("nav_mrp", "MRP")}</span>
+            <ChevronDown className={clsx("w-3 h-3 transition-transform", mrpAnchor && "rotate-180")} />
+          </button>
+          <Menu
+            anchorEl={mrpAnchor}
+            open={Boolean(mrpAnchor)}
+            disableScrollLock={true}
+            onClose={() => setMrpAnchor(null)}
+            MenuListProps={{ sx: { py: 0 } }}
+            PaperProps={{ sx: { minWidth: 150, ...menuPaperSx } }}
+          >
+            <MenuItem
+              component={NavLink}
+              to="/mrp/portfolio"
+              onClick={() => setMrpAnchor(null)}
+              sx={isPathActive("/mrp/portfolio") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_mrp_portfolio", "Portfolio MRP")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
+              to="/mrp/alertas"
+              onClick={() => setMrpAnchor(null)}
+              sx={isPathActive("/mrp/alertas") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_mrp_alertas", "Alertas")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
+              to="/mrp/kpis"
+              onClick={() => setMrpAnchor(null)}
+              sx={isPathActive("/mrp/kpis") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_mrp_kpis", "KPIs")}
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+
+      {/* FORECAST */}
+      {canSeePlanner && (
+        <div className="border-r border-[var(--header-border,#424242)]">
+          <button
+            type="button"
+            onClick={(e) => setForecastAnchor(e.currentTarget)}
+            className={clsx(
+              "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
+              "text-[10px] font-semibold uppercase tracking-wide",
+              forecastAnchor || isPathActive("/forecast")
+                ? "bg-[var(--primary)] text-white"
+                : "text-white hover:bg-[var(--header-border,#424242)]"
+            )}
+          >
+            <span>{t("nav_forecast", "Forecast")}</span>
+            <ChevronDown className={clsx("w-3 h-3 transition-transform", forecastAnchor && "rotate-180")} />
+          </button>
+          <Menu
+            anchorEl={forecastAnchor}
+            open={Boolean(forecastAnchor)}
+            disableScrollLock={true}
+            onClose={() => setForecastAnchor(null)}
+            MenuListProps={{ sx: { py: 0 } }}
+            PaperProps={{ sx: { minWidth: 150, ...menuPaperSx } }}
+          >
+            <MenuItem
+              component={NavLink}
+              to="/forecast/individual"
+              onClick={() => setForecastAnchor(null)}
+              sx={isPathActive("/forecast/individual") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_forecast_individual", "Individual")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
+              to="/forecast/masivo"
+              onClick={() => setForecastAnchor(null)}
+              sx={isPathActive("/forecast/masivo") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_forecast_masivo", "Masivo")}
+            </MenuItem>
+          </Menu>
+        </div>
+      )}
+
       {/* ADMIN */}
       {isAdmin() && (
-        <div className="border-r border-[#424242]">
+        <div className="border-r border-[var(--header-border,#424242)]">
           <button
             type="button"
             onClick={(e) => setAdminAnchor(e.currentTarget)}
@@ -335,8 +412,8 @@ function HeaderNav() {
               "flex items-center gap-1 px-4 h-[43px] transition-all duration-200",
               "text-[10px] font-semibold uppercase tracking-wide",
               adminAnchor || isPathActive("/admin")
-                ? "bg-[#1976d2] text-white"
-                : "text-white hover:bg-[#424242]"
+                ? "bg-[var(--primary)] text-white"
+                : "text-white hover:bg-[var(--header-border,#424242)]"
             )}
           >
             <span>{t("nav_admin", "Admin")}</span>
@@ -351,7 +428,7 @@ function HeaderNav() {
             PaperProps={{ sx: { minWidth: 180, maxHeight: 400, ...menuPaperSx } }}
           >
             {/* Registros */}
-            <MenuItem disabled sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#9e9e9e', py: 0.5, px: 2 }}>
+            <MenuItem disabled sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--fg-subtle)', py: 0.5, px: 2 }}>
               REGISTROS
             </MenuItem>
             <MenuItem
@@ -361,6 +438,14 @@ function HeaderNav() {
               sx={isPathActive("/admin/usuarios") ? activeMenuItemSx : menuItemSx}
             >
               {t("admin_usuarios", "Usuarios")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
+              to="/admin/monitor-usuarios"
+              onClick={() => setAdminAnchor(null)}
+              sx={isPathActive("/admin/monitor-usuarios") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("admin_monitor_usuarios", "Monitor Usuarios")}
             </MenuItem>
             <MenuItem
               component={NavLink}
@@ -377,6 +462,14 @@ function HeaderNav() {
               sx={isPathActive("/admin/planificadores") ? activeMenuItemSx : menuItemSx}
             >
               {t("admin_planificadores", "Planificadores")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
+              to="/admin/puestos"
+              onClick={() => setAdminAnchor(null)}
+              sx={isPathActive("/admin/puestos") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("admin_puestos", "Puestos")}
             </MenuItem>
             <MenuItem
               component={NavLink}
@@ -420,7 +513,7 @@ function HeaderNav() {
             </MenuItem>
             <Divider />
             {/* Sistema */}
-            <MenuItem disabled sx={{ fontSize: '0.65rem', fontWeight: 700, color: '#9e9e9e', py: 0.5, px: 2 }}>
+            <MenuItem disabled sx={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--fg-subtle)', py: 0.5, px: 2 }}>
               SISTEMA
             </MenuItem>
             <MenuItem
@@ -455,8 +548,8 @@ function HeaderNav() {
       <button
         type="button"
         onClick={() => navigate("/solicitudes/nueva")}
-        className="flex items-center px-4 h-[43px] text-sm font-bold hover:opacity-80 transition-opacity"
-        style={{ color: '#2196f3' }}
+        className="flex items-center px-4 h-[43px] text-sm font-bold hover:opacity-80 transition-opacity border-r border-[var(--header-border,#424242)]"
+        style={{ color: 'var(--primary)' }}
       >
         + CREAR SOLICITUD
       </button>

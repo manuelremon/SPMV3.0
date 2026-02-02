@@ -1,7 +1,12 @@
 import { createTheme } from '@mui/material/styles';
 
 /**
- * SPM Custom Theme - MUI Integration
+ * SPM v3.0 - Material UI Theme
+ * Full MUI Theming Migration
+ *
+ * Paleta: SAP Blue (#0070f3) - Consistent with CSS Design System
+ * Tipografía: Inter (consistent with CSS Design System)
+ * Bordes: Rectos (borderRadius: 0)
  *
  * Breakpoints personalizados para diseño responsive:
  * - xs: 0px      - Móvil pequeño (iPhone SE)
@@ -10,6 +15,60 @@ import { createTheme } from '@mui/material/styles';
  * - lg: 1024px   - Desktop
  * - xl: 1440px   - Desktop grande
  */
+
+// Unified color constants - matching CSS Design System (index.css)
+const COLORS = {
+  // Primary - SAP Blue
+  primary: '#0070f3',
+  primaryLight: '#3291ff',
+  primaryDark: '#0051a8',
+
+  // Secondary - Neutral Gray
+  secondary: '#475569',
+  secondaryLight: '#64748b',
+  secondaryDark: '#334155',
+
+  // Status colors
+  success: '#16a34a',
+  successLight: '#22c55e',
+  successDark: '#15803d',
+
+  warning: '#d97706',
+  warningLight: '#f59e0b',
+  warningDark: '#b45309',
+
+  error: '#dc2626',
+  errorLight: '#ef4444',
+  errorDark: '#b91c1c',
+
+  info: '#0284c7',
+  infoLight: '#0ea5e9',
+  infoDark: '#0369a1',
+
+  // Neutrals
+  grey50: '#f8fafc',
+  grey100: '#f1f5f9',
+  grey200: '#e2e8f0',
+  grey300: '#cbd5e1',
+  grey400: '#94a3b8',
+  grey500: '#64748b',
+  grey600: '#475569',
+  grey700: '#334155',
+  grey800: '#1e293b',
+  grey900: '#0f172a',
+
+  // Text
+  textPrimary: '#0f172a',
+  textSecondary: '#475569',
+  textDisabled: '#94a3b8',
+
+  // Backgrounds
+  background: '#f8fafc',
+  paper: '#ffffff',
+
+  // Borders
+  divider: '#e2e8f0',
+};
 
 const theme = createTheme({
   breakpoints: {
@@ -23,76 +82,129 @@ const theme = createTheme({
   },
   palette: {
     mode: 'light',
-    // MUI Official Palette - https://mui.com/material-ui/customization/palette/
     primary: {
-      main: '#1976d2',      // MUI Blue 700
-      light: '#42a5f5',     // MUI Blue 400
-      dark: '#1565c0',      // MUI Blue 800
-      contrastText: '#ffffff',
+      main: COLORS.primary,
+      light: COLORS.primaryLight,
+      dark: COLORS.primaryDark,
+      contrastText: '#fff',
     },
     secondary: {
-      main: '#9c27b0',      // MUI Purple 500
-      light: '#ba68c8',     // MUI Purple 300
-      dark: '#7b1fa2',      // MUI Purple 700
-      contrastText: '#ffffff',
-    },
-    error: {
-      main: '#d32f2f',      // MUI Red 700
-      light: '#ef5350',     // MUI Red 400
-      dark: '#c62828',      // MUI Red 800
-      contrastText: '#ffffff',
-    },
-    warning: {
-      main: '#ed6c02',      // MUI Orange 800
-      light: '#ff9800',     // MUI Orange 500
-      dark: '#e65100',      // MUI Orange 900
-      contrastText: '#ffffff',
+      main: COLORS.secondary,
+      light: COLORS.secondaryLight,
+      dark: COLORS.secondaryDark,
+      contrastText: '#fff',
     },
     success: {
-      main: '#2e7d32',      // MUI Green 800
-      light: '#4caf50',     // MUI Green 500
-      dark: '#1b5e20',      // MUI Green 900
-      contrastText: '#ffffff',
+      main: COLORS.success,
+      light: COLORS.successLight,
+      dark: COLORS.successDark,
+      contrastText: '#fff',
+    },
+    warning: {
+      main: COLORS.warning,
+      light: COLORS.warningLight,
+      dark: COLORS.warningDark,
+      contrastText: '#fff',
+    },
+    error: {
+      main: COLORS.error,
+      light: COLORS.errorLight,
+      dark: COLORS.errorDark,
+      contrastText: '#fff',
     },
     info: {
-      main: '#0288d1',      // MUI Light Blue 700
-      light: '#03a9f4',     // MUI Light Blue 500
-      dark: '#01579b',      // MUI Light Blue 900
-      contrastText: '#ffffff',
+      main: COLORS.info,
+      light: COLORS.infoLight,
+      dark: COLORS.infoDark,
+      contrastText: '#fff',
     },
     grey: {
-      50: '#fafafa',
-      100: '#f5f5f5',
-      200: '#eeeeee',
-      300: '#e0e0e0',
-      400: '#bdbdbd',
-      500: '#9e9e9e',
-      600: '#757575',
-      700: '#616161',
-      800: '#424242',
-      900: '#212121',
+      50: COLORS.grey50,
+      100: COLORS.grey100,
+      200: COLORS.grey200,
+      300: COLORS.grey300,
+      400: COLORS.grey400,
+      500: COLORS.grey500,
+      600: COLORS.grey600,
+      700: COLORS.grey700,
+      800: COLORS.grey800,
+      900: COLORS.grey900,
     },
     background: {
-      default: '#fafafa',
-      paper: '#ffffff',
+      default: COLORS.background,
+      paper: COLORS.paper,
     },
     text: {
-      primary: 'rgba(0, 0, 0, 0.87)',
-      secondary: 'rgba(0, 0, 0, 0.6)',
-      disabled: 'rgba(0, 0, 0, 0.38)',
+      primary: COLORS.textPrimary,
+      secondary: COLORS.textSecondary,
+      disabled: COLORS.textDisabled,
     },
+    divider: COLORS.divider,
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
     fontSize: 14,
     fontWeightLight: 300,
     fontWeightRegular: 400,
     fontWeightMedium: 500,
     fontWeightBold: 700,
+    h1: {
+      fontWeight: 700,
+      fontSize: '2rem',
+      lineHeight: 1.2,
+    },
+    h2: {
+      fontWeight: 700,
+      fontSize: '1.5rem',
+      lineHeight: 1.3,
+    },
+    h3: {
+      fontWeight: 600,
+      fontSize: '1.25rem',
+      lineHeight: 1.4,
+    },
+    h4: {
+      fontWeight: 600,
+      fontSize: '1.125rem',
+      lineHeight: 1.4,
+    },
+    h5: {
+      fontWeight: 600,
+      fontSize: '1rem',
+      lineHeight: 1.5,
+    },
+    h6: {
+      fontWeight: 600,
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+    },
+    body1: {
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+    },
+    body2: {
+      fontSize: '0.75rem',
+      lineHeight: 1.5,
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
+    },
+    caption: {
+      fontSize: '0.75rem',
+      lineHeight: 1.5,
+    },
+    overline: {
+      fontSize: '0.75rem',
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+    },
   },
   shape: {
-    borderRadius: 0,  // Bordes rectos en todo el sistema
+    borderRadius: 0,
   },
+  spacing: 8,
   components: {
     MuiButton: {
       styleOverrides: {
@@ -229,13 +341,27 @@ const theme = createTheme({
     },
     MuiTabs: {
       styleOverrides: {
-        root: {},
+        root: {
+          backgroundColor: COLORS.paper,
+          borderBottom: `2px solid ${COLORS.divider}`,
+        },
+        indicator: {
+          backgroundColor: COLORS.primary,
+        },
       },
     },
     MuiTab: {
       styleOverrides: {
         root: {
-          borderRadius: 0,  // Bordes rectos en tabs
+          borderRadius: 0,
+          color: COLORS.textSecondary,
+          '&.Mui-selected': {
+            color: COLORS.primary,
+          },
+          '&:hover': {
+            color: COLORS.primary,
+            backgroundColor: COLORS.grey100,
+          },
         },
       },
     },
@@ -263,10 +389,100 @@ const theme = createTheme({
         },
       },
     },
+    // DataGrid - Estilos globales (Fondo blanco, texto oscuro)
+    MuiDataGrid: {
+      styleOverrides: {
+        root: {
+          border: `1px solid ${COLORS.divider}`,
+          borderRadius: 0,
+          '& .MuiDataGrid-columnHeaders': {
+            backgroundColor: `${COLORS.paper} !important`,
+          },
+          '& .MuiDataGrid-columnHeader': {
+            backgroundColor: `${COLORS.paper} !important`,
+          },
+        },
+        columnHeaders: {
+          backgroundColor: `${COLORS.paper} !important`,
+          color: `${COLORS.textPrimary} !important`,
+          borderBottom: `2px solid ${COLORS.divider}`,
+        },
+        columnHeader: {
+          backgroundColor: `${COLORS.paper} !important`,
+          color: `${COLORS.textPrimary} !important`,
+          '&:focus': {
+            outline: 'none',
+          },
+          '&:focus-within': {
+            outline: 'none',
+          },
+        },
+        columnHeaderTitle: {
+          fontWeight: 600,
+          color: `${COLORS.textPrimary} !important`,
+        },
+        sortIcon: {
+          color: `${COLORS.textSecondary} !important`,
+          fill: `${COLORS.textSecondary} !important`,
+          opacity: '1 !important',
+          '& path': {
+            fill: `${COLORS.textSecondary} !important`,
+          },
+        },
+        menuIcon: {
+          color: `${COLORS.textSecondary} !important`,
+          fill: `${COLORS.textSecondary} !important`,
+          '& path': {
+            fill: `${COLORS.textSecondary} !important`,
+          },
+        },
+        menuIconButton: {
+          color: `${COLORS.textSecondary} !important`,
+          '& svg': {
+            color: `${COLORS.textSecondary} !important`,
+            fill: `${COLORS.textSecondary} !important`,
+          },
+          '& svg path': {
+            fill: `${COLORS.textSecondary} !important`,
+          },
+        },
+        iconButtonContainer: {
+          visibility: 'visible !important',
+          '& .MuiIconButton-root': {
+            color: `${COLORS.textSecondary} !important`,
+          },
+          '& svg': {
+            color: `${COLORS.textSecondary} !important`,
+            fill: `${COLORS.textSecondary} !important`,
+          },
+          '& svg path': {
+            fill: `${COLORS.textSecondary} !important`,
+          },
+          '& .MuiSvgIcon-root': {
+            color: `${COLORS.textSecondary} !important`,
+            fill: `${COLORS.textSecondary} !important`,
+          },
+        },
+        columnSeparator: {
+          color: COLORS.divider,
+        },
+        cell: {
+          borderBottom: `1px solid ${COLORS.divider}`,
+        },
+        row: {
+          '&:hover': {
+            backgroundColor: COLORS.grey100,
+          },
+        },
+      },
+    },
   },
 });
 
 export default theme;
+
+// Export unified colors for use in other files
+export { COLORS };
 
 // Helper hook para detectar breakpoints
 export const BREAKPOINTS = {

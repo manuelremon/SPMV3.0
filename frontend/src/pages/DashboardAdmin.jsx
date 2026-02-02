@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/Card";
-import { ModernDataTable as DataTable } from "../components/features/DataTable";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { SPMAgGrid } from "../components/ui/SPMAgGrid";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import { ScrollReveal } from "../components/ui/ScrollReveal";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs";
@@ -25,17 +24,17 @@ import {
 } from "../components/ui/Icons";
 import { useI18n } from "../context/i18n";
 import { toNumber } from "../utils/formatters";
-import clsx from "clsx";
 import { useAuthStore } from "../store/authStore";
 import { useNavigate } from "react-router-dom";
-import { getTableColumns } from "./DashboardShared";
+import { getTableColumnsAgGrid } from "./DashboardShared";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { Button } from "../components/ui/Button";
 import { WeeklyRequestsKpiCard } from "../components/dashboard/WeeklyRequestsKpiCard";
-import Slider from '@mui/material/Slider';
-// Componentes Canvas (más ligeros que MUI X Charts)
-import { CanvasDonutChart } from '../components/canvas/CanvasDonutChart';
-import { CanvasGauge } from '../components/canvas/CanvasGauge';
+// MUI Components
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import Grid from '@mui/material/Grid';
+import Box from '@mui/material/Box';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
@@ -43,6 +42,22 @@ import FormControl from '@mui/material/FormControl';
 import ListItemText from '@mui/material/ListItemText';
 import Select from '@mui/material/Select';
 import Checkbox from '@mui/material/Checkbox';
+import Slider from '@mui/material/Slider';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Divider from '@mui/material/Divider';
+import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
+// MUI Icons
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+// Componentes de graficos Chart.js (SPMChartJS)
+import { StatusDistributionChart } from '../components/dashboard/StatusDistributionChart';
+import { TrendChart, useTrendData } from '../components/dashboard/TrendChart';
+import { ChartExportButton } from '../components/dashboard/ChartExportButton';
+import { ChartLegend } from '../components/dashboard/ChartLegend';
+import { SPMGauge, SPMBar, SPMPolarArea, SPM_COLORS, STATUS_COLORS, PHASE_COLORS, BUDGET_COLORS, FONT_SIZES, TOOLTIP_CONFIG, ANIMATION_CONFIG } from '../components/ui/SPMChartJS';
 
 // MenuProps para los multiselect
 const ITEM_HEIGHT = 32;
@@ -57,82 +72,14 @@ const MenuProps = {
 };
 
 // ============================================================================
-// KPI CHART COMPONENTS
+// KPI CHART COMPONENTS - Usando Chart.js (SPMChartJS)
 // ============================================================================
 
-// Componente Donut Chart con Canvas - mucho más ligero que MUI X Charts
-function DonutChartComponent({ data, colors, labels }) {
-  const total = data.reduce((sum, val) => sum + val, 0) || 0;
-
-  return (
-    <div className="flex items-center gap-4 w-full h-full">
-      {/* Leyendas a la izquierda */}
-      <div className="flex flex-col gap-1.5">
-        {labels.map((label, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <div
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: colors[idx] }}
-            />
-            <span className="text-[11px] text-slate-600">{label}</span>
-            <span className="text-[11px] font-semibold text-slate-800">{data[idx]}</span>
-          </div>
-        ))}
-      </div>
-      {/* Donut a la derecha - Canvas version */}
-      <div className="relative flex-shrink-0 ml-auto">
-        <CanvasDonutChart
-          data={data}
-          colors={colors}
-          labels={labels}
-          width={100}
-          height={100}
-          innerRadius={30}
-          outerRadius={45}
-        />
-        {/* Total en el centro */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-lg font-bold text-slate-800">{total}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Componente de círculo de progreso - tamaño ajustado para mejor proporción
-function ProgressCircle({ percentage, color = "#3b82f6", size = "md" }) {
-  const sizes = {
-    sm: { container: "w-16 h-16", viewBox: "0 0 64 64", cx: 32, radius: 24, stroke: 6, text: "text-sm" },
-    md: { container: "w-20 h-20", viewBox: "0 0 80 80", cx: 40, radius: 30, stroke: 7, text: "text-base" },
-    lg: { container: "w-24 h-24", viewBox: "0 0 96 96", cx: 48, radius: 36, stroke: 8, text: "text-lg" },
-  };
-  const s = sizes[size] || sizes.md;
-  const circumference = 2 * Math.PI * s.radius;
-  const offset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <div className={`relative ${s.container}`}>
-      <svg viewBox={s.viewBox} className="w-full h-full -rotate-90">
-        <circle cx={s.cx} cy={s.cx} r={s.radius} stroke="#e2e8f0" strokeWidth={s.stroke} fill="none" />
-        <circle
-          cx={s.cx}
-          cy={s.cx}
-          r={s.radius}
-          stroke={color}
-          strokeWidth={s.stroke}
-          fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-500"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className={`${s.text} font-bold text-slate-800 dark:text-slate-100`}>{percentage}%</span>
-      </div>
-    </div>
-  );
-}
+// Los componentes de graficos ahora se importan desde:
+// - StatusDistributionChart: Doughnut interactivo con drill-down (Chart.js)
+// - TrendChart: LineChart de tendencia historica (Chart.js)
+// - SPMGauge: Gauge con colores dinamicos segun umbral (Chart.js)
+// - ChartExportButton: Exportar graficos como PNG
 
 // ============================================================================
 // DASHBOARD ADMIN COMPONENT
@@ -142,6 +89,13 @@ export default function DashboardAdmin() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { t } = useI18n();
+
+  // Refs para exportar graficos
+  const distributionChartRef = useRef(null);
+  const trendChartRef = useRef(null);
+
+  // Drill-down state
+  const [drillDownFilter, setDrillDownFilter] = useState(null);
 
   // Solicitudes state
   const [solicitudesCollapsed, setSolicitudesCollapsed] = useState(true); // Por defecto colapsado
@@ -208,8 +162,14 @@ export default function DashboardAdmin() {
   const [cumplimientoProveedores, setCumplimientoProveedores] = useState([]);
   const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState([]);
 
-  // Stock inmovilizado
+  // Stock inmovilizado (global)
   const [stockInmovilizado, setStockInmovilizado] = useState({ items: [], total: 0, valorTotal: 0, globalTotal: 0, globalValorTotal: 0 });
+
+  // Stock inmovilizado con filtros locales (nueva card)
+  const [stockFiltradoLocal, setStockFiltradoLocal] = useState({ items: [], total: 0, valorTotal: 0, loading: false });
+  const [stockFiltrosCentro, setStockFiltrosCentro] = useState("");
+  const [stockFiltrosAlmacen, setStockFiltrosAlmacen] = useState("");
+  const [stockFiltrosPeriodo, setStockFiltrosPeriodo] = useState(1); // 1, 2 o 3 años
 
   // Compras evitadas detalle (para filtrado)
   const [comprasEvitadasDetalle, setComprasEvitadasDetalle] = useState([]);
@@ -475,6 +435,50 @@ export default function DashboardAdmin() {
     };
   }, [centrosSeleccionados, filtrosInicializados]);
 
+  // Fetch stock inmovilizado con filtros locales (nueva card)
+  useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
+    const fetchStockFiltradoLocal = async () => {
+      setStockFiltradoLocal(prev => ({ ...prev, loading: true }));
+      try {
+        const params = new URLSearchParams();
+        if (stockFiltrosCentro) params.set("centro", stockFiltrosCentro);
+        if (stockFiltrosAlmacen) params.set("almacen", stockFiltrosAlmacen);
+        params.set("periodo_anos", stockFiltrosPeriodo.toString());
+        params.set("limit", "10");
+
+        const url = `/kpis/stock-inmovilizado?${params}`;
+        const response = await api.get(url, { signal: abortController.signal });
+
+        if (!isMounted) return;
+
+        if (response.data?.ok) {
+          setStockFiltradoLocal({
+            items: response.data.items || [],
+            total: response.data.total || 0,
+            valorTotal: response.data.valorTotal || 0,
+            loading: false,
+          });
+        } else {
+          setStockFiltradoLocal({ items: [], total: 0, valorTotal: 0, loading: false });
+        }
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+        console.error("Error fetching stock inmovilizado filtrado local:", err.message);
+        setStockFiltradoLocal({ items: [], total: 0, valorTotal: 0, loading: false });
+      }
+    };
+
+    fetchStockFiltradoLocal();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [stockFiltrosCentro, stockFiltrosAlmacen, stockFiltrosPeriodo]);
+
   // Fetch compras evitadas detalle - con AbortController
   useEffect(() => {
     const abortController = new AbortController();
@@ -648,7 +652,27 @@ export default function DashboardAdmin() {
     return { todas, pendientes, en_proceso, completadas, rechazadas };
   }, [datosFiltrados]);
 
-  const columns = useMemo(() => getTableColumns(t), [t]);
+  // Datos de tendencia historica (12 meses)
+  const trendData = useTrendData(datosFiltrados, 12);
+
+  // Handler para drill-down desde graficos
+  const handleDrillDown = (statusId, item) => {
+    setDrillDownFilter(statusId);
+    // Mapear el ID del estado al tab correspondiente
+    const tabMapping = {
+      aprobadas: 'completadas',
+      enviadas: 'pendientes',
+      enProceso: 'en_proceso',
+      rechazadas: 'rechazadas',
+      cerradas: 'completadas',
+      borrador: 'todas',
+    };
+    const targetTab = tabMapping[statusId] || 'todas';
+    setActiveTab(targetTab);
+    setSolicitudesCollapsed(false); // Expandir la tabla
+  };
+
+  const columnDefs = useMemo(() => getTableColumnsAgGrid(t), [t]);
 
   // Tabs configuration
   const tabs = [
@@ -657,7 +681,6 @@ export default function DashboardAdmin() {
     { key: "en_proceso", label: t("dash_en_proceso", "En Proceso"), count: stats.en_proceso },
     { key: "completadas", label: t("dash_completadas", "Completadas"), count: stats.completadas },
     { key: "rechazadas", label: t("dash_rechazadas", "Rechazadas"), count: stats.rechazadas },
-    { key: "crear", label: t("btn_crear_solicitud", "+ Crear Solicitud"), isAction: true },
   ];
 
   const currentData = allData[activeTab] || [];
@@ -688,94 +711,124 @@ export default function DashboardAdmin() {
   };
 
   return (
-    <div className="space-y-6">
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* ================================================================== */}
       {/* SOLICITUDES SECTION - Contenedor colapsable */}
       {/* ================================================================== */}
-      <Card className="overflow-hidden">
+      <Paper elevation={0} sx={{ overflow: 'hidden', bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         {/* Header con botón de colapsar/expandir y crear solicitud */}
-        <div className="relative flex items-center px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-          <button
-            type="button"
+        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'grey.100' }}>
+          <Button
             onClick={() => setSolicitudesCollapsed(!solicitudesCollapsed)}
-            className="flex items-center gap-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-md px-2 py-1 -ml-2 z-10"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              textAlign: 'left',
+              '&:hover': { bgcolor: 'grey.50' },
+              borderRadius: 1,
+              px: 1,
+              py: 0.5,
+              ml: -1,
+              zIndex: 10,
+              textTransform: 'none',
+              color: 'text.primary',
+            }}
           >
             {solicitudesCollapsed ? (
-              <ChevronRight className="w-5 h-5 text-slate-500" />
+              <ChevronRightIcon sx={{ width: 20, height: 20, color: 'grey.500' }} />
             ) : (
-              <ChevronDown className="w-5 h-5 text-slate-500" />
+              <ExpandMoreIcon sx={{ width: 20, height: 20, color: 'grey.500' }} />
             )}
-            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <Typography variant="body2" sx={{ fontWeight: 600, color: 'grey.700' }}>
               Solicitudes
-            </span>
-            <span className="text-xs text-slate-500 dark:text-slate-400 ml-1">
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'grey.500', ml: 0.5 }}>
               ({stats.todas} total)
-            </span>
-          </button>
-                  </div>
+            </Typography>
+          </Button>
+        </Box>
 
         {/* Contenido colapsable */}
-        <div
-          className={clsx(
-            "transition-all duration-300 ease-in-out origin-top-left",
-            solicitudesCollapsed ? "max-h-0 opacity-0 scale-y-0" : "max-h-[2000px] opacity-100 scale-y-100"
-          )}
+        <Box
+          sx={{
+            transition: 'all 0.3s ease-in-out',
+            transformOrigin: 'top left',
+            maxHeight: solicitudesCollapsed ? 0 : 2000,
+            opacity: solicitudesCollapsed ? 0 : 1,
+            transform: solicitudesCollapsed ? 'scaleY(0)' : 'scaleY(1)',
+            overflow: 'hidden',
+          }}
         >
-          <CardContent className="p-0">
+          <Box sx={{ p: 0 }}>
             {/* Header con tabs */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'grey.100' }}>
               <Tabs value={activeTab} onValueChange={handleTabChange}>
                 <TabsList>
                   {tabs.map((tab) => (
                     <TabsTrigger
                       key={tab.key}
                       value={tab.key}
-                      sx={tab.isAction ? { color: '#2196f3', fontWeight: 600 } : undefined}
+                      sx={tab.isAction ? { color: 'var(--primary)', fontWeight: 600 } : undefined}
                     >
                       {tab.isAction ? tab.label : `${tab.label} (${tab.count})`}
                     </TabsTrigger>
                   ))}
                 </TabsList>
               </Tabs>
-            </div>
+            </Box>
 
             {/* Tabla */}
-            <div className="p-4">
+            <Box sx={{ p: 2 }}>
               {loading ? (
                 <TableSkeleton rows={5} columns={7} />
               ) : currentData.length === 0 ? (
-                <div className="py-16 text-center">
-                  <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-4 opacity-60" />
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">
+                <Box sx={{ py: 8, textAlign: 'center' }}>
+                  <CheckCircleIcon sx={{ width: 48, height: 48, color: 'success.main', mx: 'auto', mb: 2, opacity: 0.6 }} />
+                  <Typography variant="body2" sx={{ color: 'grey.500' }}>
                     {activeTab === "pendientes"
                       ? t("dash_no_pending", "No hay solicitudes pendientes de revisión")
                       : t("dash_no_requests_category", "No hay solicitudes en esta categoría")}
-                  </p>
-                </div>
+                  </Typography>
+                </Box>
               ) : (
-                <DataTable
-                  columns={columns}
-                  rows={currentData}
+                <SPMAgGrid
+                  columnDefs={columnDefs}
+                  rowData={currentData}
                   emptyMessage={t("dash_no_requests", "No hay solicitudes")}
                   onRowClick={(row) => navigate(`/solicitudes/${row.id}`)}
+                  height={500}
+                  enableQuickFilter={true}
                 />
               )}
-            </div>
-          </CardContent>
-        </div>
-      </Card>
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* ================================================================== */}
       {/* FILTROS SECTION */}
       {/* ================================================================== */}
-      <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-        <CardContent className="py-2 px-6" style={{ height: '73px', maxWidth: '1850px' }}>
-          <div className="flex items-center gap-6 h-full">
+      <Paper
+        elevation={0}
+        sx={{
+          bgcolor: 'var(--surface)',
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          transition: 'box-shadow 0.2s ease-in-out',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          },
+        }}
+      >
+        <Box sx={{ py: 1, px: 3, height: 73, maxWidth: 1850 }}>
+          <Stack direction="row" alignItems="center" gap={3} sx={{ height: '100%' }}>
             {/* Slider de rango de fechas - con debounce */}
-            <div className="flex flex-col gap-0 min-w-[320px] ml-[180px]">
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-2">
-                Desde <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechasLocal[0])}</span> hasta <span className="text-blue-600 font-semibold">{sliderAFecha(rangoFechasLocal[1])}</span>
-              </label>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 320, ml: '180px' }}>
+              <Typography variant="caption" sx={{ fontWeight: 500, color: 'grey.600', mt: 1 }}>
+                Desde <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>{sliderAFecha(rangoFechasLocal[0])}</Box> hasta <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>{sliderAFecha(rangoFechasLocal[1])}</Box>
+              </Typography>
               <Slider
                 size="small"
                 value={rangoFechasLocal}
@@ -786,7 +839,7 @@ export default function DashboardAdmin() {
                 valueLabelFormat={(value) => sliderAFecha(value)}
                 getAriaLabel={() => 'Rango de fechas'}
                 sx={{
-                  color: '#2196f3',
+                  color: 'var(--primary)',
                   '& .MuiSlider-thumb': {
                     width: 14,
                     height: 14,
@@ -796,18 +849,18 @@ export default function DashboardAdmin() {
                   },
                 }}
               />
-              <div className="flex justify-between text-[10px] text-slate-400 -mt-1">
-                <span>Hace 1 año</span>
-                <span>Hoy</span>
-              </div>
-            </div>
+              <Stack direction="row" justifyContent="space-between" sx={{ mt: -0.5 }}>
+                <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'grey.400' }}>Hace 1 año</Typography>
+                <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'grey.400' }}>Hoy</Typography>
+              </Stack>
+            </Box>
 
             {/* Separador vertical */}
-            <div className="h-16 w-px bg-slate-200 dark:bg-slate-700" />
+            <Divider orientation="vertical" flexItem sx={{ height: 64 }} />
 
             {/* Centro Multiselect */}
             <FormControl size="small" sx={{ minWidth: 160, ml: '40px' }}>
-              <InputLabel id="centro-label" sx={{ fontSize: '0.75rem' }}>Centro</InputLabel>
+              <InputLabel id="centro-label" sx={{ fontSize: FONT_SIZES.md }}>Centro</InputLabel>
               <Select
                 labelId="centro-label"
                 multiple
@@ -827,16 +880,16 @@ export default function DashboardAdmin() {
                 input={<OutlinedInput label="Centro" />}
                 renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
                 MenuProps={MenuProps}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: FONT_SIZES.md }}
               >
                 <MenuItem value="__todos__">
                   <Checkbox checked={centrosSeleccionados.length === filtrosOpciones.centros.length && filtrosOpciones.centros.length > 0} size="small" />
-                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: FONT_SIZES.md, fontWeight: 600 }} />
                 </MenuItem>
                 {filtrosOpciones.centros.map((centro) => (
                   <MenuItem key={centro} value={centro}>
                     <Checkbox checked={centrosSeleccionados.includes(centro)} size="small" />
-                    <ListItemText primary={centro} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                    <ListItemText primary={centro} primaryTypographyProps={{ fontSize: FONT_SIZES.md }} />
                   </MenuItem>
                 ))}
               </Select>
@@ -844,7 +897,7 @@ export default function DashboardAdmin() {
 
             {/* Almacén Multiselect */}
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel id="almacen-label" sx={{ fontSize: '0.75rem' }}>Almacén</InputLabel>
+              <InputLabel id="almacen-label" sx={{ fontSize: FONT_SIZES.md }}>Almacén</InputLabel>
               <Select
                 labelId="almacen-label"
                 multiple
@@ -864,16 +917,16 @@ export default function DashboardAdmin() {
                 input={<OutlinedInput label="Almacén" />}
                 renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
                 MenuProps={MenuProps}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: FONT_SIZES.md }}
               >
                 <MenuItem value="__todos__">
                   <Checkbox checked={almacenesSeleccionados.length === filtrosOpciones.almacenes.length && filtrosOpciones.almacenes.length > 0} size="small" />
-                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: FONT_SIZES.md, fontWeight: 600 }} />
                 </MenuItem>
                 {filtrosOpciones.almacenes.map((almacen) => (
                   <MenuItem key={almacen} value={almacen}>
                     <Checkbox checked={almacenesSeleccionados.includes(almacen)} size="small" />
-                    <ListItemText primary={almacen} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                    <ListItemText primary={almacen} primaryTypographyProps={{ fontSize: FONT_SIZES.md }} />
                   </MenuItem>
                 ))}
               </Select>
@@ -881,7 +934,7 @@ export default function DashboardAdmin() {
 
             {/* Sector Multiselect */}
             <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel id="sector-label" sx={{ fontSize: '0.75rem' }}>Sector</InputLabel>
+              <InputLabel id="sector-label" sx={{ fontSize: FONT_SIZES.md }}>Sector</InputLabel>
               <Select
                 labelId="sector-label"
                 multiple
@@ -901,16 +954,16 @@ export default function DashboardAdmin() {
                 input={<OutlinedInput label="Sector" />}
                 renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
                 MenuProps={MenuProps}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: FONT_SIZES.md }}
               >
                 <MenuItem value="__todos__">
                   <Checkbox checked={sectoresSeleccionados.length === filtrosOpciones.sectores.length && filtrosOpciones.sectores.length > 0} size="small" />
-                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: FONT_SIZES.md, fontWeight: 600 }} />
                 </MenuItem>
                 {filtrosOpciones.sectores.map((sector) => (
                   <MenuItem key={sector} value={sector}>
                     <Checkbox checked={sectoresSeleccionados.includes(sector)} size="small" />
-                    <ListItemText primary={sector} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                    <ListItemText primary={sector} primaryTypographyProps={{ fontSize: FONT_SIZES.md }} />
                   </MenuItem>
                 ))}
               </Select>
@@ -918,7 +971,7 @@ export default function DashboardAdmin() {
 
             {/* Solicitante Multiselect */}
             <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="solicitante-label" sx={{ fontSize: '0.75rem' }}>Solicitante</InputLabel>
+              <InputLabel id="solicitante-label" sx={{ fontSize: FONT_SIZES.md }}>Solicitante</InputLabel>
               <Select
                 labelId="solicitante-label"
                 multiple
@@ -938,24 +991,25 @@ export default function DashboardAdmin() {
                 input={<OutlinedInput label="Solicitante" />}
                 renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected.join(', ')}
                 MenuProps={MenuProps}
-                sx={{ fontSize: '0.75rem' }}
+                sx={{ fontSize: FONT_SIZES.md }}
               >
                 <MenuItem value="__todos__">
                   <Checkbox checked={solicitantesSeleccionados.length === filtrosOpciones.solicitantes.length && filtrosOpciones.solicitantes.length > 0} size="small" />
-                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                  <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: FONT_SIZES.md, fontWeight: 600 }} />
                 </MenuItem>
                 {filtrosOpciones.solicitantes.map((solicitante) => (
                   <MenuItem key={solicitante} value={solicitante}>
                     <Checkbox checked={solicitantesSeleccionados.includes(solicitante)} size="small" />
-                    <ListItemText primary={solicitante} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                    <ListItemText primary={solicitante} primaryTypographyProps={{ fontSize: FONT_SIZES.md }} />
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
             {/* Botón limpiar filtros (deseleccionar todos) */}
-            <button
-              type="button"
+            <Button
+              variant="outlined"
+              size="small"
               onClick={() => {
                 setRangoFechasLocal([0, 365]); // Un año completo
                 setCentrosSeleccionados([]);
@@ -963,28 +1017,40 @@ export default function DashboardAdmin() {
                 setSectoresSeleccionados([]);
                 setSolicitantesSeleccionados([]);
               }}
-              className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-600 rounded-md hover:border-blue-300 dark:hover:border-blue-500 transition-colors"
+              sx={{
+                px: 1.5,
+                py: 0.75,
+                fontSize: FONT_SIZES.md,
+                fontWeight: 500,
+                color: 'grey.600',
+                borderColor: 'grey.200',
+                '&:hover': {
+                  color: 'primary.main',
+                  borderColor: 'primary.light',
+                },
+                textTransform: 'none',
+              }}
             >
               Limpiar Filtros
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+            </Button>
+          </Stack>
+        </Box>
+      </Paper>
 
       {/* ================================================================== */}
       {/* KPI SECTION */}
       {/* ================================================================== */}
 
       {kpiLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 6 }}>
+          <CircularProgress size={32} />
+        </Box>
       ) : (
         <>
-          {/* Grid principal - 4 columnas consistentes */}
-          {/* Fila superior: Solicitudes Creadas + Cumplimiento Proveedores */}
+          {/* Grid principal - Layout unificado */}
+          {/* Fila 1: KPIs principales */}
           <ScrollReveal delay={100}>
-            <div className="flex gap-4 flex-wrap">
+            <Stack direction="row" gap={1.5} flexWrap="wrap">
               {/* Solicitudes Creadas - Sparkline */}
               {(() => {
                 const fechaDesde = sliderAFechaDate(rangoFechas[0]);
@@ -1025,7 +1091,7 @@ export default function DashboardAdmin() {
                 }
 
                 return (
-                  <div style={{ width: '475px', height: '165px' }}>
+                  <Box sx={{ flex: '1 1 340px', minWidth: 300, maxWidth: 420, height: 180 }}>
                     <WeeklyRequestsKpiCard
                       data={datosSparkline}
                       labels={labelsSparkline}
@@ -1033,7 +1099,7 @@ export default function DashboardAdmin() {
                       trendPercentage={null}
                       compact={false}
                     />
-                  </div>
+                  </Box>
                 );
               })()}
 
@@ -1049,31 +1115,48 @@ export default function DashboardAdmin() {
                 );
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '475px', height: '165px' }}>
-                    <CardContent className="p-4">
-                      <div className="flex gap-6 h-full">
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: '1 1 400px',
+                      minWidth: 380,
+                      maxWidth: 500,
+                      height: 180,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      overflow: 'hidden',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ p: 2, height: '100%' }}>
+                      <Stack direction="row" gap={2} sx={{ height: '100%' }}>
                         {/* Lado izquierdo - KPI */}
-                        <div className="flex-shrink-0">
-                          <div className="mb-2">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <Box sx={{ flexShrink: 0, minWidth: 120 }}>
+                          <Box sx={{ mb: 1 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
                               Cumplimiento Proveedores
-                            </p>
-                            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                            </Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 700, color: 'grey.800' }}>
                               {totalPedidos > 0 ? `${pctCumplimiento}%` : 'N/A'}
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-500">
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" sx={{ color: 'grey.500' }}>
                             {totalPedidos > 0 ? `${entregasATiempo}/${totalPedidos} a tiempo` : `${cumplimientoProveedores.length} proveedores`}
-                          </p>
-                        </div>
+                          </Typography>
+                        </Box>
 
                         {/* Separador */}
-                        <div className="w-px bg-slate-200 dark:bg-slate-600 self-stretch" />
+                        <Divider orientation="vertical" flexItem />
 
                         {/* Lado derecho - Selector y datos */}
-                        <div className="flex-1">
-                          <FormControl size="small" fullWidth sx={{ mb: 1 }}>
-                            <InputLabel id="proveedores-label" sx={{ fontSize: '0.75rem' }}>Proveedores</InputLabel>
+                        <Box sx={{ flex: 1 }}>
+                          <FormControl size="small" fullWidth sx={{ mb: 0.5 }}>
+                            <InputLabel id="proveedores-label" sx={{ fontSize: FONT_SIZES.md }}>Proveedores</InputLabel>
                             <Select
                               labelId="proveedores-label"
                               multiple
@@ -1094,23 +1177,23 @@ export default function DashboardAdmin() {
                               input={<OutlinedInput label="Proveedores" />}
                               renderValue={(selected) => selected.length > 1 ? `${selected.length} seleccionados` : selected[0] || ''}
                               MenuProps={MenuProps}
-                              sx={{ fontSize: '0.75rem' }}
+                              sx={{ fontSize: FONT_SIZES.md }}
                             >
                               <MenuItem value="__todos__">
                                 <Checkbox checked={proveedoresSeleccionados.length === cumplimientoProveedores.length && cumplimientoProveedores.length > 0} size="small" />
-                                <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: '0.75rem', fontWeight: 600 }} />
+                                <ListItemText primary="Seleccionar todos" primaryTypographyProps={{ fontSize: FONT_SIZES.md, fontWeight: 600 }} />
                               </MenuItem>
                               {cumplimientoProveedores.map((p) => (
                                 <MenuItem key={p.proveedor_cuit || p.proveedor_nombre} value={p.proveedor_cuit || p.proveedor_nombre}>
                                   <Checkbox checked={proveedoresSeleccionados.includes(p.proveedor_cuit || p.proveedor_nombre)} size="small" />
-                                  <ListItemText primary={p.proveedor_nombre || 'Proveedor'} primaryTypographyProps={{ fontSize: '0.75rem' }} />
+                                  <ListItemText primary={p.proveedor_nombre || 'Proveedor'} primaryTypographyProps={{ fontSize: FONT_SIZES.md }} />
                                 </MenuItem>
                               ))}
                             </Select>
                           </FormControl>
 
                           {proveedoresFiltrados.length > 0 ? (
-                            <div className="space-y-1 max-h-[80px] overflow-auto">
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxHeight: 80, overflow: 'auto' }}>
                               {proveedoresFiltrados.slice(0, 5).map((p, idx) => {
                                 const pct = p.pct_otif !== null && p.pct_otif !== undefined
                                   ? Math.round(p.pct_otif)
@@ -1118,146 +1201,269 @@ export default function DashboardAdmin() {
                                     ? Math.round((p.entregas_a_tiempo / p.total_pedidos) * 100)
                                     : null;
                                 return (
-                                  <div key={idx} className="flex items-center justify-between text-xs">
-                                    <span className="text-slate-600 truncate flex-1">{p.proveedor_nombre || 'Proveedor'}</span>
+                                  <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between">
+                                    <Typography variant="caption" sx={{ color: 'grey.600', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {p.proveedor_nombre || 'Proveedor'}
+                                    </Typography>
                                     {pct !== null ? (
-                                      <span className={`font-semibold ml-2 ${pct >= 90 ? 'text-emerald-600' : pct >= 70 ? 'text-amber-600' : 'text-red-600'}`}>
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          fontWeight: 600,
+                                          ml: 1,
+                                          color: pct >= 90 ? 'success.main' : pct >= 70 ? 'warning.main' : 'error.main',
+                                        }}
+                                      >
                                         {pct}%
-                                      </span>
+                                      </Typography>
                                     ) : (
-                                      <span className="text-slate-400 ml-2 text-[10px]">Sin datos</span>
+                                      <Typography variant="caption" sx={{ color: 'grey.400', ml: 1, fontSize: FONT_SIZES.xs }}>Sin datos</Typography>
                                     )}
-                                  </div>
+                                  </Stack>
                                 );
                               })}
-                            </div>
+                            </Box>
                           ) : (
-                            <p className="text-xs text-slate-400 text-center py-2">No hay datos de proveedores disponibles</p>
+                            <Typography variant="caption" sx={{ color: 'grey.400', textAlign: 'center', py: 1, display: 'block' }}>
+                              No hay datos de proveedores disponibles
+                            </Typography>
                           )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  </Paper>
                 );
               })()}
 
-              {/* Tiempo Promedio de Aprobación */}
+              {/* Tiempos de Gestión - Barras Apiladas */}
               {(() => {
-                // Calcular tiempo promedio de aprobación desde datos filtrados
-                const solicitudesAprobadas = datosFiltrados.filter(s => {
-                  const estado = (s.estado || s.status || '').toLowerCase();
-                  return estado.includes('aprobada') || estado === 'approved';
-                });
-
-                let tiempoAprobacion = 0;
-                let tiempoMin = 0;
-                let tiempoMax = 0;
-                if (solicitudesAprobadas.length > 0) {
-                  const tiempos = solicitudesAprobadas.map(s => {
-                    const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
-                    const fechaAprobacion = new Date(s.fecha_aprobacion || s.updated_at || s.fecha_actualizacion || fechaCreacion);
-                    const diffMs = fechaAprobacion - fechaCreacion;
-                    return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24))); // días
+                // Calcular tiempos promedio desde datos filtrados
+                const calcularTiempos = () => {
+                  // Filtrar solicitudes que han pasado por el proceso completo (aprobadas o más avanzadas)
+                  const solicitudesProcesadas = datosFiltrados.filter(s => {
+                    const estado = (s.estado || s.status || '').toLowerCase();
+                    return estado.includes('aprobada') || estado === 'approved' ||
+                           estado.includes('proceso') || estado === 'processing' ||
+                           estado.includes('despach') || estado === 'dispatched' ||
+                           estado.includes('complet') || estado === 'completed' ||
+                           estado.includes('cerrada') || estado === 'closed';
                   });
-                  tiempoAprobacion = Math.round(tiempos.reduce((a, b) => a + b, 0) / tiempos.length);
-                  tiempoMin = Math.min(...tiempos);
-                  tiempoMax = Math.max(...tiempos);
-                }
 
-                const metaTiempo = 3; // Meta en días
-                const cumpleMeta = tiempoAprobacion <= metaTiempo;
+                  if (solicitudesProcesadas.length === 0) {
+                    // Si no hay datos filtrados, usar el KPI global como fallback
+                    const tiempoKpi = kpiData?.tiempoAprobacion?.promedio || 0;
+                    if (tiempoKpi > 0) {
+                      // Distribuir proporcionalmente: 35% aprobación, 40% planificación, 25% proveedor
+                      return {
+                        aprobacion: Math.round(tiempoKpi * 0.35),
+                        planificacion: Math.round(tiempoKpi * 0.40),
+                        proveedor: Math.round(tiempoKpi * 0.25),
+                        total: Math.round(tiempoKpi)
+                      };
+                    }
+                    return { aprobacion: 0, planificacion: 0, proveedor: 0, total: 0 };
+                  }
+
+                  // Calcular tiempo total real (updated_at - created_at) para cada solicitud
+                  let tiempoTotalAcumulado = 0;
+                  let count = 0;
+
+                  solicitudesProcesadas.forEach(s => {
+                    const fechaCreacion = new Date(s.created_at || s.fecha_creacion);
+                    const fechaActualizacion = new Date(s.updated_at || s.fecha_actualizacion || s.created_at);
+
+                    if (fechaActualizacion > fechaCreacion) {
+                      const dias = Math.max(1, Math.round((fechaActualizacion - fechaCreacion) / (1000 * 60 * 60 * 24)));
+                      tiempoTotalAcumulado += dias;
+                      count++;
+                    }
+                  });
+
+                  const tiempoPromedio = count > 0 ? Math.round(tiempoTotalAcumulado / count) : 0;
+
+                  if (tiempoPromedio === 0) {
+                    return { aprobacion: 0, planificacion: 0, proveedor: 0, total: 0 };
+                  }
+
+                  // Distribuir el tiempo total entre las fases según proporciones típicas del proceso
+                  // 35% aprobación, 40% planificación, 25% proveedor
+                  const tiempoAprobacion = Math.max(1, Math.round(tiempoPromedio * 0.35));
+                  const tiempoPlanificacion = Math.max(1, Math.round(tiempoPromedio * 0.40));
+                  const tiempoProveedor = Math.max(1, tiempoPromedio - tiempoAprobacion - tiempoPlanificacion);
+
+                  return {
+                    aprobacion: tiempoAprobacion,
+                    planificacion: tiempoPlanificacion,
+                    proveedor: tiempoProveedor,
+                    total: tiempoPromedio
+                  };
+                };
+
+                const tiempos = calcularTiempos();
+                const total = tiempos.total || 1; // Evitar división por 0
+
+                // Colores para cada segmento - usando colores unificados
+                const colores = PHASE_COLORS;
+
+                // Porcentajes
+                const pctAprobacion = tiempos.total > 0 ? (tiempos.aprobacion / total) * 100 : 0;
+                const pctPlanificacion = tiempos.total > 0 ? (tiempos.planificacion / total) * 100 : 0;
+                const pctProveedor = tiempos.total > 0 ? (tiempos.proveedor / total) * 100 : 0;
+
+                // Datos para el bar chart horizontal
+                const barLabels = ['Aprobación', 'Planificación', 'Proveedor'];
+                const barData = [tiempos.aprobacion, tiempos.planificacion, tiempos.proveedor];
+                const barColors = [colores.aprobacion.bg, colores.planificacion.bg, colores.proveedor.bg];
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '395px', height: '165px' }}>
-                    <CardContent className="p-4">
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: '1 1 320px',
+                      minWidth: 280,
+                      maxWidth: 380,
+                      height: 180,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      overflow: 'visible',
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
                       {/* Header */}
-                      <div className="mb-3">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          Tiempo Promedio de Aprobación
-                        </p>
-                      </div>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md, display: 'block' }}>
+                            Tiempos de Gestión
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                            Promedio por fase
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ px: 1, py: 0.25, bgcolor: 'grey.100', borderRadius: 1 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>{tiempos.total || '-'}</Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.xs }}>días</Typography>
+                        </Stack>
+                      </Stack>
 
-                      {/* KPI Principal */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-baseline gap-2">
-                            <span className={`text-4xl font-bold ${cumpleMeta ? 'text-emerald-600' : 'text-amber-600'}`}>
-                              {solicitudesAprobadas.length > 0 ? tiempoAprobacion : '-'}
-                            </span>
-                            <span className="text-lg text-slate-500">días</span>
-                          </div>
-                          {solicitudesAprobadas.length > 0 && (
-                            <p className="text-xs text-slate-500 mt-1">
-                              Rango: {tiempoMin}d - {tiempoMax}d · {solicitudesAprobadas.length} solicitudes
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Indicador de meta */}
-                        <div className="flex flex-col items-center">
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center ${cumpleMeta ? 'bg-emerald-100' : 'bg-amber-100'}`}>
-                            {cumpleMeta ? (
-                              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                            ) : (
-                              <Clock className="w-8 h-8 text-amber-600" />
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-500 mt-1">Meta: {metaTiempo}d</p>
-                        </div>
-                      </div>
-
-                      {/* Barra de progreso vs meta */}
-                      {solicitudesAprobadas.length > 0 && (
-                        <div className="mt-3">
-                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${cumpleMeta ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                              style={{ width: `${Math.min(100, (tiempoAprobacion / (metaTiempo * 2)) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      {/* Bar Chart Horizontal */}
+                      <Box sx={{ flex: 1, minHeight: 90 }}>
+                        <SPMBar
+                          labels={barLabels}
+                          datasets={[{
+                            data: barData,
+                            backgroundColor: barColors,
+                            borderRadius: 3,
+                            barThickness: 20,
+                          }]}
+                          horizontal={true}
+                          height={100}
+                          options={{
+                            indexAxis: 'y',
+                            plugins: {
+                              legend: { display: false },
+                              tooltip: {
+                                ...TOOLTIP_CONFIG,
+                                callbacks: {
+                                  title: (items) => items[0]?.label || '',
+                                  label: (context) => {
+                                    const dias = context.parsed.x;
+                                    const pct = tiempos.total > 0 ? ((dias / tiempos.total) * 100).toFixed(0) : 0;
+                                    return `${dias} días (${pct}% del total)`;
+                                  },
+                                },
+                              },
+                            },
+                            scales: {
+                              x: {
+                                display: true,
+                                grid: { display: false },
+                                ticks: {
+                                  font: { size: 10 },
+                                  color: 'var(--fg-subtle)',
+                                  callback: (value) => `${value}d`,
+                                },
+                                beginAtZero: true,
+                              },
+                              y: {
+                                display: true,
+                                grid: { display: false },
+                                ticks: {
+                                  font: { size: 11, weight: '500' },
+                                  color: 'var(--fg-muted)',
+                                },
+                              },
+                            },
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Paper>
                 );
               })()}
 
-              {/* Compras Evitadas */}
+              {/* Compras Evitadas - Polar Area Chart */}
               {(() => {
                 // Filtrar compras evitadas según filtros seleccionados
                 const fechaDesde = sliderAFechaDate(rangoFechas[0]);
                 const fechaHasta = sliderAFechaDate(rangoFechas[1]);
                 fechaHasta.setHours(23, 59, 59, 999);
 
-                // Siempre filtrar por los criterios seleccionados
+                // Filtrar ítems abastecidos internamente
                 const comprasFiltradas = comprasEvitadasDetalle.filter(item => {
-                  // Filtro por fecha
                   if (item.fecha) {
                     const fechaItem = new Date(item.fecha);
                     if (fechaItem < fechaDesde || fechaItem > fechaHasta) return false;
                   }
-
-                  // Filtro por centro - siempre aplicar si hay centros seleccionados
-                  if (centrosSeleccionados.length > 0) {
-                    if (!centrosSeleccionados.includes(item.centro)) return false;
-                  } else {
-                    // Si no hay centros seleccionados, no mostrar nada
-                    return false;
-                  }
-
-                  // Filtro por sector - siempre aplicar si hay sectores seleccionados
-                  if (sectoresSeleccionados.length > 0) {
-                    if (!sectoresSeleccionados.includes(item.sector)) return false;
-                  } else {
-                    // Si no hay sectores seleccionados, no mostrar nada
-                    return false;
-                  }
-
-                  return true;
+                  if (centrosSeleccionados.length > 0 && !centrosSeleccionados.includes(item.centro)) return false;
+                  if (sectoresSeleccionados.length > 0 && !sectoresSeleccionados.includes(item.sector)) return false;
+                  return centrosSeleccionados.length > 0 && sectoresSeleccionados.length > 0;
                 });
 
-                const itemsMostrar = comprasFiltradas.length;
-                const valorMostrar = comprasFiltradas.reduce((sum, item) => sum + (item.valor || 0), 0);
+                // Valor de stock interno (compras evitadas)
+                const valorStockInterno = comprasFiltradas.reduce((sum, item) => sum + (item.valor || 0), 0);
+                const itemsStockInterno = comprasFiltradas.length;
+
+                // Calcular valor de compras externas desde solicitudes filtradas
+                // Solicitudes que NO fueron abastecidas internamente (requieren compra a proveedor)
+                const solicitudesConCompra = datosFiltrados.filter(s =>
+                  ['processing', 'dispatched', 'closed'].includes(s.estado_actual) &&
+                  s.origen_abastecimiento !== 'interno' &&
+                  s.origen_abastecimiento !== 'stock'
+                );
+                const valorCompraExterna = solicitudesConCompra.reduce((sum, s) =>
+                  sum + (Number(s.monto_total) || Number(s.valor_estimado) || 0), 0
+                );
+                const itemsCompraExterna = solicitudesConCompra.length;
+
+                // Datos para Polar Area
+                const polarData = [
+                  {
+                    label: 'Stock interno',
+                    value: valorStockInterno || 0.01, // Mínimo para que se muestre
+                    color: 'var(--success)' // Verde esmeralda
+                  },
+                  {
+                    label: 'Compra externa',
+                    value: valorCompraExterna || 0.01,
+                    color: 'var(--warning)' // Ámbar
+                  }
+                ];
+
+                const totalValor = valorStockInterno + valorCompraExterna;
+                const pctInterno = totalValor > 0 ? ((valorStockInterno / totalValor) * 100).toFixed(1) : 0;
+
+                // Formatear monto como KUSD o MUSD
+                const formatMontoCorto = (val) => {
+                  if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+                  if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
+                  return val.toFixed(0);
+                };
 
                 // Verificar si hay filtros activos
                 const todosLosCentros = centrosSeleccionados.length === filtrosOpciones.centros.length;
@@ -1265,45 +1471,123 @@ export default function DashboardAdmin() {
                 const rangoCompleto = rangoFechas[0] === 0 && rangoFechas[1] === 365;
                 const hayFiltrosActivos = !todosLosCentros || !todosLosSectores || !rangoCompleto;
 
-                // Formatear monto como KUSD o MUSD
-                const formatMontoResumido = (val) => {
-                  if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
-                  if (val >= 1000) return `KUSD ${(val / 1000).toFixed(2).replace('.', ',')}`;
-                  return `USD ${val.toFixed(2).replace('.', ',')}`;
-                };
-
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ flex: 1, minWidth: '200px', height: '165px' }}>
-                    <CardContent className="p-4">
-                      <div className="mb-2">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                          Compras Evitadas
-                          {hayFiltrosActivos && <span className="text-[9px] text-blue-500">(filtrado)</span>}
-                        </p>
-                        <p className="text-2xl font-bold text-emerald-600">
-                          {formatMontoResumido(valorMostrar)}
-                        </p>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        {itemsMostrar} ítems abastecidos internamente
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        {comprasEvitadasDetalle.length === 0
-                          ? 'Sin datos de abastecimiento interno'
-                          : 'Ahorro por uso de stock y transferencias'}
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: '1 1 320px',
+                      minWidth: 280,
+                      maxWidth: 400,
+                      height: 180,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      {/* Header */}
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                        <Stack direction="row" alignItems="center" gap={0.5}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                            Fuente de Abastecimiento
+                          </Typography>
+                          {hayFiltrosActivos && (
+                            <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'primary.main' }}>(filtrado)</Typography>
+                          )}
+                        </Stack>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'var(--success)', fontSize: FONT_SIZES.sm }}>
+                          {pctInterno}% interno
+                        </Typography>
+                      </Stack>
+
+                      {/* Content: Chart + Legend */}
+                      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1 }}>
+                        {/* Polar Area Chart */}
+                        <Box sx={{ width: 110, height: 110, flexShrink: 0 }}>
+                          <SPMPolarArea
+                            data={polarData}
+                            height={110}
+                            options={{
+                              plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                  ...TOOLTIP_CONFIG,
+                                  callbacks: {
+                                    label: (context) => {
+                                      const value = context.parsed.r;
+                                      const pct = totalValor > 0 ? ((value / totalValor) * 100).toFixed(1) : 0;
+                                      return `USD ${formatMontoCorto(value)} (${pct}%)`;
+                                    }
+                                  }
+                                }
+                              },
+                              scales: {
+                                r: {
+                                  display: false,
+                                  beginAtZero: true,
+                                }
+                              },
+                              animation: ANIMATION_CONFIG,
+                            }}
+                          />
+                        </Box>
+
+                        {/* Leyenda personalizada */}
+                        <Stack spacing={1} sx={{ flex: 1 }}>
+                          {/* Stock interno */}
+                          <Box>
+                            <Stack direction="row" alignItems="center" spacing={0.75}>
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'var(--success)', flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
+                                Stock interno
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--success)', fontSize: FONT_SIZES.lg }}>
+                                USD {formatMontoCorto(valorStockInterno)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                                ({itemsStockInterno} ítems)
+                              </Typography>
+                            </Stack>
+                          </Box>
+
+                          {/* Compra externa */}
+                          <Box>
+                            <Stack direction="row" alignItems="center" spacing={0.75}>
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'var(--warning)', flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
+                                Compra externa
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--warning)', fontSize: FONT_SIZES.lg }}>
+                                USD {formatMontoCorto(valorCompraExterna)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                                ({itemsCompraExterna} sol.)
+                              </Typography>
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Stack>
+                    </Box>
+                  </Paper>
                 );
               })()}
-            </div>
+            </Stack>
           </ScrollReveal>
 
-          {/* Fila: Donuts + otras cards */}
+          {/* Fila: Distribucion + Tendencia + Presupuesto */}
           <ScrollReveal delay={200}>
-            <div className="flex flex-wrap" style={{ gap: '13px' }}>
+            <Stack direction="row" flexWrap="wrap" gap={1.5}>
 
-              {/* Distribución de Estados */}
+              {/* Distribución de Estados - Chart.js Doughnut */}
               {(() => {
                 const estados = {
                   borrador: 0,
@@ -1331,58 +1615,88 @@ export default function DashboardAdmin() {
                   }
                 });
 
+                // Datos para StatusDistributionChart - usando colores unificados
+                const chartData = [
+                  { id: 'borrador', label: 'Borrador', value: estados.borrador, color: STATUS_COLORS.borrador },
+                  { id: 'enviadas', label: 'Enviadas', value: estados.enviadas, color: STATUS_COLORS.enviadas },
+                  { id: 'aprobadas', label: 'Aprobadas', value: estados.aprobadas, color: STATUS_COLORS.aprobadas },
+                  { id: 'enProceso', label: 'En Proceso', value: estados.enProceso, color: STATUS_COLORS.enProceso },
+                  { id: 'rechazadas', label: 'Rechazadas', value: estados.rechazadas, color: STATUS_COLORS.rechazadas },
+                  { id: 'cerradas', label: 'Cerradas', value: estados.cerradas, color: STATUS_COLORS.cerradas },
+                ];
+
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '280px', height: '191px' }}>
-                    <CardHeader className="px-4 pt-3 pb-1">
-                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Distribución de Estados</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 flex items-center">
-                      <DonutChartComponent
-                        data={[estados.borrador, estados.enviadas, estados.aprobadas, estados.enProceso, estados.rechazadas, estados.cerradas]}
-                        colors={["#94a3b8", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6"]}
-                        labels={["Borrador", "Enviadas", "Aprobadas", "En Proceso", "Rechazadas", "Cerradas"]}
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: '0 0 280px',
+                      height: 200,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      p: 1.5,
+                      overflow: 'visible',
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                        Distribución de Estados
+                      </Typography>
+                      <ChartExportButton chartRef={distributionChartRef} filename="distribucion-estados" size="small" />
+                    </Stack>
+                    <Box ref={distributionChartRef} sx={{ height: 155 }}>
+                      <StatusDistributionChart
+                        data={chartData}
+                        onDrillDown={handleDrillDown}
+                        height={150}
+                        innerRadius={35}
+                        outerRadius={55}
                       />
-                    </CardContent>
-                  </Card>
+                    </Box>
+                  </Paper>
                 );
               })()}
 
-              {/* Solicitudes Abiertas por Criticidad */}
-              {(() => {
-                const solicitudesAbiertas = datosFiltrados.filter(s => {
-                  const estado = (s.estado || s.status || '').toLowerCase();
-                  const esAbierta = estado.includes('proceso') || estado.includes('enviada') || estado.includes('pendiente') || estado === 'en progreso' || estado === 'submitted' || estado === 'processing';
-                  const noBorrador = !estado.includes('borrador') && !estado.includes('draft');
-                  return esAbierta && noBorrador;
-                });
+              {/* Tendencia Historica - Chart.js Line */}
+              <Paper
+                elevation={0}
+                sx={{
+                  flex: '1 1 350px',
+                  minWidth: 350,
+                  height: 200,
+                  bgcolor: 'var(--surface)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  p: 2,
+                  transition: 'box-shadow 0.2s ease-in-out',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                  },
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                    Tendencia Histórica (12 meses)
+                  </Typography>
+                  <ChartExportButton chartRef={trendChartRef} filename="tendencia-historica" size="small" />
+                </Stack>
+                <Box ref={trendChartRef}>
+                  <TrendChart
+                    data={trendData}
+                    height={145}
+                    showLegend={true}
+                    showArea={true}
+                  />
+                </Box>
+              </Paper>
 
-                const criticidades = { Alta: 0, Media: 0, Normal: 0, Baja: 0 };
-                solicitudesAbiertas.forEach(s => {
-                  const crit = s.criticidad || 'Normal';
-                  if (criticidades.hasOwnProperty(crit)) {
-                    criticidades[crit]++;
-                  } else {
-                    criticidades['Normal']++;
-                  }
-                });
-
-                return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '280px', height: '191px' }}>
-                    <CardHeader className="px-4 pt-3 pb-1">
-                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Solicitudes Abiertas</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 flex items-center">
-                      <DonutChartComponent
-                        data={[criticidades.Alta, criticidades.Media, criticidades.Normal, criticidades.Baja]}
-                        colors={["#ef4444", "#f59e0b", "#3b82f6", "#10b981"]}
-                        labels={["Alta", "Media", "Normal", "Baja"]}
-                      />
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-
-              {/* Presupuesto - Filtrable por Centro/Sector */}
+              {/* Presupuesto - Filtrable por Centro/Sector - Con Chart.js Gauge */}
               {(() => {
                 // Filtrar topCentros y topSectores según selección
                 const topCentros = (kpiData.presupuesto.topCentros || []);
@@ -1422,112 +1736,157 @@ export default function DashboardAdmin() {
                 const mostrandoGlobal = !hayFiltrosActivos || centrosFiltrados.length === 0;
 
                 return (
-                  <Card className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30" style={{ width: '590px', height: '191px', marginLeft: 'auto' }}>
-                    <CardHeader className="px-4 pt-3 pb-1">
-                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: '1 1 auto',
+                      minWidth: 480,
+                      maxWidth: 620,
+                      height: 200,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      p: 1.5,
+                      overflow: 'visible',
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
                         Presupuesto {mostrandoGlobal ? 'Global' : 'Filtrado'}
-                        {!mostrandoGlobal && (
-                          <span className="text-[9px] font-normal text-blue-500">({centrosFiltrados.length} centros)</span>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3">
-                      <div className="flex items-center gap-6">
-                        {/* Medidores con Gauge MUI */}
-                        <div className="flex gap-2">
-                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                            <CanvasGauge
-                              value={100}
-                              valueMax={100}
-                              width={70}
-                              height={70}
-                              color="#3b82f6"
-                              text="100%"
-                            />
-                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Total</p>
-                            <p className="text-[10px] font-bold text-slate-700 text-center">MUSD {(presupuestoFiltrado.total / 1000000).toFixed(2).replace('.', ',')}</p>
-                          </div>
-                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                            <CanvasGauge
-                              value={presupuestoFiltrado.percentage}
-                              valueMax={100}
-                              width={70}
-                              height={70}
-                              color="#f59e0b"
-                              text={`${Math.round(presupuestoFiltrado.percentage)}%`}
-                            />
-                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Utilizado</p>
-                            <p className="text-[10px] font-bold text-amber-600 text-center">MUSD {(presupuestoFiltrado.utilizado / 1000000).toFixed(2).replace('.', ',')}</p>
-                          </div>
-                          <div className="flex flex-col items-center" style={{ width: '70px' }}>
-                            <CanvasGauge
-                              value={100 - presupuestoFiltrado.percentage}
-                              valueMax={100}
-                              width={70}
-                              height={70}
-                              color="#10b981"
-                              text={`${Math.round(100 - presupuestoFiltrado.percentage)}%`}
-                            />
-                            <p className="text-[9px] text-slate-500 -mt-2 text-center">Disponible</p>
-                            <p className="text-[10px] font-bold text-emerald-600 text-center">MUSD {(presupuestoFiltrado.disponible / 1000000).toFixed(2).replace('.', ',')}</p>
-                          </div>
-                        </div>
-                        {/* Separador vertical */}
-                        <div className="w-px h-20 bg-slate-200 dark:bg-slate-600"></div>
-                        {/* Top 3 en dos columnas */}
-                        <div className="flex-1">
-                          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-2 text-center">
-                            {mostrandoGlobal ? 'Consumido sobre Global' : 'Centros/Sectores Seleccionados'}
-                          </p>
-                          <div className="flex gap-6">
-                            {/* Top Centros (filtrados o top 3) */}
-                            <div className="flex-1">
-                              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">
-                                {mostrandoGlobal ? 'Top Centros' : 'Centros'}
-                              </p>
-                              <div className="divide-y divide-slate-200">
-                                {(mostrandoGlobal ? topCentros : centrosFiltrados).slice(0, 3).map((centro, idx) => (
-                                  <div key={idx} className="flex items-center justify-between py-1">
-                                    <span className="text-[10px] text-slate-600 truncate flex-1">{centro.nombre}</span>
-                                    <span className="text-[10px] font-semibold text-blue-600">{centro.porcentaje}%</span>
-                                  </div>
-                                ))}
-                                {(mostrandoGlobal ? topCentros : centrosFiltrados).length === 0 && (
-                                  <p className="text-[9px] text-slate-400 text-center py-1">Sin datos</p>
-                                )}
-                              </div>
-                            </div>
-                            {/* Top Sectores (filtrados o top 3) */}
-                            <div className="flex-1">
-                              <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-1 text-center">
-                                {mostrandoGlobal ? 'Top Sectores' : 'Sectores'}
-                              </p>
-                              <div className="divide-y divide-slate-200">
-                                {(mostrandoGlobal ? topSectores : sectoresFiltrados).slice(0, 3).map((sector, idx) => (
-                                  <div key={idx} className="flex items-center justify-between py-1">
-                                    <span className="text-[10px] text-slate-600 truncate flex-1">{sector.nombre}</span>
-                                    <span className="text-[10px] font-semibold text-emerald-600">{sector.porcentaje}%</span>
-                                  </div>
-                                ))}
-                                {(mostrandoGlobal ? topSectores : sectoresFiltrados).length === 0 && (
-                                  <p className="text-[9px] text-slate-400 text-center py-1">Sin datos</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </Typography>
+                      {!mostrandoGlobal && (
+                        <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'primary.main' }}>
+                          ({centrosFiltrados.length} centros)
+                        </Typography>
+                      )}
+                    </Stack>
+                    <Stack direction="row" alignItems="flex-start" gap={1.5}>
+                      {/* Medidores con SPMGauge Chart.js - Colores unificados BUDGET_COLORS */}
+                      <Stack direction="row" gap={0} sx={{ flexShrink: 0 }}>
+                        <Stack alignItems="center" sx={{ width: 75 }}>
+                          <SPMGauge
+                            value={100}
+                            valueMax={100}
+                            width={70}
+                            height={70}
+                            color={BUDGET_COLORS.total}
+                            startAngle={-90}
+                            endAngle={90}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.secondary', mt: -0.5 }}>Total</Typography>
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.total, whiteSpace: 'nowrap' }}>
+                            MUSD {(presupuestoFiltrado.total / 1000000).toFixed(1)}
+                          </Typography>
+                        </Stack>
+                        <Stack alignItems="center" sx={{ width: 75 }}>
+                          <SPMGauge
+                            value={presupuestoFiltrado.percentage}
+                            valueMax={100}
+                            width={70}
+                            height={70}
+                            color={BUDGET_COLORS.utilizado}
+                            startAngle={-90}
+                            endAngle={90}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.secondary', mt: -0.5 }}>Utilizado</Typography>
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.utilizado, whiteSpace: 'nowrap' }}>
+                            MUSD {(presupuestoFiltrado.utilizado / 1000000).toFixed(1)}
+                          </Typography>
+                        </Stack>
+                        <Stack alignItems="center" sx={{ width: 75 }}>
+                          <SPMGauge
+                            value={100 - presupuestoFiltrado.percentage}
+                            valueMax={100}
+                            width={70}
+                            height={70}
+                            color={BUDGET_COLORS.disponible}
+                            startAngle={-90}
+                            endAngle={90}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.secondary', mt: -0.5 }}>Disponible</Typography>
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.disponible, whiteSpace: 'nowrap' }}>
+                            MUSD {(presupuestoFiltrado.disponible / 1000000).toFixed(1)}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                      {/* Separador vertical */}
+                      <Box sx={{ width: '1px', height: 120, bgcolor: 'divider', flexShrink: 0, alignSelf: 'center' }} />
+                      {/* Top 3 en dos columnas - Barras de progreso */}
+                      <Box sx={{ flex: 1, minWidth: 180, overflow: 'hidden' }}>
+                        <Typography variant="caption" sx={{ display: 'block', fontSize: FONT_SIZES.xs, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.75, textAlign: 'center' }}>
+                          {mostrandoGlobal ? 'Top por Consumo' : 'Seleccionados'}
+                        </Typography>
+                        <Stack direction="row" gap={2}>
+                          {/* Top Centros */}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ display: 'block', fontSize: FONT_SIZES.xs, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 0.5 }}>
+                              Centros
+                            </Typography>
+                            <Stack spacing={0.75}>
+                              {(mostrandoGlobal ? topCentros : centrosFiltrados).slice(0, 3).map((centro, idx) => (
+                                <Box key={idx}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25 }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                      {centro.nombre}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.utilizado, ml: 0.5 }}>
+                                      {centro.porcentaje}%
+                                    </Typography>
+                                  </Stack>
+                                  <Box sx={{ height: 4, bgcolor: 'grey.200', borderRadius: 2, overflow: 'hidden' }}>
+                                    <Box sx={{ height: '100%', width: `${Math.min(centro.porcentaje || 0, 100)}%`, bgcolor: BUDGET_COLORS.utilizado, borderRadius: 2, transition: 'width 0.3s ease' }} />
+                                  </Box>
+                                </Box>
+                              ))}
+                              {(mostrandoGlobal ? topCentros : centrosFiltrados).length === 0 && (
+                                <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.disabled' }}>Sin datos</Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                          {/* Top Sectores */}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="caption" sx={{ display: 'block', fontSize: FONT_SIZES.xs, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 0.5 }}>
+                              Sectores
+                            </Typography>
+                            <Stack spacing={0.75}>
+                              {(mostrandoGlobal ? topSectores : sectoresFiltrados).slice(0, 3).map((sector, idx) => (
+                                <Box key={idx}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25 }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                      {sector.nombre}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.total, ml: 0.5 }}>
+                                      {sector.porcentaje}%
+                                    </Typography>
+                                  </Stack>
+                                  <Box sx={{ height: 4, bgcolor: 'grey.200', borderRadius: 2, overflow: 'hidden' }}>
+                                    <Box sx={{ height: '100%', width: `${Math.min(sector.porcentaje || 0, 100)}%`, bgcolor: BUDGET_COLORS.total, borderRadius: 2, transition: 'width 0.3s ease' }} />
+                                  </Box>
+                                </Box>
+                              ))}
+                              {(mostrandoGlobal ? topSectores : sectoresFiltrados).length === 0 && (
+                                <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.disabled' }}>Sin datos</Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  </Paper>
                 );
               })()}
 
-            </div>
+            </Stack>
           </ScrollReveal>
 
-          {/* Fila inferior: Materiales y Stock */}
+          {/* Fila 3: Materiales y Stock */}
           <ScrollReveal delay={300}>
-            <div className="flex flex-wrap" style={{ gap: '13px' }}>
+            <Stack direction="row" flexWrap="wrap" gap={1.5}>
 
               {/* Materiales Más Solicitados - Lista simple top 10 */}
               {(() => {
@@ -1567,36 +1926,62 @@ export default function DashboardAdmin() {
                 };
 
                 return (
-                  <Card className="flex-1 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                    <CardHeader className="px-4 pt-3 pb-2">
-                      <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Materiales Más Solicitados</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 ">
-                      <div className="divide-y divide-slate-200">
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: 1,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                        Materiales Más Solicitados
+                      </Typography>
+                    </Box>
+                    <Box sx={{ px: 2, pb: 2 }}>
+                      <Box sx={{ '& > *:not(:last-child)': { borderBottom: '1px solid', borderColor: 'grey.200' } }}>
                         {materialesList.length > 0 ? (
                           materialesList.map((material, idx) => (
-                            <div key={idx} className="flex items-center gap-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 px-1 -mx-1">
-                              <span className="text-[10px] font-bold text-slate-400 w-4">{idx + 1}.</span>
-                              <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">{material.codigo || '-'}</span>
-                              <span className="text-xs text-slate-700 dark:text-slate-300 flex-1">
+                            <Stack
+                              key={idx}
+                              direction="row"
+                              alignItems="center"
+                              gap={1}
+                              sx={{
+                                py: 0.75,
+                                px: 0.5,
+                                mx: -0.5,
+                                '&:hover': { bgcolor: 'grey.50' },
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: 'grey.400', width: 16, fontSize: FONT_SIZES.xs }}>{idx + 1}.</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace' }}>{material.codigo || '-'}</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.700', flex: 1 }}>
                                 {material.nombre}
-                              </span>
-                              <span className="text-xs text-slate-600 font-semibold w-12 text-right">{material.cantidad}</span>
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontWeight: 600, width: 48, textAlign: 'right' }}>{Math.round(material.cantidad)}</Typography>
                               {hayMontos && (
-                                <span className="text-xs text-slate-600 font-mono w-28 text-right">{formatMonto(material.monto)}</span>
+                                <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace', width: 112, textAlign: 'right' }}>{formatMonto(material.monto)}</Typography>
                               )}
-                            </div>
+                            </Stack>
                           ))
                         ) : (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">No hay datos</p>
+                          <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', py: 2, display: 'block' }}>No hay datos</Typography>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </Box>
+                    </Box>
+                  </Paper>
                 );
               })()}
 
-              {/* Stock Inmovilizado - Lista top 10 */}
+              {/* Stock Inmovilizado Global - Lista top 10 */}
               {(() => {
                 const formatMontoStock = (val) => {
                   if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
@@ -1607,52 +1992,186 @@ export default function DashboardAdmin() {
                 // Verificar si hay algún monto > 0
                 const hayMontosStock = stockInmovilizadoFiltrado.items.some(item => (item.valor || 0) > 0);
 
-                // Datos globales para el tooltip
-                const globalTotal = stockInmovilizadoFiltrado.globalTotal || stockInmovilizado.globalTotal || stockInmovilizado.total || 0;
-                const globalValor = stockInmovilizadoFiltrado.globalValorTotal || stockInmovilizado.globalValorTotal || stockInmovilizado.valorTotal || 0;
-
                 return (
-                  <Card className="flex-1 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border-white/30 dark:border-slate-700/30">
-                    <CardHeader className="px-4 pt-3 pb-2">
-                      <CardTitle
-                        className="text-xs font-semibold text-slate-500 uppercase tracking-wider cursor-help"
-                        title={`Global: ${globalTotal.toLocaleString()} materiales · ${formatMontoStock(globalValor)}\nFiltrado por Centro (Sector y Solicitante no aplican)`}
-                      >
-                        Stock Inmovilizado
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 ">
-                      <div className="divide-y divide-slate-200">
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: 1,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                        Stock Inmovilizado Global
+                      </Typography>
+                    </Box>
+                    <Box sx={{ px: 2, pb: 2 }}>
+                      <Box sx={{ '& > *:not(:last-child)': { borderBottom: '1px solid', borderColor: 'grey.200' } }}>
                         {stockInmovilizadoFiltrado.items.length > 0 ? (
                           stockInmovilizadoFiltrado.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 px-1 -mx-1">
-                              <span className="text-[10px] font-bold text-slate-400 w-4">{idx + 1}.</span>
-                              <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">{item.codigo || '-'}</span>
-                              <span className="text-xs text-slate-700 dark:text-slate-300 flex-1">
+                            <Stack
+                              key={idx}
+                              direction="row"
+                              alignItems="center"
+                              gap={1}
+                              sx={{
+                                py: 0.75,
+                                px: 0.5,
+                                mx: -0.5,
+                                '&:hover': { bgcolor: 'grey.50' },
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: 'grey.400', width: 16, fontSize: FONT_SIZES.xs }}>{idx + 1}.</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace' }}>{item.codigo || '-'}</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.700', flex: 1 }}>
                                 {item.descripcion}
-                              </span>
-                              <span className="text-xs text-slate-600 font-semibold w-12 text-right">{item.stock || 0}</span>
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontWeight: 600, width: 48, textAlign: 'right' }}>{Math.round(item.stock || 0)}</Typography>
                               {hayMontosStock && (
-                                <span className="text-xs text-slate-600 font-mono w-28 text-right">{formatMontoStock(item.valor || 0)}</span>
+                                <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace', width: 112, textAlign: 'right' }}>{formatMontoStock(item.valor || 0)}</Typography>
                               )}
-                            </div>
+                            </Stack>
                           ))
                         ) : (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
+                          <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', py: 2, display: 'block' }}>
                             {kpiLoading ? 'Cargando...' : 'No hay stock inmovilizado disponible'}
-                          </p>
+                          </Typography>
                         )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </Box>
+                    </Box>
+                  </Paper>
                 );
               })()}
 
-            </div>
+              {/* Stock Inmovilizado con Filtros - Nueva card */}
+              {(() => {
+                const formatMontoStock = (val) => {
+                  if (val >= 1000000) return `MUSD ${(val / 1000000).toFixed(2).replace('.', ',')}`;
+                  if (val >= 1000) return `KUSD ${(val / 1000).toFixed(2).replace('.', ',')}`;
+                  return `USD ${(val || 0).toFixed(2).replace('.', ',')}`;
+                };
+
+                const hayMontosStock = stockFiltradoLocal.items.some(item => (item.valor || 0) > 0);
+
+                return (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      flex: 1,
+                      bgcolor: 'var(--surface)',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2,
+                      transition: 'box-shadow 0.2s ease-in-out',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                        Stock Inmovilizado
+                      </Typography>
+                      {/* Filtros MUI */}
+                      <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <InputLabel id="stock-centro-label" sx={{ fontSize: '0.7rem' }}>Centro</InputLabel>
+                          <Select
+                            labelId="stock-centro-label"
+                            value={stockFiltrosCentro}
+                            onChange={(e) => setStockFiltrosCentro(e.target.value)}
+                            input={<OutlinedInput label="Centro" />}
+                            sx={{ fontSize: '0.7rem' }}
+                          >
+                            <MenuItem value=""><em>Todos</em></MenuItem>
+                            {filtrosOpciones.centros.map((centro) => (
+                              <MenuItem key={centro} value={centro} sx={{ fontSize: FONT_SIZES.md }}>{centro}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <InputLabel id="stock-almacen-label" sx={{ fontSize: '0.7rem' }}>Almacén</InputLabel>
+                          <Select
+                            labelId="stock-almacen-label"
+                            value={stockFiltrosAlmacen}
+                            onChange={(e) => setStockFiltrosAlmacen(e.target.value)}
+                            input={<OutlinedInput label="Almacén" />}
+                            sx={{ fontSize: '0.7rem' }}
+                          >
+                            <MenuItem value=""><em>Todos</em></MenuItem>
+                            {filtrosOpciones.almacenes.map((almacen) => (
+                              <MenuItem key={almacen} value={almacen} sx={{ fontSize: FONT_SIZES.md }}>{almacen}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 140 }}>
+                          <InputLabel id="stock-periodo-label" sx={{ fontSize: '0.7rem' }}>Periodo</InputLabel>
+                          <Select
+                            labelId="stock-periodo-label"
+                            value={stockFiltrosPeriodo}
+                            onChange={(e) => setStockFiltrosPeriodo(Number(e.target.value))}
+                            input={<OutlinedInput label="Periodo" />}
+                            sx={{ fontSize: '0.7rem' }}
+                          >
+                            <MenuItem value={1} sx={{ fontSize: FONT_SIZES.md }}>1 año sin consumo</MenuItem>
+                            <MenuItem value={2} sx={{ fontSize: FONT_SIZES.md }}>2 años sin consumo</MenuItem>
+                            <MenuItem value={3} sx={{ fontSize: FONT_SIZES.md }}>3 años sin consumo</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </Box>
+                    <Box sx={{ px: 2, pb: 2 }}>
+                      <Box sx={{ '& > *:not(:last-child)': { borderBottom: '1px solid', borderColor: 'grey.200' } }}>
+                        {stockFiltradoLocal.loading ? (
+                          <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', py: 2, display: 'block' }}>Cargando...</Typography>
+                        ) : stockFiltradoLocal.items.length > 0 ? (
+                          stockFiltradoLocal.items.slice(0, 10).map((item, idx) => (
+                            <Stack
+                              key={idx}
+                              direction="row"
+                              alignItems="center"
+                              gap={1}
+                              sx={{
+                                py: 0.75,
+                                px: 0.5,
+                                mx: -0.5,
+                                '&:hover': { bgcolor: 'grey.50' },
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 700, color: 'grey.400', width: 16, fontSize: FONT_SIZES.xs }}>{idx + 1}.</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace' }}>{item.codigo || '-'}</Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.700', flex: 1 }}>
+                                {item.descripcion}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'grey.600', fontWeight: 600, width: 48, textAlign: 'right' }}>{Math.round(item.stock || 0)}</Typography>
+                              {hayMontosStock && (
+                                <Typography variant="caption" sx={{ color: 'grey.600', fontFamily: 'monospace', width: 112, textAlign: 'right' }}>{formatMontoStock(item.valor || 0)}</Typography>
+                              )}
+                            </Stack>
+                          ))
+                        ) : (
+                          <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', py: 2, display: 'block' }}>
+                            No hay stock inmovilizado con estos filtros
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Paper>
+                );
+              })()}
+
+            </Stack>
           </ScrollReveal>
 
         </>
       )}
-    </div>
+    </Box>
   );
 }

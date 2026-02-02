@@ -1,0 +1,255 @@
+import React, { useState, useMemo } from "react";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { ChevronUp, ChevronDown, ChevronsUpDown, Inbox } from "./Icons";
+
+// Columnas que deben centrarse automáticamente
+const CENTERED_COLUMNS = [
+  'id', 'centro', 'almacen', 'almacen_virtual',
+  'solicitante', 'sector', 'criticidad', 'estado', 'status',
+  'accion', 'acciones', 'planificador', 'planificado',
+  'items', 'items_count', 'cantidad',
+  'fecha', 'fecha_creacion', 'fecha_necesidad', 'created_at', 'updated_at',
+  'rol', 'roles', 'tipo', 'prioridad'
+];
+// Columnas que deben alinearse a la derecha
+const RIGHT_ALIGNED_COLUMNS = [
+  'monto', 'total_monto', 'precio', 'precio_unitario',
+  'subtotal', 'total', 'presupuesto', 'importe', 'valor'
+];
+// Columnas que deben alinearse a la izquierda (texto largo)
+const LEFT_ALIGNED_COLUMNS = [
+  'justificacion', 'asunto', 'descripcion', 'observaciones',
+  'motivo', 'comentario', 'notas', 'mensaje'
+];
+
+function getColumnAlignment(key) {
+  const keyLower = (key || '').toLowerCase();
+  // Primero verificar alineación derecha (montos)
+  if (RIGHT_ALIGNED_COLUMNS.some(col => keyLower.includes(col))) return 'right';
+  // Luego verificar alineación izquierda explícita (texto largo)
+  if (LEFT_ALIGNED_COLUMNS.some(col => keyLower.includes(col))) return 'left';
+  // Luego verificar centrado
+  if (CENTERED_COLUMNS.some(col => keyLower.includes(col) || keyLower === col)) return 'center';
+  // Por defecto: centrado para mantener consistencia
+  return 'center';
+}
+
+/**
+ * MobileCard Component - Renderiza una fila como card en móvil
+ */
+function MobileCard({ row, columns, rowIndex }) {
+  // Determinar columnas principales vs secundarias
+  // Las primeras 2-3 columnas son principales, el resto secundarias
+  const primaryColumns = columns.slice(0, 3);
+  const secondaryColumns = columns.slice(3);
+
+  return (
+    <div
+      className={`
+        p-4 rounded-lg border border-[var(--border-glass)]
+        bg-[var(--card-glass)] backdrop-blur-sm
+        ${rowIndex % 2 === 0 ? '' : 'bg-[var(--bg-soft)]/30'}
+      `}
+    >
+      {/* Columnas principales - más prominentes */}
+      <div className="space-y-2 mb-3">
+        {primaryColumns.map((col) => {
+          const value = col.render ? col.render(row) : row[col.key];
+          return (
+            <div key={col.key} className="flex justify-between items-start gap-2">
+              <span className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wide flex-shrink-0">
+                {col.header}
+              </span>
+              <span className="text-sm text-[var(--fg)] text-right">
+                {value}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Columnas secundarias - menos prominentes */}
+      {secondaryColumns.length > 0 && (
+        <div className="pt-3 border-t border-[var(--border-glass-subtle)] space-y-1.5">
+          {secondaryColumns.map((col) => {
+            const value = col.render ? col.render(row) : row[col.key];
+            return (
+              <div key={col.key} className="flex justify-between items-center gap-2">
+                <span className="text-xs text-[var(--fg-muted)]">
+                  {col.header}
+                </span>
+                <span className="text-xs text-[var(--fg)]">
+                  {value}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DataTable({
+  columns = [],
+  rows = [],
+  emptyMessage = "Sin datos",
+  className = "",
+  mobileCardLayout = true, // Nueva prop para habilitar/deshabilitar cards en móvil
+}) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
+
+  const handleSort = (key, sortAccessor) => {
+    if (!sortAccessor) return;
+
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedRows = React.useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) return rows;
+
+    const column = columns.find(c => c.key === sortConfig.key);
+    if (!column?.sortAccessor) return rows;
+
+    return [...rows].sort((a, b) => {
+      const aVal = column.sortAccessor(a);
+      const bVal = column.sortAccessor(b);
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [rows, columns, sortConfig]);
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return <ChevronsUpDown className="w-4 h-4 opacity-40" />;
+    if (sortConfig.direction === "asc") return <ChevronUp className="w-4 h-4" />;
+    if (sortConfig.direction === "desc") return <ChevronDown className="w-4 h-4" />;
+    return <ChevronsUpDown className="w-4 h-4 opacity-40" />;
+  };
+
+  if (rows.length === 0) {
+    // If emptyMessage is a React element (like EmptyState), render it directly
+    // Otherwise, wrap it in the default empty state UI
+    const isReactElement = React.isValidElement(emptyMessage);
+
+    if (isReactElement) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          {emptyMessage}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="w-16 h-16 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center mb-4">
+          <Inbox className="w-8 h-8 text-[var(--fg-muted)]" />
+        </div>
+        <div className="text-[var(--fg-muted)] text-sm">{emptyMessage}</div>
+      </div>
+    );
+  }
+
+  // Mobile: Renderizar como cards
+  if (isMobile && mobileCardLayout) {
+    return (
+      <div className={`space-y-3 ${className}`} role="list" aria-label="Lista de datos">
+        {sortedRows.map((row, rowIndex) => (
+          <MobileCard
+            key={row.id || rowIndex}
+            row={row}
+            columns={columns}
+            rowIndex={rowIndex}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Desktop: Renderizar como tabla
+  return (
+    <div className={`overflow-x-auto rounded-lg border border-[var(--border-glass)] ${className}`} role="region" aria-label="Tabla de datos">
+      <table className="w-full text-sm" role="table">
+        <thead className="bg-[var(--bg-soft)] backdrop-blur-sm border-b-2 border-[var(--border)]">
+          <tr>
+            {columns.map((col) => {
+              return (
+                <th
+                  key={col.key}
+                  scope="col"
+                  onClick={() => handleSort(col.key, col.sortAccessor)}
+                  onKeyDown={(e) => {
+                    if (col.sortAccessor && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      handleSort(col.key, col.sortAccessor);
+                    }
+                  }}
+                  tabIndex={col.sortAccessor ? 0 : undefined}
+                  role={col.sortAccessor ? "button" : undefined}
+                  aria-sort={
+                    sortConfig.key === col.key
+                      ? sortConfig.direction === "asc"
+                        ? "ascending"
+                        : sortConfig.direction === "desc"
+                        ? "descending"
+                        : "none"
+                      : undefined
+                  }
+                  className={`
+                    px-4 py-3
+                    text-center text-xs font-semibold uppercase tracking-wider
+                    text-[var(--fg-muted)]
+                    border-r border-b border-[var(--border)] last:border-r-0
+                    ${col.sortAccessor ? 'cursor-pointer hover:text-[var(--primary)] hover:bg-[var(--bg-elevated)] transition-all duration-300 ease-spring focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-inset' : ''}
+                  `}
+                >
+                  <div className="flex items-center gap-2 justify-center">
+                    {col.header}
+                    {col.sortAccessor && <span aria-hidden="true">{getSortIcon(col.key)}</span>}
+                  </div>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedRows.map((row, rowIndex) => (
+            <tr
+              key={row.id || rowIndex}
+              className={`
+                border-b border-[var(--border)]
+                transition-colors duration-[var(--transition-fast)]
+                hover:bg-[var(--bg-elevated)]
+                ${rowIndex % 2 === 0 ? 'bg-transparent' : 'bg-[var(--bg-soft)]/30'}
+              `}
+            >
+              {columns.map((col) => {
+                const align = col.align || getColumnAlignment(col.key);
+                const alignClass = align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
+
+                return (
+                  <td
+                    key={col.key}
+                    className={`px-4 py-3.5 text-sm text-[var(--fg)] border-r border-[var(--border)] last:border-r-0 align-middle ${alignClass}`}
+                  >
+                    {col.render ? col.render(row) : row[col.key]}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

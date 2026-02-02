@@ -2,17 +2,30 @@
  * TablesTab - Explorador de tablas de BD
  */
 
-import { Card, CardContent } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Select } from "../../../components/ui/Select";
-import { TableSkeleton } from "../../../components/ui/Skeleton";
-import { useI18n } from "../../../context/i18n";
 import {
-  RefreshCcw,
-  FileText,
-  Search,
-  Download,
-} from "../../../components/ui/Icons";
+  Box,
+  Paper,
+  Typography,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Button,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Skeleton,
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import DescriptionIcon from "@mui/icons-material/Description";
+import SearchIcon from "@mui/icons-material/Search";
+import DownloadIcon from "@mui/icons-material/Download";
+import { useI18n } from "../../../context/i18n";
 
 export function TablesTab({
   loading,
@@ -27,66 +40,160 @@ export function TablesTab({
 }) {
   const { t } = useI18n();
 
+  // Skeleton for loading state
+  const TableSkeletonRows = () => (
+    <>
+      {Array.from({ length: 10 }).map((_, idx) => (
+        <TableRow key={idx}>
+          <TableCell>
+            <Skeleton variant="text" width="60%" />
+          </TableCell>
+          <TableCell align="right">
+            <Skeleton variant="text" width={60} sx={{ ml: "auto" }} />
+          </TableCell>
+          <TableCell>
+            <Stack direction="row" spacing={1} justifyContent="center">
+              <Skeleton variant="rectangular" width={90} height={32} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={90} height={32} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={60} height={32} sx={{ borderRadius: 1 }} />
+            </Stack>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="w-48">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Stack direction="row" alignItems="center" spacing={2}>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel id="db-select-label">{t("db_select", "Base de datos")}</InputLabel>
           <Select
+            labelId="db-select-label"
             value={selectedDb}
-            onChange={(e) => onDbChange(e.target.value)}
             label={t("db_select", "Base de datos")}
+            onChange={(e) => onDbChange(e.target.value)}
           >
             {databases.map((db) => (
-              <option key={db.name} value={db.name}>{db.name}</option>
+              <MenuItem key={db.name} value={db.name}>
+                {db.name}
+              </MenuItem>
             ))}
           </Select>
-        </div>
-        <Button variant="ghost" onClick={onRefresh} disabled={loading}>
-          <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
-      </div>
+        </FormControl>
+        <IconButton onClick={onRefresh} disabled={loading} color="primary">
+          <RefreshIcon
+            sx={{
+              animation: loading ? "spin 1s linear infinite" : "none",
+              "@keyframes spin": {
+                "0%": { transform: "rotate(0deg)" },
+                "100%": { transform: "rotate(360deg)" },
+              },
+            }}
+          />
+        </IconButton>
+      </Stack>
 
-      {loading ? (
-        <TableSkeleton rows={10} columns={4} />
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <table className="w-full text-sm">
-              <thead className="bg-[var(--bg-soft)]">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-[var(--fg-muted)] uppercase">Tabla</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-[var(--fg-muted)] uppercase">Registros</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-[var(--fg-muted)] uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {tables.map((table) => (
-                  <tr key={table.name} className="hover:bg-[var(--bg-soft)]/50">
-                    <td className="px-4 py-3 font-mono text-[var(--primary)]">{table.name}</td>
-                    <td className="px-4 py-3 text-right font-mono">{table.records.toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => onViewStructure(table.name)}>
-                          <FileText className="w-4 h-4" />
-                          Estructura
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => onViewData(table.name)}>
-                          <Search className="w-4 h-4" />
-                          Ver datos
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => onExportCsv(table.name)}>
-                          <Download className="w-4 h-4" />
-                          CSV
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+      <TableContainer component={Paper} elevation={1}>
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: "action.hover" }}>
+              <TableCell
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                }}
+              >
+                Tabla
+              </TableCell>
+              <TableCell
+                align="right"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                }}
+              >
+                Registros
+              </TableCell>
+              <TableCell
+                align="center"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                }}
+              >
+                Acciones
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableSkeletonRows />
+            ) : (
+              tables.map((table) => (
+                <TableRow
+                  key={table.name}
+                  hover
+                  sx={{
+                    "&:last-child td, &:last-child th": { border: 0 },
+                  }}
+                >
+                  <TableCell
+                    sx={{
+                      fontFamily: "monospace",
+                      color: "primary.main",
+                    }}
+                  >
+                    {table.name}
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {table.records.toLocaleString()}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1} justifyContent="center">
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<DescriptionIcon />}
+                        onClick={() => onViewStructure(table.name)}
+                      >
+                        Estructura
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<SearchIcon />}
+                        onClick={() => onViewData(table.name)}
+                      >
+                        Ver datos
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<DownloadIcon />}
+                        onClick={() => onExportCsv(table.name)}
+                      >
+                        CSV
+                      </Button>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }

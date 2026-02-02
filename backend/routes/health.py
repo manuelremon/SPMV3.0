@@ -114,10 +114,7 @@ def _check_cache() -> dict:
     try:
         from backend.core.cache import get_cache_stats
     except ImportError:
-        try:
-            from core.cache import get_cache_stats
-        except ImportError:
-            return {"status": "unavailable", "error": "Cache module not found"}
+        return {"status": "unavailable", "error": "Cache module not found"}
 
     try:
         stats = get_cache_stats()
@@ -136,10 +133,7 @@ def _check_redis() -> dict:
     try:
         from backend.core.redis_pubsub import redis_pubsub
     except ImportError:
-        try:
-            from core.redis_pubsub import redis_pubsub
-        except ImportError:
-            return {"status": "unavailable", "error": "Redis module not found"}
+        return {"status": "unavailable", "error": "Redis module not found"}
 
     try:
         stats = redis_pubsub.get_stats()
@@ -170,10 +164,7 @@ def _check_metrics() -> dict:
     try:
         from backend.core.metrics import get_metrics_collector
     except ImportError:
-        try:
-            from core.metrics import get_metrics_collector
-        except ImportError:
-            return {"status": "unavailable"}
+        return {"status": "unavailable"}
 
     try:
         collector = get_metrics_collector()
@@ -745,10 +736,7 @@ def _check_jobs_queue() -> dict:
     try:
         from backend.core.background_jobs import get_job_queue
     except ImportError:
-        try:
-            from core.background_jobs import get_job_queue
-        except ImportError:
-            return {"status": "unavailable", "error": "Jobs module not found"}
+        return {"status": "unavailable", "error": "Jobs module not found"}
 
     try:
         queue = get_job_queue()

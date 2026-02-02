@@ -782,34 +782,36 @@ export default function AdminUsuarios() {
             <Stack direction="row" spacing={1}>
               {/* Botón de exportación */}
               <Tooltip title="Descargar XLSX">
-                <IconButton
-                  onClick={handleExport}
-                  disabled={loading || exporting || filteredUsuarios.length === 0}
-                  size="small"
-                  sx={{
-                    color: "var(--success)",
-                    border: "1px solid var(--success)",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    "&:hover": {
-                      backgroundColor: "var(--success)",
-                      color: "var(--card)",
-                    },
-                    "&:disabled": {
-                      opacity: 0.5,
-                      cursor: "not-allowed",
-                    },
-                  }}
-                >
-                  {exporting ? (
-                    <CircularProgress size={14} sx={{ color: "var(--success)" }} />
-                  ) : (
-                    <>
-                      <FileDownloadIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
-                      <span style={{ fontSize: "0.75rem", fontWeight: 500 }}>XLSX</span>
-                    </>
-                  )}
-                </IconButton>
+                <span>
+                  <IconButton
+                    onClick={handleExport}
+                    disabled={loading || exporting || filteredUsuarios.length === 0}
+                    size="small"
+                    sx={{
+                      color: "var(--success)",
+                      border: "1px solid var(--success)",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      "&:hover": {
+                        backgroundColor: "var(--success)",
+                        color: "var(--card)",
+                      },
+                      "&:disabled": {
+                        opacity: 0.5,
+                        cursor: "not-allowed",
+                      },
+                    }}
+                  >
+                    {exporting ? (
+                      <CircularProgress size={14} sx={{ color: "var(--success)" }} />
+                    ) : (
+                      <>
+                        <FileDownloadIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                        <span style={{ fontSize: "0.75rem", fontWeight: 500 }}>XLSX</span>
+                      </>
+                    )}
+                  </IconButton>
+                </span>
               </Tooltip>
 
               {/* Botón "Nuevo" */}

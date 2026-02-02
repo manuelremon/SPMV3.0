@@ -20,7 +20,7 @@ import {
   Tabs,
   Tab,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { SPMAgGrid } from "../components/ui/SPMAgGrid";
 import { ArrowBack } from "@mui/icons-material";
 
 const CALIFICACION_OPTIONS = [
@@ -125,23 +125,21 @@ export default function AdminProveedores() {
     loadExternos();
   }, [loadInternos, loadExternos]);
 
-  // Columns for internos
-  const columnsInternos = useMemo(() => [
-    { field: "centro", headerName: "Centro", flex: 0.4, minWidth: 80, headerAlign: "center", align: "center" },
-    { field: "centro_nombre", headerName: "Nombre Centro", flex: 1, minWidth: 150, headerAlign: "center" },
-    { field: "almacen", headerName: "Almacén", flex: 0.4, minWidth: 80, headerAlign: "center", align: "center" },
-    { field: "almacen_nombre", headerName: "Nombre Almacén", flex: 1, minWidth: 150, headerAlign: "center" },
-    { field: "sector", headerName: "Sector", flex: 0.6, minWidth: 100, headerAlign: "center" },
-    { field: "responsable_centro", headerName: "Responsable", flex: 0.8, minWidth: 120, headerAlign: "center" },
-    { field: "contacto_centro", headerName: "Contacto", flex: 1, minWidth: 150, headerAlign: "center" },
+  // Columns for internos (AG Grid format)
+  const columnDefsInternos = useMemo(() => [
+    { field: "centro", headerName: "Centro", flex: 0.4, minWidth: 80 },
+    { field: "centro_nombre", headerName: "Nombre Centro", flex: 1, minWidth: 150 },
+    { field: "almacen", headerName: "Almacén", flex: 0.4, minWidth: 80 },
+    { field: "almacen_nombre", headerName: "Nombre Almacén", flex: 1, minWidth: 150 },
+    { field: "sector", headerName: "Sector", flex: 0.6, minWidth: 100 },
+    { field: "responsable_centro", headerName: "Responsable", flex: 0.8, minWidth: 120 },
+    { field: "contacto_centro", headerName: "Contacto", flex: 1, minWidth: 150 },
     {
       field: "activo",
       headerName: "Estado",
       flex: 0.5,
       minWidth: 80,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => (
+      cellRenderer: (params) => (
         <Typography
           variant="caption"
           sx={{
@@ -160,15 +158,13 @@ export default function AdminProveedores() {
       headerName: "Acciones",
       flex: 0.6,
       minWidth: 150,
-      headerAlign: "center",
-      align: "center",
       sortable: false,
-      renderCell: (params) => (
+      cellRenderer: (params) => (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
           <Button
             size="small"
             variant="outlined"
-            onClick={() => handleEditInterno(params.row)}
+            onClick={() => handleEditInterno(params.data)}
             sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
           >
             Editar
@@ -177,7 +173,7 @@ export default function AdminProveedores() {
             size="small"
             variant="outlined"
             color="error"
-            onClick={() => setDeleteDialogInterno({ open: true, item: params.row })}
+            onClick={() => setDeleteDialogInterno({ open: true, item: params.data })}
             sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
           >
             Eliminar
@@ -187,29 +183,25 @@ export default function AdminProveedores() {
     },
   ], []);
 
-  // Columns for externos
-  const columnsExternos = useMemo(() => [
-    { field: "cuit", headerName: "CUIT", flex: 0.6, minWidth: 120, headerAlign: "center", align: "center" },
-    { field: "nombre", headerName: "Nombre", flex: 1, minWidth: 180, headerAlign: "center" },
-    { field: "localidad", headerName: "Localidad", flex: 0.8, minWidth: 120, headerAlign: "center" },
-    { field: "rubro", headerName: "Rubro", flex: 0.8, minWidth: 120, headerAlign: "center" },
+  // Columns for externos (AG Grid format)
+  const columnDefsExternos = useMemo(() => [
+    { field: "cuit", headerName: "CUIT", flex: 0.6, minWidth: 120 },
+    { field: "nombre", headerName: "Nombre", flex: 1, minWidth: 180 },
+    { field: "localidad", headerName: "Localidad", flex: 0.8, minWidth: 120 },
+    { field: "rubro", headerName: "Rubro", flex: 0.8, minWidth: 120 },
     {
       field: "lead_time_dias",
       headerName: "Lead Time",
       flex: 0.5,
       minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => `${params.value || 0} días`,
+      valueFormatter: (params) => `${params.value || 0} días`,
     },
     {
       field: "calificacion",
       headerName: "Calificación",
       flex: 0.7,
       minWidth: 130,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
+      cellRenderer: (params) => {
         const opt = CALIFICACION_OPTIONS.find(o => o.value === params.value) || CALIFICACION_OPTIONS[0];
         return (
           <Typography
@@ -231,9 +223,7 @@ export default function AdminProveedores() {
       headerName: "Estado",
       flex: 0.5,
       minWidth: 80,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => (
+      cellRenderer: (params) => (
         <Typography
           variant="caption"
           sx={{
@@ -252,15 +242,13 @@ export default function AdminProveedores() {
       headerName: "Acciones",
       flex: 0.6,
       minWidth: 150,
-      headerAlign: "center",
-      align: "center",
       sortable: false,
-      renderCell: (params) => (
+      cellRenderer: (params) => (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
           <Button
             size="small"
             variant="outlined"
-            onClick={() => handleEditExterno(params.row)}
+            onClick={() => handleEditExterno(params.data)}
             sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
           >
             Editar
@@ -269,7 +257,7 @@ export default function AdminProveedores() {
             size="small"
             variant="outlined"
             color="error"
-            onClick={() => setDeleteDialogExterno({ open: true, item: params.row })}
+            onClick={() => setDeleteDialogExterno({ open: true, item: params.data })}
             sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
           >
             Eliminar
@@ -432,28 +420,6 @@ export default function AdminProveedores() {
     }
   }, [deleteDialogExterno.item, loadExternos]);
 
-  const dataGridSx = {
-    border: "1px solid",
-    borderColor: "divider",
-    "& .MuiDataGrid-columnHeaders": {
-      backgroundColor: "grey.100",
-      fontWeight: 700,
-      textTransform: "uppercase",
-      fontSize: "12px",
-    },
-    "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": {
-      justifyContent: "center",
-    },
-    "& .MuiDataGrid-columnHeader": {
-      borderRight: "1px solid",
-      borderColor: "divider",
-    },
-    "& .MuiDataGrid-cell": {
-      fontSize: "13px",
-      borderRight: "1px solid",
-      borderColor: "divider",
-    },
-  };
 
   return (
     <Container maxWidth={false} sx={{ py: 2, maxWidth: 1600 }}>
@@ -464,7 +430,7 @@ export default function AdminProveedores() {
             <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
               <ArrowBack />
             </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Proveedores
             </Typography>
           </Box>
@@ -490,38 +456,36 @@ export default function AdminProveedores() {
         </Tabs>
       </Box>
 
-      {/* DataGrid Internos */}
+      {/* AG Grid Internos */}
       {tab === 0 && (
-        <Paper elevation={2} sx={{ height: 600 }}>
-          <DataGrid
-            rows={internos}
-            columns={columnsInternos}
-            getRowId={(row) => row._id}
+        <Paper elevation={2}>
+          <SPMAgGrid
+            rowData={internos}
+            columnDefs={columnDefsInternos}
+            getRowId={(params) => params.data._id}
             loading={loadingInternos}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
+            height={600}
+            pagination={true}
+            paginationPageSize={20}
+            paginationPageSizeSelector={[20, 50, 100]}
             rowHeight={67}
-            localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
-            sx={dataGridSx}
           />
         </Paper>
       )}
 
-      {/* DataGrid Externos */}
+      {/* AG Grid Externos */}
       {tab === 1 && (
-        <Paper elevation={2} sx={{ height: 600 }}>
-          <DataGrid
-            rows={externos}
-            columns={columnsExternos}
-            getRowId={(row) => row.cuit}
+        <Paper elevation={2}>
+          <SPMAgGrid
+            rowData={externos}
+            columnDefs={columnDefsExternos}
+            getRowId={(params) => params.data.cuit}
             loading={loadingExternos}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
+            height={600}
+            pagination={true}
+            paginationPageSize={20}
+            paginationPageSizeSelector={[20, 50, 100]}
             rowHeight={67}
-            localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
-            sx={dataGridSx}
           />
         </Paper>
       )}

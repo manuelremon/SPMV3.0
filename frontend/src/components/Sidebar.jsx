@@ -1,13 +1,25 @@
 /**
- * Sidebar Component - Glass Morphism Style
+ * Sidebar Component - Material UI Style
  * Translucent navigation with blur effect
  * Mobile responsive with hamburger menu
  */
 
 import React, { useState, memo, useEffect, useCallback } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import clsx from "clsx";
-import Badge from "@mui/material/Badge";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemButton,
+  IconButton,
+  Collapse,
+  Tooltip,
+  Badge,
+  Typography,
+} from "@mui/material";
 import {
   FileText,
   FilePlus2,
@@ -41,67 +53,19 @@ import {
   Clock,
   BarChart2,
   LineChart,
-  Menu,
+  Menu as MenuIcon,
   X,
-  ICON_DEFAULT_COLORS,
   ICON_COLORS,
 } from "./ui/Icons";
 import { useI18n } from "../context/i18n";
 import { useAuthStore } from "../store/authStore";
 import { useRealtimeStore } from "../store/realtimeStore";
-import { Tooltip } from "./ui/Tooltip";
-
-// Colores semánticos para iconos del sidebar - usa ICON_COLORS del sistema central
-const SIDEBAR_ICON_COLORS = {
-  // Navegación principal
-  Home: ICON_COLORS.subtle,
-  Bell: ICON_COLORS.notification,
-  FileText: ICON_COLORS.info,
-  FilePlus2: ICON_COLORS.primary,
-  ClipboardList: ICON_COLORS.info,
-  CheckCircle2: ICON_COLORS.success,
-
-  // Materiales
-  Package: ICON_COLORS.logistics,
-  Search: ICON_COLORS.info,
-  GitCompare: ICON_COLORS.info,
-
-  // Planificador
-  Workflow: ICON_COLORS.primary,
-  Layers: ICON_COLORS.logistics,
-  AlertTriangle: ICON_COLORS.warning,
-  TrendingUp: ICON_COLORS.success,
-  LineChart: ICON_COLORS.charts,
-  BarChart2: ICON_COLORS.charts,
-  Clock: ICON_COLORS.time,
-  Activity: ICON_COLORS.charts,
-
-  // Admin
-  Database: ICON_COLORS.secondary,
-  Users: ICON_COLORS.users,
-  User: ICON_COLORS.users,
-  Shield: ICON_COLORS.secondary,
-  Briefcase: ICON_COLORS.money,
-  Building: ICON_COLORS.secondary,
-  Building2: ICON_COLORS.secondary,
-  MapPin: ICON_COLORS.danger,
-  Boxes: ICON_COLORS.logistics,
-  Server: ICON_COLORS.secondary,
-  Truck: ICON_COLORS.logistics,
-
-  // Presupuesto
-  Wallet: ICON_COLORS.money,
-
-  // Sistema
-  Settings: ICON_COLORS.secondary,
-  LogOut: ICON_COLORS.danger,
-};
 
 // Helper para obtener el color del icono
-// Todos los iconos son #212121, incluso cuando están activos (excepto Bell con animación)
+// Todos los iconos son var(--fg-strong), incluso cuando estan activos (excepto Bell con animacion)
 const getIconColor = (iconName, isActive, hasNotifications = false) => {
-  if (iconName === 'Bell' && hasNotifications) return ''; // Bell con notificaciones usa animación
-  return 'text-[#212121]'; // Todos los iconos siempre en negro #212121
+  if (iconName === 'Bell' && hasNotifications) return ''; // Bell con notificaciones usa animacion
+  return 'var(--fg-strong)'; // Todos los iconos siempre en var(--fg-strong)
 };
 
 // Navigation structure
@@ -128,8 +92,9 @@ const getMainNavItems = (canApprove) => [
     icon: Package,
     iconName: "Package",
     children: [
-      { trKey: "nav_catalogo_materiales", label: "Catálogo", to: "/materiales/catalogo", icon: Search, iconName: "Search" },
+      { trKey: "nav_catalogo_materiales", label: "Catalogo", to: "/materiales/catalogo", icon: Search, iconName: "Search" },
       { trKey: "nav_equivalencias", label: "Alternativos", to: "/materiales/equivalencias", icon: GitCompare, iconName: "GitCompare" },
+      { trKey: "nav_stock", label: "Stock", to: "/materiales/stock", icon: Boxes, iconName: "Boxes" },
     ],
   },
 ];
@@ -146,28 +111,6 @@ const plannerNavItems = [
       { trKey: "nav_asignadas", label: "Mis Asignadas", to: "/planificador/asignadas", icon: FileText, iconName: "FileText" },
       { trKey: "nav_no_asignadas", label: "No Asignadas", to: "/planificador/no-asignadas", icon: FilePlus2, iconName: "FilePlus2" },
       {
-        key: "mrp",
-        trKey: "nav_mrp",
-        label: "MRP",
-        icon: Layers,
-        iconName: "Layers",
-        children: [
-          { trKey: "nav_mrp_alertas", label: "Alertas", to: "/planificador/mrp/alertas", icon: AlertTriangle, iconName: "AlertTriangle" },
-          { trKey: "nav_mrp_kpis", label: "KPIs", to: "/planificador/mrp/kpis", icon: TrendingUp, iconName: "TrendingUp" },
-        ],
-      },
-      {
-        key: "forecast",
-        trKey: "nav_forecast",
-        label: "Forecast",
-        icon: LineChart,
-        iconName: "LineChart",
-        children: [
-          { trKey: "nav_forecast_individual", label: "Individual", to: "/planificador/forecast", icon: BarChart2, iconName: "BarChart2" },
-          { trKey: "nav_forecast_masivo", label: "Masivo", to: "/planificador/forecast/masivo", icon: TrendingUp, iconName: "TrendingUp" },
-        ],
-      },
-      {
         key: "procurement",
         trKey: "nav_procurement",
         label: "Compras SAP",
@@ -175,10 +118,33 @@ const plannerNavItems = [
         iconName: "Truck",
         children: [
           { trKey: "nav_procurement_dashboard", label: "Panel General", to: "/procurement", icon: Boxes, iconName: "Boxes" },
-          { trKey: "nav_procurement_analytics", label: "Analítica", to: "/procurement/analytics", icon: BarChart2, iconName: "BarChart2" },
+          { trKey: "nav_procurement_analytics", label: "Analitica", to: "/procurement/analytics", icon: BarChart2, iconName: "BarChart2" },
         ],
       },
       { trKey: "nav_ai", label: "IA Analytics", to: "/planificador/ai", icon: Activity, iconName: "Activity" },
+    ],
+  },
+  {
+    key: "mrp",
+    trKey: "nav_mrp",
+    label: "MRP",
+    icon: Layers,
+    iconName: "Layers",
+    children: [
+      { trKey: "nav_mrp_portfolio", label: "Portfolio MRP", to: "/mrp/portfolio", icon: Boxes, iconName: "Boxes" },
+      { trKey: "nav_mrp_alertas", label: "Alertas", to: "/planificador/mrp/alertas", icon: AlertTriangle, iconName: "AlertTriangle" },
+      { trKey: "nav_mrp_kpis", label: "KPIs", to: "/planificador/mrp/kpis", icon: TrendingUp, iconName: "TrendingUp" },
+    ],
+  },
+  {
+    key: "forecast",
+    trKey: "nav_forecast",
+    label: "Forecast",
+    icon: LineChart,
+    iconName: "LineChart",
+    children: [
+      { trKey: "nav_forecast_individual", label: "Individual", to: "/planificador/forecast", icon: BarChart2, iconName: "BarChart2" },
+      { trKey: "nav_forecast_masivo", label: "Masivo", to: "/planificador/forecast/masivo", icon: TrendingUp, iconName: "TrendingUp" },
     ],
   },
 ];
@@ -193,6 +159,7 @@ const adminNavHierarchy = [
     iconName: "Database",
     children: [
       { trKey: "admin_usuarios", label: "Usuarios", to: "/admin/usuarios", icon: Users, iconName: "Users" },
+      { trKey: "admin_monitor_usuarios", label: "Monitor Usuarios", to: "/admin/monitor-usuarios", icon: Activity, iconName: "Activity" },
       { trKey: "admin_solicitudes_perfil", label: "Solicitudes Perfil", to: "/admin/solicitudes-perfil", icon: User, iconName: "User" },
       { trKey: "admin_planificadores", label: "Planificadores", to: "/admin/planificadores", icon: Workflow, iconName: "Workflow" },
       { trKey: "admin_roles", label: "Roles", to: "/admin/roles", icon: Shield, iconName: "Shield" },
@@ -216,7 +183,7 @@ const adminNavHierarchy = [
       {
         key: "analisis-puntual",
         trKey: "admin_cat_analisis_puntual",
-        label: "Análisis Puntual",
+        label: "Analisis Puntual",
         icon: BarChart2,
         iconName: "BarChart2",
         children: [
@@ -296,6 +263,29 @@ function Sidebar({ collapsed, onToggle }) {
 
   const isPathActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  // Common styles
+  const listItemButtonSx = (isActive, depth = 0) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1,
+    width: '100%',
+    transition: 'all 0.2s',
+    fontSize: '10px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
+    px: depth === 0 ? 2 : 2,
+    py: depth === 0 ? 1 : 0.75,
+    pl: depth === 0 ? 2 : 3,
+    backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+    color: isActive ? 'white' : 'var(--fg-strong)',
+    '&:hover': {
+      color: isActive ? 'white' : 'var(--primary)',
+      backgroundColor: isActive ? 'var(--primary)' : 'var(--border)',
+    },
+  });
+
   // Render a single nav item
   const renderNavItem = (item, depth = 0) => {
     const Icon = item.icon;
@@ -307,46 +297,65 @@ function Sidebar({ collapsed, onToggle }) {
     const hasNotifications = isNotifications && unreadCount > 0;
     const iconColor = getIconColor(item.iconName, isActive, hasNotifications);
 
-    const baseClass = clsx(
-      "flex items-center gap-2 w-full transition-all duration-200",
-      "text-[10px] font-semibold uppercase tracking-wide",
-      "border-b border-black/20",
-      depth === 0 ? "px-2 py-2" : "px-2 py-1.5 pl-6",
-      isActive
-        ? "bg-[#1976d2] text-white"
-        : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-    );
-
     // Collapsed mode - show only icon with tooltip
     if (collapsed && depth === 0) {
       return (
-        <Tooltip key={item.key || item.to} content={`${label}${hasNotifications ? ` (${unreadCount})` : ""}`} position="right" delay={0} className="w-full flex justify-center py-0.5">
-          {item.to ? (
-            <NavLink to={item.to} className="relative flex items-center justify-center w-8 h-8 rounded-none transition-all duration-200 hover:bg-[#e0e0e0]">
-              <Badge
-                badgeContent={hasNotifications ? unreadCount : 0}
-                color="primary"
-                max={99}
+        <Tooltip key={item.key || item.to} title={`${label}${hasNotifications ? ` (${unreadCount})` : ""}`} placement="right">
+          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', py: 0.25 }}>
+            {item.to ? (
+              <ListItemButton
+                component={NavLink}
+                to={item.to}
                 sx={{
-                  '& .MuiBadge-badge': {
-                    fontSize: '0.65rem',
-                    minWidth: '16px',
-                    height: '16px',
-                  }
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 32,
+                  height: 32,
+                  minWidth: 32,
+                  borderRadius: 0,
+                  transition: 'all 0.2s',
+                  '&:hover': { backgroundColor: 'var(--border)' },
                 }}
               >
-                <Icon className={clsx("w-5 h-5 flex-shrink-0", iconColor, hasNotifications && "animate-notification-blink")} />
-              </Badge>
-            </NavLink>
-          ) : (
-            <button
-              type="button"
-              onClick={() => hasChildren && toggleMenu(item.key)}
-              className="flex items-center justify-center w-8 h-8 rounded-none transition-all duration-200 hover:bg-[#e0e0e0]"
-            >
-              <Icon className={clsx("w-5 h-5 flex-shrink-0", iconColor)} />
-            </button>
-          )}
+                <Badge
+                  badgeContent={hasNotifications ? unreadCount : 0}
+                  color="primary"
+                  max={99}
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.65rem',
+                      minWidth: '16px',
+                      height: '16px',
+                    }
+                  }}
+                >
+                  <Icon
+                    style={{
+                      width: 20,
+                      height: 20,
+                      flexShrink: 0,
+                      color: iconColor,
+                    }}
+                    className={hasNotifications ? "animate-notification-blink" : ""}
+                  />
+                </Badge>
+              </ListItemButton>
+            ) : (
+              <IconButton
+                onClick={() => hasChildren && toggleMenu(item.key)}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 0,
+                  transition: 'all 0.2s',
+                  '&:hover': { backgroundColor: 'var(--border)' },
+                }}
+              >
+                <Icon style={{ width: 20, height: 20, flexShrink: 0, color: iconColor }} />
+              </IconButton>
+            )}
+          </Box>
         </Tooltip>
       );
     }
@@ -370,34 +379,81 @@ function Sidebar({ collapsed, onToggle }) {
             }
           }}
         >
-          <NavLink to={item.to} className={clsx(baseClass, "w-full")}>
-            <Icon className={clsx("w-3.5 h-3.5 flex-shrink-0", iconColor, hasNotifications && "animate-notification-blink")} />
-            <span className="truncate">{label}</span>
-          </NavLink>
+          <ListItemButton
+            component={NavLink}
+            to={item.to}
+            sx={listItemButtonSx(isActive, depth)}
+          >
+            <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
+              <Icon
+                style={{
+                  width: 14,
+                  height: 14,
+                  flexShrink: 0,
+                  color: iconColor,
+                }}
+                className={hasNotifications ? "animate-notification-blink" : ""}
+              />
+            </ListItemIcon>
+            <ListItemText
+              primary={label}
+              primaryTypographyProps={{
+                sx: {
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }
+              }}
+            />
+          </ListItemButton>
         </Badge>
       );
     }
 
     // Parent item with children
     return (
-      <div key={item.key}>
-        <button
-          type="button"
+      <Box key={item.key}>
+        <ListItemButton
           onClick={() => toggleMenu(item.key)}
-          className={clsx(baseClass, "justify-between")}
+          sx={{
+            ...listItemButtonSx(false, depth),
+            justifyContent: 'space-between',
+          }}
         >
-          <div className="flex items-center gap-2">
-            <Icon className={clsx("w-3.5 h-3.5 flex-shrink-0", iconColor)} />
-            <span className="truncate">{label}</span>
-          </div>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Icon style={{ width: 14, height: 14, flexShrink: 0, color: iconColor }} />
+            <Typography
+              sx={{
+                fontSize: '10px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {label}
+            </Typography>
+          </Box>
           <ChevronDown
-            className={clsx("w-3 h-3 transition-transform duration-200 text-black", isExpanded && "rotate-180")}
+            style={{
+              width: 12,
+              height: 12,
+              color: 'var(--fg-strong)',
+              transition: 'transform 0.2s',
+              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
           />
-        </button>
+        </ListItemButton>
 
         {/* Children */}
-        {isExpanded && (
-          <div className="mt-1 space-y-0.5 animate-fade-in">
+        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding sx={{ mt: 0.5 }}>
             {item.children.map((child) => {
               // Nested children (like MRP)
               if (child.children) {
@@ -410,187 +466,320 @@ function Sidebar({ collapsed, onToggle }) {
               const childIconColor = getIconColor(child.iconName, childActive);
 
               return (
-                <NavLink
+                <ListItemButton
                   key={child.to}
+                  component={NavLink}
                   to={child.to}
-                  className={clsx(
-                    "flex items-center gap-2 px-2 py-1.5 pl-6 transition-all duration-200",
-                    "text-[10px] font-semibold uppercase tracking-wide",
-                    "border-b border-black/20",
-                    childActive
-                      ? "bg-[#1976d2] text-white"
-                      : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-                  )}
+                  sx={listItemButtonSx(childActive, depth + 1)}
                 >
-                  <ChildIcon className={clsx("w-3 h-3 flex-shrink-0", childIconColor)} />
-                  <span className="truncate">{childLabel}</span>
-                </NavLink>
+                  <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
+                    <ChildIcon style={{ width: 12, height: 12, flexShrink: 0, color: childIconColor }} />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={childLabel}
+                    primaryTypographyProps={{
+                      sx: {
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }
+                    }}
+                  />
+                </ListItemButton>
               );
             })}
-          </div>
-        )}
-      </div>
+          </List>
+        </Collapse>
+      </Box>
     );
   };
+
+  const drawerWidth = collapsed ? 43 : 160;
+  const mobileDrawerWidth = 288;
+
+  const sidebarContent = (
+    <Box
+      component="nav"
+      sx={{
+        flex: 1,
+        overflowY: 'auto',
+        py: 1,
+        px: 0.5,
+        maxHeight: 'calc(100vh - 43px - 100px)',
+      }}
+    >
+      {/* Section: Principal */}
+      {!collapsed ? (
+        <Box sx={{ pb: 0.5, px: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography
+            sx={{
+              fontSize: '8px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              color: 'var(--fg-muted)',
+            }}
+          >
+            {t("nav_principal", "Principal")}
+          </Typography>
+          <IconButton
+            onClick={onToggle}
+            size="small"
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: 0,
+              color: 'var(--fg-muted)',
+              '&:hover': { color: 'var(--primary)', backgroundColor: 'var(--border)' },
+            }}
+            title={t("tooltip_colapsar", "Colapsar")}
+            aria-label={t("tooltip_colapsar", "Colapsar")}
+          >
+            <ChevronLeft style={{ width: 12, height: 12, color: 'var(--fg-strong)' }} />
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ pb: 0.5, px: 0.5, display: 'flex', justifyContent: 'center' }}>
+          <IconButton
+            onClick={onToggle}
+            size="small"
+            sx={{
+              width: 24,
+              height: 24,
+              borderRadius: 0,
+              color: 'var(--fg-muted)',
+              '&:hover': { color: 'var(--primary)', backgroundColor: 'var(--border)' },
+            }}
+            title={t("tooltip_expandir", "Expandir")}
+            aria-label={t("tooltip_expandir", "Expandir")}
+          >
+            <ChevronRight style={{ width: 14, height: 14, color: 'var(--fg-strong)' }} />
+          </IconButton>
+        </Box>
+      )}
+
+      {/* Section: Operaciones */}
+      {!collapsed && (
+        <Box sx={{ pt: 1, pb: 0.5, px: 1 }}>
+          <Typography
+            sx={{
+              fontSize: '8px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.1em',
+              color: 'var(--fg-muted)',
+            }}
+          >
+            {t("nav_operaciones", "Operaciones")}
+          </Typography>
+        </Box>
+      )}
+
+      {/* Solicitudes y Materiales */}
+      <List disablePadding>
+        {mainNavItems.map((item) => renderNavItem(item))}
+      </List>
+
+      {/* Presupuesto - ahora en Operaciones */}
+      {canSeeBudget && (
+        collapsed ? (
+          <Tooltip title={t("nav_presupuesto", "Presupuesto")} placement="right">
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', py: 0.25 }}>
+              <ListItemButton
+                component={NavLink}
+                to="/presupuestos"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 28,
+                  height: 28,
+                  minWidth: 28,
+                  borderRadius: 0,
+                  transition: 'all 0.15s',
+                  backgroundColor: isPathActive("/presupuestos") ? 'var(--primary)' : 'transparent',
+                  color: 'var(--fg-strong)',
+                  '&:hover': { color: 'var(--primary)', backgroundColor: 'var(--border)' },
+                }}
+              >
+                <Wallet style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--fg-strong)' }} />
+              </ListItemButton>
+            </Box>
+          </Tooltip>
+        ) : (
+          <ListItemButton
+            component={NavLink}
+            to="/presupuestos"
+            sx={listItemButtonSx(isPathActive("/presupuestos"))}
+          >
+            <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
+              <Wallet style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--fg-strong)' }} />
+            </ListItemIcon>
+            <ListItemText
+              primary={t("nav_presupuesto", "Presupuesto")}
+              primaryTypographyProps={{
+                sx: {
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }
+              }}
+            />
+          </ListItemButton>
+        )
+      )}
+
+      {/* Section: Planificacion */}
+      {canSeePlanner && (
+        <>
+          {!collapsed && (
+            <Box sx={{ pt: 1, pb: 0.5, px: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: '8px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: 'var(--fg-muted)',
+                }}
+              >
+                {t("nav_planificacion", "Planificacion")}
+              </Typography>
+            </Box>
+          )}
+          <List disablePadding>
+            {plannerNavItems.map((item) => renderNavItem(item))}
+          </List>
+        </>
+      )}
+
+      {/* Section: Administracion */}
+      {isAdmin() && (
+        <>
+          {!collapsed && (
+            <Box sx={{ pt: 1, pb: 0.5, px: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: '8px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: 'var(--fg-muted)',
+                }}
+              >
+                {t("nav_admin", "Administracion")}
+              </Typography>
+            </Box>
+          )}
+          <List disablePadding>
+            {adminNavHierarchy.map((item) => renderNavItem(item))}
+          </List>
+        </>
+      )}
+    </Box>
+  );
 
   return (
     <>
       {/* Mobile hamburger button - visible only on small screens */}
-      <button
-        type="button"
+      <IconButton
         onClick={() => setMobileOpen(!mobileOpen)}
-        className={clsx(
-          "fixed top-[52px] left-3 z-50 md:hidden",
-          // Touch target mínimo de 44x44px para accesibilidad
-          "h-11 w-11 min-h-[44px] min-w-[44px]",
-          "rounded-none grid place-items-center",
-          "bg-[#bdbdbd] shadow-lg border border-[#9e9e9e]",
-          "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]",
-          "transition-all duration-150",
-          // Efecto activo para feedback táctil
-          "active:scale-95"
-        )}
-        aria-label={mobileOpen ? t("menu_close", "Cerrar menú") : t("menu_open", "Abrir menú")}
+        sx={{
+          position: 'fixed',
+          top: 52,
+          left: 12,
+          zIndex: 50,
+          display: { xs: 'grid', md: 'none' },
+          placeItems: 'center',
+          height: 44,
+          width: 44,
+          minHeight: 44,
+          minWidth: 44,
+          borderRadius: 0,
+          backgroundColor: 'var(--border)',
+          boxShadow: 3,
+          border: '1px solid var(--fg-muted)',
+          color: 'var(--fg-strong)',
+          '&:hover': { color: 'var(--primary)', backgroundColor: 'var(--bg-soft)' },
+          transition: 'all 0.15s',
+          '&:active': { transform: 'scale(0.95)' },
+        }}
+        aria-label={mobileOpen ? t("menu_close", "Cerrar menu") : t("menu_open", "Abrir menu")}
         aria-expanded={mobileOpen}
       >
-        {mobileOpen ? <X className="w-5 h-5 text-[#212121]" /> : <Menu className="w-5 h-5 text-[#212121]" />}
-      </button>
+        {mobileOpen ? (
+          <X style={{ width: 20, height: 20, color: 'var(--fg-strong)' }} />
+        ) : (
+          <MenuIcon style={{ width: 20, height: 20, color: 'var(--fg-strong)' }} />
+        )}
+      </IconButton>
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden animate-fade-in"
+        <Box
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 30,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(4px)',
+            display: { xs: 'block', md: 'none' },
+            animation: 'fadeIn 0.2s ease-in-out',
+          }}
         />
       )}
 
-      <aside
-        className={clsx(
-          "fixed left-0 top-[43px] h-[calc(100vh-43px)] z-40",
-          // MUI Grey A400 background
-          "bg-[#bdbdbd]",
-          "border-r border-[#9e9e9e]",
-          "shadow-xl",
-          "flex flex-col transition-all duration-300 ease-spring",
-          // Width responsive:
-          // - Móvil: w-72 (288px) para mejor usabilidad táctil
-          // - Desktop collapsed: w-[43px]
-          // - Desktop expanded: w-[160px]
-          "w-72",
-          collapsed ? "md:w-[43px]" : "md:w-[160px]",
-          // Mobile: hidden by default, slide in when open
-          "md:translate-x-0",
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        )}
+      {/* Mobile Drawer */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: mobileDrawerWidth,
+            top: 43,
+            height: 'calc(100vh - 43px)',
+            backgroundColor: 'var(--border)',
+            borderRight: '1px solid var(--fg-muted)',
+          },
+        }}
       >
+        {sidebarContent}
+      </Drawer>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2 px-1 space-y-0.5" style={{ maxHeight: 'calc(100vh - 43px - 100px)' }}>
-        {/* Section: Principal */}
-        {!collapsed ? (
-          <div className="pb-1 px-2 flex items-center justify-between">
-            <span className="text-[8px] font-semibold uppercase tracking-wider text-[#616161]">
-              {t("nav_principal", "Principal")}
-            </span>
-            <button
-              type="button"
-              onClick={onToggle}
-              className="h-5 w-5 rounded-none grid place-items-center text-[#616161] hover:text-[#1976d2] hover:bg-[#e0e0e0] transition-all duration-150"
-              title={t("tooltip_colapsar", "Colapsar")}
-              aria-label={t("tooltip_colapsar", "Colapsar")}
-            >
-              <ChevronLeft className="w-3 h-3 text-black" />
-            </button>
-          </div>
-        ) : (
-          <div className="pb-1 px-1 flex justify-center">
-            <button
-              type="button"
-              onClick={onToggle}
-              className="h-6 w-6 rounded-none grid place-items-center text-[#616161] hover:text-[#1976d2] hover:bg-[#e0e0e0] transition-all duration-150"
-              title={t("tooltip_expandir", "Expandir")}
-              aria-label={t("tooltip_expandir", "Expandir")}
-            >
-              <ChevronRight className="w-3.5 h-3.5 text-black" />
-            </button>
-          </div>
-        )}
-        {/* Section: Operaciones */}
-        {!collapsed && (
-          <div className="pt-2 pb-1 px-2">
-            <span className="text-[8px] font-semibold uppercase tracking-wider text-[#616161]">
-              {t("nav_operaciones", "Operaciones")}
-            </span>
-          </div>
-        )}
-        {/* Solicitudes y Materiales */}
-        {mainNavItems.map((item) => renderNavItem(item))}
-
-        {/* Presupuesto - ahora en Operaciones */}
-        {canSeeBudget && (
-          collapsed ? (
-            <Tooltip content={t("nav_presupuesto", "Presupuesto")} position="right" delay={0} className="w-full flex justify-center py-0.5">
-              <NavLink
-                to="/presupuestos"
-                className={clsx(
-                  "flex items-center justify-center w-7 h-7 rounded-none transition-all duration-150",
-                  isPathActive("/presupuestos")
-                    ? "bg-[#1976d2]"
-                    : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-                )}
-              >
-                <Wallet className="w-3.5 h-3.5 flex-shrink-0 text-[#212121]" />
-              </NavLink>
-            </Tooltip>
-          ) : (
-            <NavLink
-              to="/presupuestos"
-              className={clsx(
-                "flex items-center gap-2 w-full rounded-none transition-all duration-150",
-                "text-[10px] font-semibold uppercase tracking-wide px-2 py-2",
-                "border-b border-black/20",
-                isPathActive("/presupuestos")
-                  ? "bg-[#1976d2] text-white"
-                  : "text-[#212121] hover:text-[#1976d2] hover:bg-[#e0e0e0]"
-              )}
-            >
-              <Wallet className="w-3.5 h-3.5 flex-shrink-0 text-[#212121]" />
-              <span className="truncate">{t("nav_presupuesto", "Presupuesto")}</span>
-            </NavLink>
-          )
-        )}
-
-        {/* Section: Planificación */}
-        {canSeePlanner && (
-          <>
-            {!collapsed && (
-              <div className="pt-2 pb-1 px-2">
-                <span className="text-[8px] font-semibold uppercase tracking-wider text-[#616161]">
-                  {t("nav_planificacion", "Planificación")}
-                </span>
-              </div>
-            )}
-            {plannerNavItems.map((item) => renderNavItem(item))}
-          </>
-        )}
-
-        {/* Section: Administración */}
-        {isAdmin() && (
-          <>
-            {!collapsed && (
-              <div className="pt-2 pb-1 px-2">
-                <span className="text-[8px] font-semibold uppercase tracking-wider text-[#616161]">
-                  {t("nav_admin", "Administración")}
-                </span>
-              </div>
-            )}
-            {adminNavHierarchy.map((item) => renderNavItem(item))}
-          </>
-        )}
-
-      </nav>
-    </aside>
+      {/* Desktop Sidebar */}
+      <Box
+        component="aside"
+        sx={{
+          position: 'fixed',
+          left: 0,
+          top: 43,
+          height: 'calc(100vh - 43px)',
+          zIndex: 40,
+          backgroundColor: 'var(--border)',
+          borderRight: '1px solid var(--fg-muted)',
+          boxShadow: 6,
+          display: { xs: 'none', md: 'flex' },
+          flexDirection: 'column',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          width: drawerWidth,
+        }}
+      >
+        {sidebarContent}
+      </Box>
     </>
   );
 }

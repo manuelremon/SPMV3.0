@@ -1,8 +1,8 @@
 /**
  * Canvas-based Gauge Component
  *
- * Reemplaza @mui/x-charts/Gauge con una versión Canvas mucho más ligera.
- * Aproximadamente 10x más pequeño (sin deps pesadas).
+ * Migrado de implementación Canvas nativa a Chart.js via SPMGauge.
+ * Mantiene la API original para compatibilidad hacia atrás.
  *
  * Uso:
  *   <CanvasGauge
@@ -10,95 +10,41 @@
  *     valueMax={100}
  *     width={70}
  *     height={70}
- *     color="#3b82f6"
+ *     color="var(--primary)"
  *     text="75%"
  *   />
  */
 
-import React, { useEffect, useRef } from 'react'
+import React from 'react';
+import { SPMGauge } from '../ui/SPMChartJS';
 
 export function CanvasGauge({
   value = 0,
   valueMax = 100,
   width = 70,
   height = 70,
-  color = '#3b82f6',
-  backgroundColor = '#e5e7eb',
-  text = `${value}%`,
+  color = 'var(--primary)',
+  backgroundColor = 'var(--border)',
+  text,
 }) {
-  const canvasRef = useRef(null)
+  // SPMGauge usa height para dimensionar (width es ignorado)
+  // Usamos el menor entre width y height para mantener aspecto cuadrado
+  const size = Math.min(width, height);
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    const dpr = window.devicePixelRatio || 1
-
-    // Set canvas size with device pixel ratio
-    canvas.width = width * dpr
-    canvas.height = height * dpr
-    ctx.scale(dpr, dpr)
-
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height)
-
-    // Gauge parameters
-    const centerX = width / 2
-    const centerY = height * 0.65 // More towards bottom
-    const radius = Math.min(width, height) * 0.35
-    const startAngle = (Math.PI * 200) / 180 // -110 degrees
-    const endAngle = (Math.PI * -20) / 180 // 110 degrees
-    const lineWidth = 5
-
-    // Draw background arc
-    ctx.strokeStyle = backgroundColor
-    ctx.lineWidth = lineWidth
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, startAngle, endAngle, true)
-    ctx.stroke()
-
-    // Draw value arc
-    const percentage = Math.min(value / valueMax, 1)
-    const currentAngle = startAngle + (endAngle - startAngle) * percentage
-
-    ctx.strokeStyle = color
-    ctx.lineWidth = lineWidth
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, startAngle, currentAngle, true)
-    ctx.stroke()
-
-    // Draw center text
-    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = '#1f2937'
-
-    const textWidth = ctx.measureText(text).width
-    const maxWidth = width * 0.6
-
-    // Scale text if too wide
-    if (textWidth > maxWidth) {
-      ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    }
-
-    ctx.fillText(text, centerX, centerY)
-  }, [value, valueMax, width, height, color, backgroundColor, text])
+  // Extraer unidad del texto si existe, o usar '%' por defecto
+  const unit = text ? '' : '%';
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      style={{
-        width: `${width}px`,
-        height: `${height}px`,
-        display: 'block',
-      }}
+    <SPMGauge
+      value={value}
+      valueMax={valueMax}
+      height={size}
+      width={size}
+      color={color}
+      unit={unit}
+      showText={true}
     />
-  )
+  );
 }
 
-export default CanvasGauge
+export default CanvasGauge;

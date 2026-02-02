@@ -10,14 +10,25 @@
  * - DatabaseModals.jsx: Todos los modales
  */
 
-import { useState, useEffect, useCallback } from "react";
-import { PageHeader } from "../../../components/ui/PageHeader";
-import { Alert } from "../../../components/ui/Alert";
-import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/Tabs";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../../context/i18n";
-import { Database, List, Settings } from "../../../components/ui/Icons";
 import { ImportExcelModal } from "../../../components/admin/ImportExcelModal";
 import { TempDataBanner } from "../../../components/ui/TempDataBanner";
+
+// MUI Components
+import {
+  Box,
+  Paper,
+  Typography,
+  IconButton,
+  Alert,
+  Tabs,
+  Tab,
+} from "@mui/material";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 // Componentes modulares
 import { useAdminDatabase } from "./useAdminDatabase";
@@ -34,9 +45,13 @@ import {
   ConnectionsModal,
 } from "./DatabaseModals";
 
+/* ─────────────────────────────────────────────────────────────
+   Main Component
+───────────────────────────────────────────────────────────── */
 export default function AdminBasesDatos() {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState("overview");
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState(0);
 
   // Hook centralizado con toda la logica
   const db = useAdminDatabase();
@@ -58,7 +73,7 @@ export default function AdminBasesDatos() {
 
   // Cargar tablas cuando cambia el tab o la BD
   useEffect(() => {
-    if (activeTab === "tables") {
+    if (activeTab === 1) {
       db.loadTables(db.selectedDb);
     }
   }, [activeTab, db.selectedDb]);
@@ -163,162 +178,238 @@ export default function AdminBasesDatos() {
     if (data) setConnectionsModal({ open: true });
   };
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("admin_bases_datos", "Bases de Datos")}
-        subtitle={db.isProduction ? "PostgreSQL (Produccion)" : "SQLite (Desarrollo)"}
-      />
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
+      <Box sx={{ maxWidth: 1600, mx: "auto", px: 3, py: 3 }}>
 
-      {db.error && <Alert variant="danger" onDismiss={() => db.setError("")}>{db.error}</Alert>}
-      {db.success && <Alert variant="success" onDismiss={db.clearMessages}>{db.success}</Alert>}
+        {/* Header */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
+          <IconButton
+            onClick={() => navigate(-1)}
+            size="small"
+            sx={{
+              color: "text.secondary",
+              "&:hover": {
+                color: "text.primary",
+                bgcolor: "grey.200",
+              },
+            }}
+          >
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Box>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "text.primary",
+              }}
+            >
+              {t("admin_bases_datos", "Bases de Datos")}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {db.isProduction ? "PostgreSQL (Produccion)" : "SQLite (Desarrollo)"}
+            </Typography>
+          </Box>
+        </Box>
 
-      {/* Banner de Modo Temporal */}
-      <TempDataBanner onStatusChange={setTempModeActive} />
+        {/* Alerts */}
+        {db.error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            onClose={() => db.setError("")}
+          >
+            {db.error}
+          </Alert>
+        )}
+        {db.success && (
+          <Alert
+            severity="success"
+            sx={{ mb: 2 }}
+            onClose={db.clearMessages}
+          >
+            {db.success}
+          </Alert>
+        )}
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">
-            {t("db_overview", "Vista General")}
-          </TabsTrigger>
-          <TabsTrigger value="tables">
-            {t("db_tables", "Tablas")}
-          </TabsTrigger>
-          <TabsTrigger value="tools">
-            {t("db_tools", "Herramientas")}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+        {/* Banner de Modo Temporal */}
+        <TempDataBanner onStatusChange={setTempModeActive} />
 
-      {/* Tab Content */}
-      {activeTab === "overview" && (
-        <OverviewTab
-          loading={db.loading}
-          databases={db.databases}
-          poolStats={db.poolStats}
-          onRefresh={db.loadOverview}
+        {/* Card con Tabs */}
+        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+          {/* Tabs Header */}
+          <Box sx={{ bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              sx={{
+                "& .MuiTab-root": {
+                  px: 2.5,
+                  py: 1.5,
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  textTransform: "none",
+                  minHeight: 48,
+                  color: "text.secondary",
+                  "&.Mui-selected": {
+                    color: "primary.main",
+                    bgcolor: "background.paper",
+                  },
+                  "&:hover": {
+                    color: "text.primary",
+                    bgcolor: "grey.100",
+                  },
+                },
+                "& .MuiTabs-indicator": {
+                  height: 2,
+                },
+              }}
+            >
+              <Tab label={t("db_overview", "Vista General")} />
+              <Tab label={t("db_tables", "Tablas")} />
+              <Tab label={t("db_tools", "Herramientas")} />
+            </Tabs>
+          </Box>
+
+          {/* Tab Content */}
+          <Box sx={{ p: 3 }}>
+            {activeTab === 0 && (
+              <OverviewTab
+                loading={db.loading}
+                databases={db.databases}
+                poolStats={db.poolStats}
+                onRefresh={db.loadOverview}
+              />
+            )}
+
+            {activeTab === 1 && (
+              <TablesTab
+                loading={db.loading}
+                databases={db.databases}
+                selectedDb={db.selectedDb}
+                onDbChange={db.setSelectedDb}
+                tables={db.tables}
+                onRefresh={() => db.loadTables(db.selectedDb)}
+                onViewStructure={handleViewStructure}
+                onViewData={handleViewData}
+                onExportCsv={db.exportTableCsv}
+              />
+            )}
+
+            {activeTab === 2 && (
+              <ToolsTab
+                databases={db.databases}
+                selectedDb={db.selectedDb}
+                onDbChange={db.setSelectedDb}
+                tables={db.tables}
+                selectedTable={db.selectedTable}
+                onTableChange={db.setSelectedTable}
+                isPostgres={db.isPostgres}
+                isProduction={db.isProduction}
+                operationLoading={db.operationLoading}
+                integrityResult={db.integrityResult}
+                poolStats={db.poolStats}
+                tempModeActive={tempModeActive}
+                onRunOperation={db.runOperation}
+                onIntegrityCheck={db.runIntegrityCheck}
+                onDownloadDatabase={db.downloadDatabase}
+                onLoadTableStats={handleLoadTableStats}
+                onLoadAuditLogs={handleLoadAuditLogs}
+                onLoadConnections={handleLoadConnections}
+                onOpenImportModal={() => setImportExcelModal(true)}
+              />
+            )}
+          </Box>
+        </Paper>
+
+        {/* Modales */}
+        <StructureModal
+          isOpen={structureModal.open}
+          onClose={() => setStructureModal({ open: false })}
+          tableStructure={db.tableStructure}
         />
-      )}
 
-      {activeTab === "tables" && (
-        <TablesTab
-          loading={db.loading}
-          databases={db.databases}
-          selectedDb={db.selectedDb}
-          onDbChange={db.setSelectedDb}
-          tables={db.tables}
-          onRefresh={() => db.loadTables(db.selectedDb)}
-          onViewStructure={handleViewStructure}
-          onViewData={handleViewData}
-          onExportCsv={db.exportTableCsv}
+        <PreviewModal
+          isOpen={previewModal.open}
+          onClose={() => setPreviewModal({ open: false })}
+          tablePreview={db.tablePreview}
+          isReadOnly={db.isReadOnly}
+          onAdd={handleOpenAdd}
+          onEdit={handleOpenEdit}
+          onDelete={handleOpenDelete}
         />
-      )}
 
-      {activeTab === "tools" && (
-        <ToolsTab
-          databases={db.databases}
-          selectedDb={db.selectedDb}
-          onDbChange={db.setSelectedDb}
-          tables={db.tables}
-          selectedTable={db.selectedTable}
-          onTableChange={db.setSelectedTable}
-          isPostgres={db.isPostgres}
-          isProduction={db.isProduction}
-          operationLoading={db.operationLoading}
-          integrityResult={db.integrityResult}
-          poolStats={db.poolStats}
-          tempModeActive={tempModeActive}
-          onRunOperation={db.runOperation}
-          onIntegrityCheck={db.runIntegrityCheck}
-          onDownloadDatabase={db.downloadDatabase}
-          onLoadTableStats={handleLoadTableStats}
-          onLoadAuditLogs={handleLoadAuditLogs}
-          onLoadConnections={handleLoadConnections}
-          onOpenImportModal={() => setImportExcelModal(true)}
+        <CrudFormModal
+          isOpen={addModal.open}
+          onClose={() => setAddModal({ open: false })}
+          title={`Agregar registro a ${db.selectedTable}`}
+          tableColumns={db.tableColumns}
+          tablePk={db.tablePk}
+          formData={formData}
+          loading={db.crudLoading}
+          onFormChange={handleFormChange}
+          onSubmit={handleCreate}
+          isEdit={false}
         />
-      )}
 
-      {/* Modales */}
-      <StructureModal
-        isOpen={structureModal.open}
-        onClose={() => setStructureModal({ open: false })}
-        tableStructure={db.tableStructure}
-      />
+        <CrudFormModal
+          isOpen={editModal.open}
+          onClose={() => setEditModal({ open: false, row: null })}
+          title={`Editar registro de ${db.selectedTable}`}
+          tableColumns={db.tableColumns}
+          tablePk={db.tablePk}
+          formData={formData}
+          editRow={editModal.row}
+          loading={db.crudLoading}
+          onFormChange={handleFormChange}
+          onSubmit={handleUpdate}
+          isEdit={true}
+        />
 
-      <PreviewModal
-        isOpen={previewModal.open}
-        onClose={() => setPreviewModal({ open: false })}
-        tablePreview={db.tablePreview}
-        isReadOnly={db.isReadOnly}
-        onAdd={handleOpenAdd}
-        onEdit={handleOpenEdit}
-        onDelete={handleOpenDelete}
-      />
+        <DeleteModal
+          isOpen={deleteModal.open}
+          onClose={() => setDeleteModal({ open: false, row: null })}
+          row={deleteModal.row}
+          loading={db.crudLoading}
+          onDelete={() => handleDelete(false)}
+          onSoftDelete={() => handleDelete(true)}
+        />
 
-      <CrudFormModal
-        isOpen={addModal.open}
-        onClose={() => setAddModal({ open: false })}
-        title={`Agregar registro a ${db.selectedTable}`}
-        tableColumns={db.tableColumns}
-        tablePk={db.tablePk}
-        formData={formData}
-        loading={db.crudLoading}
-        onFormChange={handleFormChange}
-        onSubmit={handleCreate}
-        isEdit={false}
-      />
+        <StatsModal
+          isOpen={statsModal.open}
+          onClose={() => setStatsModal({ open: false, table: null })}
+          tableName={statsModal.table}
+          tableStats={db.tableStats}
+        />
 
-      <CrudFormModal
-        isOpen={editModal.open}
-        onClose={() => setEditModal({ open: false, row: null })}
-        title={`Editar registro de ${db.selectedTable}`}
-        tableColumns={db.tableColumns}
-        tablePk={db.tablePk}
-        formData={formData}
-        editRow={editModal.row}
-        loading={db.crudLoading}
-        onFormChange={handleFormChange}
-        onSubmit={handleUpdate}
-        isEdit={true}
-      />
+        <AuditModal
+          isOpen={auditModal.open}
+          onClose={() => setAuditModal({ open: false })}
+          auditLogs={db.auditLogs}
+        />
 
-      <DeleteModal
-        isOpen={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, row: null })}
-        row={deleteModal.row}
-        loading={db.crudLoading}
-        onDelete={() => handleDelete(false)}
-        onSoftDelete={() => handleDelete(true)}
-      />
+        <ConnectionsModal
+          isOpen={connectionsModal.open}
+          onClose={() => setConnectionsModal({ open: false })}
+          connections={db.connections}
+        />
 
-      <StatsModal
-        isOpen={statsModal.open}
-        onClose={() => setStatsModal({ open: false, table: null })}
-        tableName={statsModal.table}
-        tableStats={db.tableStats}
-      />
-
-      <AuditModal
-        isOpen={auditModal.open}
-        onClose={() => setAuditModal({ open: false })}
-        auditLogs={db.auditLogs}
-      />
-
-      <ConnectionsModal
-        isOpen={connectionsModal.open}
-        onClose={() => setConnectionsModal({ open: false })}
-        connections={db.connections}
-      />
-
-      <ImportExcelModal
-        isOpen={importExcelModal}
-        onClose={() => setImportExcelModal(false)}
-        onSuccess={() => {
-          setTempModeActive(true);
-          setImportExcelModal(false);
-        }}
-      />
-    </div>
+        <ImportExcelModal
+          isOpen={importExcelModal}
+          onClose={() => setImportExcelModal(false)}
+          onSuccess={() => {
+            setTempModeActive(true);
+            setImportExcelModal(false);
+          }}
+        />
+      </Box>
+    </Box>
   );
 }

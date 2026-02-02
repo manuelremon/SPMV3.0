@@ -2,30 +2,36 @@
  * ToolsTab - Herramientas de administracion de BD
  */
 
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../../components/ui/Card";
-import { Button } from "../../../components/ui/Button";
-import { Alert } from "../../../components/ui/Alert";
-import { Badge } from "../../../components/ui/Badge";
-import { Select } from "../../../components/ui/Select";
-import { useI18n } from "../../../context/i18n";
 import {
-  RefreshCcw,
-  Download,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  List,
-  Zap,
-  Shield,
-  HardDrive,
-  Clock,
-  BarChart2,
-  Activity,
-  History,
-  Users,
-  Upload,
-  ICON_COLORS,
-} from "../../../components/ui/Icons";
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Stack,
+  Alert,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  CircularProgress,
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import DownloadIcon from "@mui/icons-material/Download";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ListIcon from "@mui/icons-material/List";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
+import ShieldIcon from "@mui/icons-material/Shield";
+import StorageIcon from "@mui/icons-material/Storage";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import ShowChartIcon from "@mui/icons-material/ShowChart";
+import HistoryIcon from "@mui/icons-material/History";
+import PeopleIcon from "@mui/icons-material/People";
+import UploadIcon from "@mui/icons-material/Upload";
+import { useI18n } from "../../../context/i18n";
 
 export function ToolsTab({
   databases,
@@ -51,339 +57,427 @@ export function ToolsTab({
   const { t } = useI18n();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="w-48">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+        <FormControl sx={{ minWidth: 200 }} size="small">
+          <InputLabel id="db-select-label">{t("db_select", "Base de datos")}</InputLabel>
           <Select
+            labelId="db-select-label"
             value={selectedDb}
             onChange={(e) => onDbChange(e.target.value)}
             label={t("db_select", "Base de datos")}
           >
             {databases.map((db) => (
-              <option key={db.name} value={db.name}>
+              <MenuItem key={db.name} value={db.name}>
                 {db.name} ({db.type === "postgresql" ? "PostgreSQL" : "SQLite"})
-              </option>
+              </MenuItem>
             ))}
           </Select>
-        </div>
-      </div>
+        </FormControl>
+      </Box>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            md: "repeat(2, 1fr)",
+            lg: "repeat(3, 1fr)",
+          },
+          gap: 2,
+        }}
+      >
         {/* Optimizar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className={`w-5 h-5 ${ICON_COLORS.warning}`} />
-              Optimizar
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <FlashOnIcon sx={{ fontSize: 20, color: "warning.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Optimizar
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {isPostgres ? "VACUUM ANALYZE" : "Indices + ANALYZE + VACUUM"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
+              variant="contained"
               onClick={() => onRunOperation("optimize", "BD optimizada")}
               disabled={operationLoading}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <FlashOnIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
               Ejecutar Optimizacion
             </Button>
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* VACUUM */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className={`w-5 h-5 ${ICON_COLORS.info}`} />
-              VACUUM
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>Compactar y liberar espacio</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <StorageIcon sx={{ fontSize: 20, color: "info.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                VACUUM
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Compactar y liberar espacio
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={() => onRunOperation("vacuum", "VACUUM completado")}
               disabled={operationLoading}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <StorageIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <HardDrive className="w-4 h-4" />}
               Ejecutar VACUUM
             </Button>
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* ANALYZE */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className={`w-5 h-5 ${ICON_COLORS.success}`} />
-              ANALYZE
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>Actualizar estadisticas de tablas</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <AccessTimeIcon sx={{ fontSize: 20, color: "success.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                ANALYZE
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Actualizar estadisticas de tablas
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={() => onRunOperation("analyze", "ANALYZE completado")}
               disabled={operationLoading}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <AccessTimeIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
               Ejecutar ANALYZE
             </Button>
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* Crear Indices */}
-        <Card className={isPostgres ? "opacity-60" : ""}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <List className={`w-5 h-5 ${ICON_COLORS.primary}`} />
-              Crear Indices
-              <Badge variant="warning" className="ml-auto text-xs">SQLite</Badge>
-            </CardTitle>
-            <CardDescription>Indices recomendados para rendimiento</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0, opacity: isPostgres ? 0.6 : 1 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <ListIcon sx={{ fontSize: 20, color: "primary.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Crear Indices
+              </Typography>
+              <Chip label="SQLite" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Indices recomendados para rendimiento
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={() => onRunOperation("create-indexes", "Indices creados")}
               disabled={operationLoading || isPostgres}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <ListIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <List className="w-4 h-4" />}
               Crear Indices
             </Button>
-            {isPostgres && <p className="text-xs text-amber-600 mt-2">No disponible para PostgreSQL</p>}
-          </CardContent>
-        </Card>
+            {isPostgres && (
+              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+                No disponible para PostgreSQL
+              </Typography>
+            )}
+          </Box>
+        </Paper>
 
         {/* Verificar Integridad */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className={`w-5 h-5 ${ICON_COLORS.danger}`} />
-              Verificar Integridad
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <ShieldIcon sx={{ fontSize: 20, color: "error.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Verificar Integridad
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {isPostgres ? "Indices invalidos y fragmentacion" : "PRAGMA integrity_check"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={onIntegrityCheck}
               disabled={operationLoading}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <ShieldIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
               Verificar
             </Button>
             {integrityResult && (
-              <div className={`p-3 rounded-lg ${integrityResult.integrity_ok ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"} border`}>
-                <div className="flex items-center gap-2">
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 1,
+                  bgcolor: integrityResult.integrity_ok ? "success.lighter" : "error.lighter",
+                  border: 1,
+                  borderColor: integrityResult.integrity_ok ? "success.light" : "error.light",
+                }}
+              >
+                <Stack direction="row" alignItems="center" gap={1}>
                   {integrityResult.integrity_ok ? (
-                    <CheckCircle className={`w-5 h-5 ${ICON_COLORS.success}`} />
+                    <CheckCircleIcon sx={{ fontSize: 20, color: "success.main" }} />
                   ) : (
-                    <XCircle className={`w-5 h-5 ${ICON_COLORS.danger}`} />
+                    <CancelIcon sx={{ fontSize: 20, color: "error.main" }} />
                   )}
-                  <span className="font-medium">
+                  <Typography variant="body2" fontWeight={500}>
                     {integrityResult.integrity_ok ? "BD Integra" : "Problemas detectados"}
-                  </span>
-                </div>
+                  </Typography>
+                </Stack>
                 {integrityResult.foreign_key_issues > 0 && (
-                  <p className="text-sm text-amber-600 mt-1">
+                  <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
                     {integrityResult.foreign_key_issues} problemas de FK
-                  </p>
+                  </Typography>
                 )}
                 {integrityResult.bloated_tables?.length > 0 && (
-                  <p className="text-sm text-amber-600 mt-1">
+                  <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
                     {integrityResult.bloated_tables.length} tablas con fragmentacion
-                  </p>
+                  </Typography>
                 )}
-              </div>
+              </Box>
             )}
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* Descargar Backup */}
-        <Card className={isPostgres ? "opacity-60" : ""}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className={`w-5 h-5 ${ICON_COLORS.info}`} />
-              Backup
-              <Badge variant="warning" className="ml-auto text-xs">SQLite</Badge>
-            </CardTitle>
-            <CardDescription>Descargar copia de la BD</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0, opacity: isPostgres ? 0.6 : 1 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <DownloadIcon sx={{ fontSize: 20, color: "info.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Backup
+              </Typography>
+              <Chip label="SQLite" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Descargar copia de la BD
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={onDownloadDatabase}
               disabled={isPostgres}
-              className="w-full"
+              fullWidth
+              startIcon={<DownloadIcon />}
             >
-              <Download className="w-4 h-4" />
               Descargar {selectedDb}.db
             </Button>
-            {isPostgres && <p className="text-xs text-amber-600 mt-2">Use pg_dump para PostgreSQL</p>}
-          </CardContent>
-        </Card>
+            {isPostgres && (
+              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+                Use pg_dump para PostgreSQL
+              </Typography>
+            )}
+          </Box>
+        </Paper>
 
         {/* Estadisticas de Tabla */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className={`w-5 h-5 ${ICON_COLORS.primary}`} />
-              Estadisticas
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>Ver tamaño, filas e indices de una tabla</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Select
-                value={selectedTable || ""}
-                onChange={(e) => onTableChange(e.target.value)}
-                className="flex-1"
-              >
-                <option value="">Seleccionar tabla...</option>
-                {tables.map((t) => (
-                  <option key={t.name} value={t.name}>{t.name}</option>
-                ))}
-              </Select>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <BarChartIcon sx={{ fontSize: 20, color: "primary.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Estadisticas
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Ver tamaño, filas e indices de una tabla
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" gap={1}>
+              <FormControl size="small" sx={{ flex: 1 }}>
+                <Select
+                  value={selectedTable || ""}
+                  onChange={(e) => onTableChange(e.target.value)}
+                  displayEmpty
+                >
+                  <MenuItem value="">Seleccionar tabla...</MenuItem>
+                  {tables.map((t) => (
+                    <MenuItem key={t.name} value={t.name}>
+                      {t.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <Button
-                variant="secondary"
+                variant="outlined"
                 onClick={() => selectedTable && onLoadTableStats(selectedTable)}
                 disabled={operationLoading || !selectedTable}
               >
-                <BarChart2 className="w-4 h-4" />
+                <BarChartIcon />
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </Stack>
+          </Box>
+        </Paper>
 
         {/* Audit Logs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className={`w-5 h-5 ${ICON_COLORS.warning}`} />
-              Audit Log
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>Ver historial de operaciones CRUD</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <HistoryIcon sx={{ fontSize: 20, color: "warning.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Audit Log
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Ver historial de operaciones CRUD
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={onLoadAuditLogs}
               disabled={operationLoading}
-              className="w-full"
+              fullWidth
+              startIcon={<HistoryIcon />}
             >
-              <History className="w-4 h-4" />
               Ver Ultimos 7 dias
             </Button>
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* Conexiones Activas */}
-        <Card className={!isPostgres ? "opacity-60" : ""}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className={`w-5 h-5 ${ICON_COLORS.info}`} />
-              Conexiones
-              <Badge variant="info" className="ml-auto text-xs">PostgreSQL</Badge>
-            </CardTitle>
-            <CardDescription>Ver conexiones activas</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0, opacity: !isPostgres ? 0.6 : 1 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <PeopleIcon sx={{ fontSize: 20, color: "info.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Conexiones
+              </Typography>
+              <Chip label="PostgreSQL" size="small" color="info" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Ver conexiones activas
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             <Button
-              variant="secondary"
+              variant="outlined"
               onClick={onLoadConnections}
               disabled={operationLoading || !isPostgres}
-              className="w-full"
+              fullWidth
+              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <PeopleIcon />}
             >
-              {operationLoading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
               Ver Conexiones
             </Button>
-            {!isPostgres && <p className="text-xs text-amber-600 mt-2">Solo disponible para PostgreSQL</p>}
-          </CardContent>
-        </Card>
+            {!isPostgres && (
+              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+                Solo disponible para PostgreSQL
+              </Typography>
+            )}
+          </Box>
+        </Paper>
 
         {/* Pool Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className={`w-5 h-5 ${ICON_COLORS.success}`} />
-              Pool Stats
-              <Badge variant="success" className="ml-auto text-xs">All DBs</Badge>
-            </CardTitle>
-            <CardDescription>Estadisticas del pool de conexiones</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <Paper elevation={1} sx={{ p: 0 }}>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <ShowChartIcon sx={{ fontSize: 20, color: "success.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Pool Stats
+              </Typography>
+              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Estadisticas del pool de conexiones
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>
             {poolStats ? (
-              <div className="space-y-2 text-sm">
+              <Stack spacing={1}>
                 {Object.entries(poolStats).map(([pool, stats]) => (
-                  <div key={pool} className="p-2 bg-[var(--bg-soft)] rounded">
-                    <p className="font-medium">{pool}</p>
-                    <p className="text-xs text-[var(--fg-muted)]">
+                  <Box key={pool} sx={{ p: 1, bgcolor: "action.hover", borderRadius: 1 }}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {pool}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
                       Activas: {stats.active || 0} | Idle: {stats.idle || 0}
-                    </p>
-                  </div>
+                    </Typography>
+                  </Box>
                 ))}
-              </div>
+              </Stack>
             ) : (
-              <p className="text-sm text-[var(--fg-muted)]">Cargando...</p>
+              <Typography variant="body2" color="text.secondary">
+                Cargando...
+              </Typography>
             )}
-          </CardContent>
-        </Card>
+          </Box>
+        </Paper>
 
         {/* Importar Datos Temporales */}
-        <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="w-5 h-5 text-amber-500" />
-              Datos Temporales
-              <Badge variant="warning" className="ml-auto text-xs">MRP/Forecast</Badge>
-            </CardTitle>
-            <CardDescription>
+        <Paper
+          elevation={1}
+          sx={{
+            p: 0,
+            border: 1,
+            borderColor: "warning.light",
+            background: "linear-gradient(to bottom right, rgba(237, 108, 2, 0.05), rgba(255, 152, 0, 0.05))",
+          }}
+        >
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Stack direction="row" alignItems="center" gap={1}>
+              <UploadIcon sx={{ fontSize: 20, color: "warning.main" }} />
+              <Typography variant="subtitle1" fontWeight={600}>
+                Datos Temporales
+              </Typography>
+              <Chip label="MRP/Forecast" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Importar Excel para operar MRP y Forecast con datos temporales
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-[var(--fg-muted)]">
-              Permite trabajar con datos importados desde Excel sin afectar las bases de datos del sistema.
-              Ideal para pruebas y analisis.
-            </p>
+            </Typography>
+          </Box>
+          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              Permite trabajar con datos importados desde Excel sin afectar las bases de datos del sistema. Ideal para
+              pruebas y analisis.
+            </Typography>
             <Button
+              variant="contained"
+              color="warning"
               onClick={onOpenImportModal}
-              className="w-full bg-amber-500 hover:bg-amber-600"
               disabled={tempModeActive}
+              fullWidth
+              startIcon={<UploadIcon />}
             >
-              <Upload className="w-4 h-4" />
               {tempModeActive ? "Modo Temporal Activo" : "Importar Excel"}
             </Button>
             {tempModeActive && (
-              <p className="text-xs text-amber-600 text-center">
+              <Typography variant="caption" color="warning.main" sx={{ textAlign: "center" }}>
                 Desactive el modo temporal desde el banner superior para importar nuevos datos
-              </p>
+              </Typography>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </Box>
+        </Paper>
+      </Box>
 
       {isProduction && (
-        <Alert variant="info" className="mt-4">
-          <AlertTriangle className="w-4 h-4" />
+        <Alert severity="info" icon={<WarningAmberIcon />} sx={{ mt: 2 }}>
           PostgreSQL en produccion: Algunas operaciones (VACUUM, Optimize) funcionan pero requieren permisos adecuados.
         </Alert>
       )}
-    </div>
+    </Box>
   );
 }

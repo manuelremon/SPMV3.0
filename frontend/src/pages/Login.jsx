@@ -18,7 +18,7 @@ import Link from "@mui/material/Link";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
-import MuiCard from "@mui/material/Card";
+import Card from "@mui/material/Card";
 import Alert from "@mui/material/Alert";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -29,62 +29,9 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import SvgIcon from "@mui/material/SvgIcon";
-import { styled } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-
-// Styled Components
-// Colores del sistema SPM
-const SPM_COLORS = {
-  background: '#faf1e1',      // Fondo cream/beige del sistema
-  primary: '#1976d2',         // MUI Blue 700
-  accent: '#fc1b80',          // Rosa vibrante del header SPM
-  cardBg: '#ffffff',          // Fondo blanco para la card
-  textPrimary: '#0f172a',     // Slate 900
-  textSecondary: '#64748b',   // Slate 500
-};
-
-const Card = styled(MuiCard)(({ theme }) => ({
-  display: "flex",
-  flexDirection: "column",
-  alignSelf: "center",
-  width: "100%",
-  padding: theme.spacing(4),
-  gap: theme.spacing(2),
-  margin: "auto",
-  backgroundColor: SPM_COLORS.cardBg,
-  [theme.breakpoints.up("sm")]: {
-    maxWidth: "450px",
-  },
-  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
-  border: "1px solid rgba(0, 0, 0, 0.08)",
-}));
-
-const SignInContainer = styled(Stack)(({ theme }) => ({
-  minHeight: "100dvh",
-  padding: theme.spacing(2),
-  paddingBottom: "80px",
-  backgroundColor: SPM_COLORS.background,
-  justifyContent: "center",
-  alignItems: "center",
-  position: "relative",
-  [theme.breakpoints.up("sm")]: {
-    padding: theme.spacing(4),
-    paddingBottom: "80px",
-  },
-}));
-
-const Footer = styled(Box)(({ theme }) => ({
-  position: "fixed",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  textAlign: "center",
-  padding: theme.spacing(2),
-  backgroundColor: SPM_COLORS.background,
-  color: SPM_COLORS.textSecondary,
-  fontSize: "0.75rem",
-}));
 
 // Google Icon Component
 function GoogleIcon() {
@@ -307,10 +254,10 @@ function RegisterDialog({ open, handleClose, t, onRegister, isSubmitting, regist
 // Main Login Component
 export default function Login() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { login, register, isLoading, error, clearError, user } = useAuthStore();
   const { t } = useI18n();
 
-  // Parallax effect - strong preset para hero/login (offset: 0.7)
   const { ref: parallaxRef, style: parallaxStyle, isDisabled: parallaxDisabled } = useParallax({ offset: 0.7 });
 
   const [emailError, setEmailError] = useState(false);
@@ -325,7 +272,11 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      navigate("/dashboard");
+      if (user.is_new_user) {
+        navigate("/nuevo-usuario");
+      } else {
+        navigate("/dashboard");
+      }
     }
   }, [user, navigate]);
 
@@ -336,10 +287,8 @@ export default function Login() {
   const validateInputs = () => {
     const identifier = document.getElementById("email");
     const password = document.getElementById("password");
-
     let isValid = true;
 
-    // Validar: debe ser email válido O número de ID (solo dígitos)
     const isEmail = /\S+@\S+\.\S+/.test(identifier.value);
     const isNumericId = /^\d+$/.test(identifier.value);
 
@@ -364,17 +313,13 @@ export default function Login() {
       setPasswordError(false);
       setPasswordErrorMessage("");
     }
-
     return isValid;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     clearError();
-
-    if (!validateInputs()) {
-      return;
-    }
+    if (!validateInputs()) return;
 
     const data = new FormData(event.currentTarget);
     const email = data.get("email");
@@ -392,7 +337,6 @@ export default function Login() {
   const handleRegister = async (formData) => {
     setRegisterError("");
     clearError();
-
     if (!formData.email || !formData.nombre || !formData.password) {
       setRegisterError(t("register_error_required", "Todos los campos son obligatorios"));
       return;
@@ -400,14 +344,15 @@ export default function Login() {
 
     try {
       setIsSubmitting(true);
-      await register(formData);
+      const response = await register(formData);
       setOpenRegister(false);
-      navigate("/dashboard");
+      if (response?.user?.is_new_user) {
+        navigate("/nuevo-usuario");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.error?.message ||
-        err.message ||
-        t("register_error_default", "Error al crear la cuenta");
+      const errorMsg = err.response?.data?.error?.message || err.message || t("register_error_default", "Error al crear la cuenta");
       setRegisterError(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -417,12 +362,36 @@ export default function Login() {
   return (
     <>
       <CssBaseline enableColorScheme />
-      <SignInContainer direction="column">
+      <Box
+        component={Stack}
+        direction="column"
+        sx={{
+          minHeight: "100dvh",
+          p: { xs: 2, sm: 4 },
+          pb: '80px',
+          bgcolor: 'background.default',
+          justifyContent: "center",
+          alignItems: "center",
+          position: "relative",
+        }}
+      >
         <Card
           ref={parallaxRef}
           variant="outlined"
-          className="parallax-element"
           style={parallaxDisabled ? {} : parallaxStyle}
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignSelf: "center",
+            width: "100%",
+            p: 4,
+            gap: 2,
+            m: "auto",
+            maxWidth: { sm: "450px" },
+            boxShadow: theme.shadows[3],
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: theme.shape.borderRadius, // Use theme border radius
+          }}
         >
           {/* Logo SPM */}
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 1 }}>
@@ -575,10 +544,20 @@ export default function Login() {
             </Link>
           </Box>
         </Card>
-      </SignInContainer>
+      </Box>
 
       {/* Footer - Fijo al fondo */}
-      <Footer>
+      <Box sx={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        textAlign: "center",
+        p: 2,
+        bgcolor: 'background.default',
+        color: 'text.secondary',
+        fontSize: "0.75rem",
+      }}>
         <Box>© 2025 Sistema SPM. Todos los derechos reservados.</Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, mt: 0.5 }}>
           <span>Desarrollado por Manuel Remón - +54 9 299 467 3102 - Neuquén, Argentina</span>
@@ -595,7 +574,7 @@ export default function Login() {
             </SvgIcon>
           </Link>
         </Box>
-      </Footer>
+      </Box>
 
       {/* Forgot Password Dialog */}
       <ForgotPasswordDialog

@@ -68,10 +68,7 @@ def train_models():
     Returns:
         Resultado del entrenamiento
     """
-    try:
-        from backend.core.db import get_db_connection, sql_now_minus
-    except ImportError:
-        from core.db import get_db_connection, sql_now_minus
+    from backend.core.db import get_db_connection, sql_now_minus
 
     try:
         service = get_ai_service()
@@ -85,7 +82,7 @@ def train_models():
                 f"""
                 SELECT id, created_at, material_codigo, centro, sector,
                        criticidad, total_monto, data_json
-                FROM solicitudes
+                FROM solicitud
                 WHERE created_at > {sql_now_minus("90 days")}
             """
             )
@@ -125,10 +122,7 @@ def priorizar_solicitudes():
     Returns:
         Solicitudes rankeadas por prioridad
     """
-    try:
-        from backend.core.db import get_db_connection
-    except ImportError:
-        from core.db import get_db_connection
+    from backend.core.db import get_db_connection
 
     # Accept both 'status' and 'estado' for backwards compatibility with frontend
     status = request.args.get("status") or request.args.get("estado", "submitted")
@@ -144,7 +138,7 @@ def priorizar_solicitudes():
             query = """
                 SELECT id, criticidad, fecha_necesidad, total_monto, data_json,
                        status, centro, sector, created_at
-                FROM solicitudes
+                FROM solicitud
                 WHERE status = ?
             """
             params = [status]
@@ -225,6 +219,7 @@ def forecast_demanda(material_codigo):
     almacen = request.args.get("almacen", "")
     dias = int(request.args.get("dias", 30))
     modelo = request.args.get("modelo", "random_forest")
+    meses_historico = int(request.args.get("meses_historico", 0))  # 0 = todo el histórico
 
     # Verificar si modo temporal está activo
     user_id = _get_user_id()
@@ -234,7 +229,8 @@ def forecast_demanda(material_codigo):
     try:
         service = get_ai_service()
         result = service.proyectar_demanda(
-            material_codigo=material_codigo, centro=centro, dias=dias, modelo_tipo=modelo, almacen=almacen
+            material_codigo=material_codigo, centro=centro, dias=dias,
+            modelo_tipo=modelo, almacen=almacen, meses_historico=meses_historico
         )
 
         return jsonify({"ok": True, "data": result})
@@ -401,10 +397,7 @@ def sugerir_accion():
     Returns:
         Accion sugerida con nivel de confianza
     """
-    try:
-        from backend.core.db import get_db_connection
-    except ImportError:
-        from core.db import get_db_connection
+    from backend.core.db import get_db_connection
 
     data = request.get_json() or {}
 
@@ -420,7 +413,7 @@ def sugerir_accion():
                 cursor.execute(
                     """
                     SELECT id, criticidad, fecha_necesidad, total_monto, data_json
-                    FROM solicitudes WHERE id = ?
+                    FROM solicitud WHERE id = ?
                 """,
                     (data["solicitud_id"],),
                 )
@@ -560,16 +553,10 @@ def get_forecast_models():
     Returns:
         Lista de modelos con sus nombres legibles
     """
-    try:
-        from backend.agent.pipelines.forecast import (
-            obtener_estrategias_disponibles,
-            obtener_nombres_modelos
-        )
-    except ImportError:
-        from agent.pipelines.forecast import (
-            obtener_estrategias_disponibles,
-            obtener_nombres_modelos
-        )
+    from backend.agent.pipelines.forecast import (
+        obtener_estrategias_disponibles,
+        obtener_nombres_modelos
+    )
 
     try:
         modelos = obtener_estrategias_disponibles()
@@ -608,12 +595,8 @@ def run_backtest():
     Returns:
         Reporte de backtesting con métricas
     """
-    try:
-        from backend.core.db import get_db_connection
-        from backend.agent.pipelines.forecast import DemandPredictor, Backtester
-    except ImportError:
-        from core.db import get_db_connection
-        from agent.pipelines.forecast import DemandPredictor, Backtester
+    from backend.core.db import get_db_connection
+    from backend.agent.pipelines.forecast import DemandPredictor, Backtester
 
     data = request.get_json() or {}
     material_codigo = data.get("material_codigo")
@@ -676,12 +659,8 @@ def compare_models():
     Returns:
         Comparación con ranking y mejor modelo
     """
-    try:
-        from backend.core.db import get_db_connection
-        from backend.agent.pipelines.forecast import DemandPredictor, ModelComparator
-    except ImportError:
-        from core.db import get_db_connection
-        from agent.pipelines.forecast import DemandPredictor, ModelComparator
+    from backend.core.db import get_db_connection
+    from backend.agent.pipelines.forecast import DemandPredictor, ModelComparator
 
     data = request.get_json() or {}
     material_codigo = data.get("material_codigo")
@@ -751,16 +730,10 @@ def auto_select_model():
     Returns:
         Mejor modelo con métricas y recomendación
     """
-    try:
-        from backend.core.db import get_db_connection
-        from backend.agent.pipelines.forecast import (
-            DemandPredictor, AutoModelSelector, obtener_estrategias_disponibles
-        )
-    except ImportError:
-        from core.db import get_db_connection
-        from agent.pipelines.forecast import (
-            DemandPredictor, AutoModelSelector, obtener_estrategias_disponibles
-        )
+    from backend.core.db import get_db_connection
+    from backend.agent.pipelines.forecast import (
+        DemandPredictor, AutoModelSelector, obtener_estrategias_disponibles
+    )
 
     data = request.get_json() or {}
     material_codigo = data.get("material_codigo")
@@ -838,12 +811,8 @@ def tune_hyperparameters():
     Returns:
         Mejores hiperparámetros encontrados
     """
-    try:
-        from backend.core.db import get_db_connection
-        from backend.agent.pipelines.forecast import DemandPredictor, HyperparameterTuner
-    except ImportError:
-        from core.db import get_db_connection
-        from agent.pipelines.forecast import DemandPredictor, HyperparameterTuner
+    from backend.core.db import get_db_connection
+    from backend.agent.pipelines.forecast import DemandPredictor, HyperparameterTuner
 
     data = request.get_json() or {}
     material_codigo = data.get("material_codigo")
@@ -921,6 +890,7 @@ def compare_models_parallel():
         from concurrent.futures import ThreadPoolExecutor, as_completed
         import pandas as pd
         from backend.agent.pipelines.forecast import obtener_estrategia
+        from backend.core.db import get_db_connection
 
         data = request.get_json() or {}
         material_codigo = data.get("material_codigo")
@@ -1028,6 +998,7 @@ def get_stl_decomposition():
     try:
         import pandas as pd
         from backend.agent.pipelines.forecast import obtener_estrategia
+        from backend.core.db import get_db_connection
 
         data = request.get_json() or {}
         material_codigo = data.get("material_codigo")

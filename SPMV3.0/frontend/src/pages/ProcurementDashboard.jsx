@@ -1,0 +1,556 @@
+/**
+ * ProcurementDashboard - Dashboard de Procurement SAP
+ * Visualizacion de KPIs de requisiciones, ordenes de compra, lead times y cumplimiento
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '../context/i18n';
+import { procurementService } from '../services/procurement';
+
+// MUI Components
+import Container from '@mui/material/Container';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Alert from '@mui/material/Alert';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
+import Skeleton from '@mui/material/Skeleton';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import LinearProgress from '@mui/material/LinearProgress';
+
+// MUI Icons
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import GroupIcon from '@mui/icons-material/Group';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+
+// Componente StatCard estilo MUI
+const StatCard = ({ title, value, subtitle, icon: Icon, color = '#1976d2', trend }) => (
+  <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <Box>
+        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+          {title}
+        </Typography>
+        <Typography variant="h4" sx={{ mt: 0.5, fontWeight: 700, color }}>
+          {value}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" color="text.secondary">
+            {subtitle}
+          </Typography>
+        )}
+        {trend !== undefined && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              mt: 0.5,
+              color: trend >= 0 ? "#10b981" : "#ef4444",
+              fontWeight: 500
+            }}
+          >
+            {trend >= 0 ? '+' : ''}{trend}% vs periodo anterior
+          </Typography>
+        )}
+      </Box>
+      <Box sx={{
+        p: 1.5,
+        bgcolor: `${color}15`,
+        borderRadius: 2,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        <Icon sx={{ fontSize: 28, color }} />
+      </Box>
+    </Box>
+  </Paper>
+);
+
+// Componente Gauge para OTIF
+const OTIFGauge = ({ value }) => {
+  const getColor = (val) => {
+    if (val >= 90) return '#10b981';
+    if (val >= 70) return '#f59e0b';
+    return '#ef4444';
+  };
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <Box sx={{ position: "relative", width: 140, height: 140 }}>
+        <svg width="100%" height="100%" viewBox="0 0 36 36">
+          <path
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke="#e5e7eb"
+            strokeWidth="3"
+          />
+          <path
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            fill="none"
+            stroke={getColor(value)}
+            strokeWidth="3"
+            strokeDasharray={`${value}, 100`}
+          />
+        </svg>
+        <Box sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, color: getColor(value) }}>
+            {value}%
+          </Typography>
+        </Box>
+      </Box>
+      <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mt: 1 }}>
+        OTIF
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        A tiempo y completo
+      </Typography>
+    </Box>
+  );
+};
+
+// Componente principal
+export default function ProcurementDashboard() {
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [periodo, setPeriodo] = useState('mes');
+  const [centro, setCentro] = useState('');
+
+  const [kpis, setKpis] = useState(null);
+  const [compliance, setCompliance] = useState([]);
+  const [pipeline, setPipeline] = useState([]);
+  const [importHistory, setImportHistory] = useState([]);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [kpisRes, complianceRes, pipelineRes, historyRes] = await Promise.all([
+        procurementService.getKPIs({ periodo, centro: centro || undefined }),
+        procurementService.getCompliance({ min_pedidos: 3 }),
+        procurementService.getPipeline(),
+        procurementService.getImportHistory(5)
+      ]);
+
+      setKpis(kpisRes.data);
+      setCompliance(complianceRes.data?.items || []);
+      setPipeline(pipelineRes.data?.items || []);
+      setImportHistory(historyRes.data?.items || []);
+    } catch (err) {
+      console.error('Error fetching procurement data:', err);
+      setError('Error al cargar datos de procurement');
+    } finally {
+      setLoading(false);
+    }
+  }, [periodo, centro]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleImport = async (file) => {
+    setImporting(true);
+    try {
+      const res = await procurementService.importFile(file);
+      alert(`Importación completada:\n- Insertados: ${res.data.stats?.solpeds_inserted || 0} SOLPEDs\n- Actualizados: ${res.data.stats?.solpeds_updated || 0}`);
+      setShowImportModal(false);
+      fetchData();
+    } catch (err) {
+      console.error('Error importing:', err);
+      alert('Error durante la importación: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  if (loading && !kpis) {
+    return (
+      <Container maxWidth={false} sx={{ py: 2, px: "75px" }}>
+        <Box sx={{ mb: 3 }}>
+          <Skeleton variant="text" width={300} height={40} />
+        </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, mb: 3 }}>
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+          ))}
+        </Box>
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 3 }}>
+          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
+          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth={false} sx={{ py: 2, px: "75px" }}>
+      {/* Header con filtros */}
+      <Paper elevation={0} sx={{ mb: 3, border: "1px solid #dce0e6", borderRadius: 2, overflow: "hidden" }}>
+        <Box sx={{ py: 2, px: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 700, color: "#1f1f20", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            {t('procurement_dashboard', 'PANEL DE COMPRAS SAP')}
+          </Typography>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 150 }}>
+              <InputLabel sx={{ fontSize: "0.75rem" }}>Período</InputLabel>
+              <Select
+                value={periodo}
+                onChange={(e) => setPeriodo(e.target.value)}
+                label="Período"
+                sx={{ fontSize: "0.75rem" }}
+              >
+                <MenuItem value="mes">Último Mes</MenuItem>
+                <MenuItem value="trimestre">Último Trimestre</MenuItem>
+                <MenuItem value="anio">Último Año</MenuItem>
+              </Select>
+            </FormControl>
+
+            <IconButton
+              onClick={fetchData}
+              disabled={loading}
+              size="small"
+              sx={{ color: "#606d80" }}
+            >
+              <RefreshIcon className={loading ? 'animate-spin' : ''} />
+            </IconButton>
+
+            <Button
+              variant="contained"
+              startIcon={<UploadFileIcon />}
+              onClick={() => setShowImportModal(true)}
+              size="small"
+            >
+              Importar ZM65
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} icon={<WarningAmberIcon />}>
+          {error}
+        </Alert>
+      )}
+
+      {/* KPIs Cards */}
+      {kpis && (
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 2, mb: 3 }}>
+          <StatCard
+            title="Requisiciones (SOLPEDs)"
+            value={kpis.totales?.solpeds?.toLocaleString() || 0}
+            subtitle={`${kpis.totales?.items || 0} items totales`}
+            icon={ShoppingCartIcon}
+            color="#1976d2"
+          />
+          <StatCard
+            title="Tiempo de Entrega"
+            value={`${kpis.lead_times?.total_dias || 0} días`}
+            subtitle={`Aprobación: ${kpis.lead_times?.aprobacion_dias || 0}d | Entrega: ${kpis.lead_times?.entrega_dias || 0}d`}
+            icon={AccessTimeIcon}
+            color="#7c3aed"
+          />
+          <StatCard
+            title="Entregas a Tiempo"
+            value={`${kpis.cumplimiento?.pct_a_tiempo || 0}%`}
+            subtitle={`OTIF: ${kpis.cumplimiento?.pct_otif || 0}%`}
+            icon={CheckCircleIcon}
+            color="#10b981"
+          />
+          <StatCard
+            title="Proveedores Activos"
+            value={kpis.totales?.proveedores_unicos || 0}
+            subtitle={`${kpis.totales?.materiales_unicos || 0} materiales únicos`}
+            icon={GroupIcon}
+            color="#f59e0b"
+          />
+        </Box>
+      )}
+
+      {/* Segunda fila: OTIF Gauge + Top Proveedores */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 2fr" }, gap: 3, mb: 3 }}>
+        {/* OTIF Gauge */}
+        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight={600} color="#1f1f20" sx={{ mb: 3 }}>
+            Cumplimiento OTIF
+          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <OTIFGauge value={kpis?.cumplimiento?.pct_otif || 0} />
+          </Box>
+          <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, textAlign: "center" }}>
+            <Box>
+              <Typography variant="h5" fontWeight={700} color="#1976d2">
+                {kpis?.cumplimiento?.pct_a_tiempo || 0}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">A Tiempo</Typography>
+            </Box>
+            <Box>
+              <Typography variant="h5" fontWeight={700} color="#10b981">
+                {kpis?.cumplimiento?.pct_completas || 0}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary">Completas</Typography>
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Top Proveedores */}
+        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight={600} color="#1f1f20" sx={{ mb: 2 }}>
+            Top 5 Proveedores por Volumen
+          </Typography>
+          {kpis?.top_proveedores?.length > 0 ? (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                    <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>PROVEEDOR</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>PEDIDOS</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>VALOR TOTAL</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {kpis.top_proveedores.map((p, idx) => (
+                    <TableRow key={idx} hover>
+                      <TableCell sx={{ fontSize: "0.875rem" }}>{p.proveedor_nombre || 'Sin nombre'}</TableCell>
+                      <TableCell align="right" sx={{ fontSize: "0.875rem", color: "#606d80" }}>{p.pedidos?.toLocaleString()}</TableCell>
+                      <TableCell align="right" sx={{ fontSize: "0.875rem", color: "#606d80" }}>
+                        ${(p.valor_total || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+              No hay datos disponibles
+            </Typography>
+          )}
+        </Paper>
+      </Box>
+
+      {/* Pipeline */}
+      {pipeline.length > 0 && (
+        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2, mb: 3 }}>
+          <Typography variant="subtitle1" fontWeight={600} color="#1f1f20" sx={{ mb: 3 }}>
+            Embudo de Conversión
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+            {pipeline.map((etapa, idx) => (
+              <Box key={idx} sx={{ flex: 1, textAlign: "center" }}>
+                <Box sx={{ mb: 1 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={etapa.porcentaje}
+                    sx={{
+                      height: 8,
+                      borderRadius: 4,
+                      bgcolor: "#e5e7eb",
+                      "& .MuiLinearProgress-bar": { bgcolor: "#1976d2", borderRadius: 4 }
+                    }}
+                  />
+                </Box>
+                <Typography variant="h5" fontWeight={700} color="#1f1f20">
+                  {etapa.cantidad?.toLocaleString()}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {etapa.etapa}
+                </Typography>
+                <Typography variant="caption" color="#1976d2" fontWeight={500}>
+                  {etapa.porcentaje}%
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Tabla Cumplimiento por Proveedor */}
+      {compliance.length > 0 && (
+        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2, mb: 3 }}>
+          <Typography variant="subtitle1" fontWeight={600} color="#1f1f20" sx={{ mb: 2 }}>
+            Cumplimiento por Proveedor
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>PROVEEDOR</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>PEDIDOS</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>% A TIEMPO</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>% COMPLETAS</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>% OTIF</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {compliance.slice(0, 10).map((item, idx) => (
+                  <TableRow key={idx} hover>
+                    <TableCell sx={{ fontSize: "0.875rem" }}>{item.proveedor_nombre || 'Sin nombre'}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "#606d80" }}>{item.total_pedidos}</TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: item.pct_a_tiempo >= 80 ? "#10b981" : item.pct_a_tiempo >= 60 ? "#f59e0b" : "#ef4444",
+                          fontWeight: 500
+                        }}
+                      >
+                        {item.pct_a_tiempo}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: item.pct_completas >= 80 ? "#10b981" : item.pct_completas >= 60 ? "#f59e0b" : "#ef4444",
+                          fontWeight: 500
+                        }}
+                      >
+                        {item.pct_completas}%
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: item.pct_otif >= 80 ? "#10b981" : item.pct_otif >= 60 ? "#f59e0b" : "#ef4444",
+                          fontWeight: 600
+                        }}
+                      >
+                        {item.pct_otif}%
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* Historial de Importaciones */}
+      {importHistory.length > 0 && (
+        <Paper elevation={0} sx={{ p: 3, border: "1px solid #dce0e6", borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight={600} color="#1f1f20" sx={{ mb: 2 }}>
+            Últimas Importaciones
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>ARCHIVO</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>FECHA</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>INSERTADOS</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>ACTUALIZADOS</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600, fontSize: "0.75rem", color: "#606d80" }}>ESTADO</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {importHistory.map((item, idx) => (
+                  <TableRow key={idx} hover>
+                    <TableCell sx={{ fontSize: "0.875rem" }}>{item.filename}</TableCell>
+                    <TableCell sx={{ fontSize: "0.875rem", color: "#606d80" }}>
+                      {new Date(item.started_at).toLocaleString('es-AR')}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "#606d80" }}>{item.records_inserted}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: "0.875rem", color: "#606d80" }}>{item.records_updated}</TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={item.status}
+                        size="small"
+                        sx={{
+                          fontSize: "0.7rem",
+                          bgcolor: item.status === 'completed' ? '#dcfce7' : item.status === 'failed' ? '#fee2e2' : '#fef3c7',
+                          color: item.status === 'completed' ? '#166534' : item.status === 'failed' ? '#991b1b' : '#92400e',
+                          fontWeight: 500
+                        }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
+
+      {/* Modal de Importacion */}
+      <Dialog
+        open={showImportModal}
+        onClose={() => !importing && setShowImportModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Importar Archivo ZM65</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Seleccione un archivo Excel (.xlsx) con datos de requisiciones SAP.
+          </Typography>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                handleImport(e.target.files[0]);
+              }
+            }}
+            disabled={importing}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "12px",
+              border: "1px dashed #dce0e6",
+              borderRadius: "8px",
+              cursor: importing ? "not-allowed" : "pointer"
+            }}
+          />
+          {importing && (
+            <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 1, color: "#1976d2" }}>
+              <CircularProgress size={16} color="inherit" />
+              <Typography variant="body2">Importando...</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setShowImportModal(false)}
+            disabled={importing}
+            color="inherit"
+          >
+            Cancelar
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
+  );
+}

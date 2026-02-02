@@ -86,7 +86,6 @@ def _save_uploaded_file(file, solicitud_id: int) -> dict:
         "id": uuid.uuid4().hex[:8],
         "nombre": original_filename,
         "nombre_almacenado": unique_filename,
-        "path": str(file_path),
         "ruta": str(file_path.relative_to(Path(__file__).parent.parent.parent)),
         "mime_type": file.content_type or "application/octet-stream",
         "tamanio": file_size,
@@ -132,7 +131,7 @@ def list_solicitudes():
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute(f"SELECT COUNT(*) AS count FROM solicitudes {where_sql_count}", params)
+        cur.execute(f"SELECT COUNT(*) AS count FROM solicitud {where_sql_count}", params)
         row = cur.fetchone()
         total = row["count"] if isinstance(row, dict) else row[0]
 
@@ -145,10 +144,10 @@ def list_solicitudes():
                 u.nombre AS solicitante_nombre, u.apellido AS solicitante_apellido,
                 a.nombre AS aprobador_nombre, a.apellido AS aprobador_apellido,
                 p.nombre AS planner_nombre, p.apellido AS planner_apellido
-            FROM solicitudes s
-            LEFT JOIN usuarios u ON s.id_usuario = u.id_spm
-            LEFT JOIN usuarios a ON s.aprobador_id = a.id_spm
-            LEFT JOIN usuarios p ON s.planner_id = p.id_spm
+            FROM solicitud s
+            LEFT JOIN usuario u ON s.id_usuario = u.id_spm
+            LEFT JOIN usuario a ON s.aprobador_id = a.id_spm
+            LEFT JOIN usuario p ON s.planner_id = p.id_spm
             {where_sql}
             ORDER BY s.created_at DESC
             LIMIT ? OFFSET ?
@@ -192,14 +191,14 @@ def get_solicitud(solicitud_id):
         # Fallback: buscar rol en BD
         with get_db_connection() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT rol FROM usuarios WHERE id_spm=?", (str(user_id),))
+            cur.execute("SELECT rol FROM usuario WHERE id_spm=?", (str(user_id),))
             row = cur.fetchone()
             if row:
                 user_rol = row["rol"] if isinstance(row, dict) else row[0]
 
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM solicitudes WHERE id=?", (solicitud_id,))
+        cur.execute("SELECT * FROM solicitud WHERE id=?", (solicitud_id,))
         row = cur.fetchone()
         if not row:
             return (
@@ -311,7 +310,7 @@ def create_solicitud():
 
             if centro:
                 cur.execute(
-                    "SELECT 1 FROM catalog_centros WHERE (codigo = ? OR nombre = ?) AND activo = 1",
+                    "SELECT 1 FROM catalogo_centro WHERE (codigo = ? OR nombre = ?) AND activo = 1",
                     (centro, centro),
                 )
                 if not cur.fetchone():
@@ -330,7 +329,7 @@ def create_solicitud():
 
             if sector:
                 cur.execute(
-                    "SELECT 1 FROM catalog_sectores WHERE nombre = ? AND activo = 1",
+                    "SELECT 1 FROM catalogo_sector WHERE nombre = ? AND activo = 1",
                     (sector,),
                 )
                 if not cur.fetchone():
@@ -374,7 +373,7 @@ def create_solicitud():
             cur = conn.cursor()
             cur.execute(
                 """
-                INSERT INTO solicitudes (id_usuario, centro, sector, justificacion, centro_costos, almacen_virtual, criticidad, fecha_necesidad, data_json, status, total_monto, created_at, updated_at)
+                INSERT INTO solicitud (id_usuario, centro, sector, justificacion, centro_costos, almacen_virtual, criticidad, fecha_necesidad, data_json, status, total_monto, created_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                 RETURNING id
                 """,
@@ -412,7 +411,7 @@ def create_solicitud():
 
                 # Actualizar data_json con paths correctos
                 cur.execute(
-                    "UPDATE solicitudes SET data_json = ? WHERE id = ?",
+                    "UPDATE solicitud SET data_json = ? WHERE id = ?",
                     (json.dumps({"items": items_validos, "archivos": archivos_metadata}), new_id),
                 )
 
@@ -486,7 +485,7 @@ def eliminar_solicitud(solicitud_id):
     # FIX 3.2: Obtener rol del usuario para validar permisos
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol FROM usuarios WHERE id_spm = ?", (user_id,))
+        cur.execute("SELECT rol FROM usuario WHERE id_spm = ?", (user_id,))
         user_row = cur.fetchone()
         user_rol = (user_row["rol"] if user_row else "") or ""
         es_admin = "admin" in user_rol.lower()
@@ -525,7 +524,7 @@ def eliminar_solicitud(solicitud_id):
 
     with get_db_transaction() as conn:
         cur = conn.cursor()
-        cur.execute("DELETE FROM solicitudes WHERE id=?", (solicitud_id,))
+        cur.execute("DELETE FROM solicitud WHERE id=?", (solicitud_id,))
 
     # Notificar al usuario que su solicitud fue eliminada
     try:
@@ -777,7 +776,7 @@ def aprobar_solicitud(solicitud_id):
         with get_db_connection() as conn:
             cur = conn.cursor()
             cur.execute(
-                "SELECT estado_registro FROM usuarios WHERE id_spm = ?",
+                "SELECT estado_registro FROM usuario WHERE id_spm = ?",
                 (str(solicitante_id),),
             )
             row = cur.fetchone()
@@ -804,7 +803,7 @@ def aprobar_solicitud(solicitud_id):
     # Obtener rol del usuario que intenta aprobar
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol FROM usuarios WHERE id_spm = ?", (aprobador_id,))
+        cur.execute("SELECT rol FROM usuario WHERE id_spm = ?", (aprobador_id,))
         row = cur.fetchone()
         user_rol = _row_to_dict(row, cur).get("rol", "") if row else ""
 
@@ -899,15 +898,12 @@ def aprobar_solicitud(solicitud_id):
         )
 
     # 5. Validar y consumir presupuesto
-    try:
-        from backend.services.budget_service import aprobar_solicitud_con_presupuesto
-    except ImportError:
-        from services.budget_service import aprobar_solicitud_con_presupuesto
+    from backend.services.budget_service import aprobar_solicitud_con_presupuesto
 
     # Obtener rol del aprobador
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol FROM usuarios WHERE id_spm = ?", (aprobador_id,))
+        cur.execute("SELECT rol FROM usuario WHERE id_spm = ?", (aprobador_id,))
         user_row = cur.fetchone()
 
     aprobador_rol = _row_to_dict(user_row, cur).get("rol", "") if user_row else ""
@@ -1055,7 +1051,7 @@ def rechazar_solicitud(solicitud_id):
     # Obtener rol del actor ANTES de procesar (necesario para validar autorización)
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol FROM usuarios WHERE id_spm = ?", (actor_id,))
+        cur.execute("SELECT rol FROM usuario WHERE id_spm = ?", (actor_id,))
         user_row = cur.fetchone()
     actor_rol = _row_to_dict(user_row, cur).get("rol", "") if user_row else ""
 
@@ -1203,7 +1199,7 @@ def cancelar_solicitud(solicitud_id):
     # 2. Obtener rol del actor
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol FROM usuarios WHERE id_spm = ?", (actor_id,))
+        cur.execute("SELECT rol FROM usuario WHERE id_spm = ?", (actor_id,))
         user_row = cur.fetchone()
     actor_rol = _row_to_dict(user_row, cur).get("rol", "") if user_row else ""
 
@@ -1381,10 +1377,7 @@ def get_historial_estados(solicitud_id):
     Endpoint v2 que usa el FSM centralizado.
     """
     # Importar función del FSM
-    try:
-        from backend.core.fsm import estado_para_display, obtener_historial_estados
-    except ImportError:
-        from core.fsm import estado_para_display, obtener_historial_estados
+    from backend.core.fsm import estado_para_display, obtener_historial_estados
 
     # Verificar que la solicitud existe
     solicitud = _get_raw(solicitud_id)
@@ -1431,16 +1424,10 @@ def get_transiciones_posibles(solicitud_id):
     user_id = g.user.get("user_id")
 
     # Importar función del FSM
-    try:
-        from backend.core.fsm import get_transiciones_posibles as fsm_transiciones
-    except ImportError:
-        from core.fsm import get_transiciones_posibles as fsm_transiciones
+    from backend.core.fsm import get_transiciones_posibles as fsm_transiciones
 
     # Importar servicio de aprobación para validar permisos
-    try:
-        from backend.services.approval_service import puede_aprobar
-    except ImportError:
-        from services.approval_service import puede_aprobar
+    from backend.services.approval_service import puede_aprobar
 
     # Verificar que la solicitud existe
     solicitud = _get_raw(solicitud_id)
@@ -1458,7 +1445,7 @@ def get_transiciones_posibles(solicitud_id):
     # Obtener información del usuario para validar permisos
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol, centro FROM usuarios WHERE id_spm = ?", (user_id,))
+        cur.execute("SELECT rol, centro FROM usuario WHERE id_spm = ?", (user_id,))
         user_row = cur.fetchone()
         user_rol = user_row["rol"] if user_row else ""
         user_centro = user_row["centro"] if user_row else None
@@ -1525,7 +1512,7 @@ def get_transiciones_posibles(solicitud_id):
                         cur_ret = conn_ret.cursor()
                         cur_ret.execute(
                             """
-                            SELECT COUNT(*) as retrocesos FROM solicitudes_historial_estados
+                            SELECT COUNT(*) as retrocesos FROM solicitud_historial_estado
                             WHERE solicitud_id = ?
                               AND estado_anterior = 'in_treatment'
                               AND estado_nuevo = 'in_planning'
@@ -1568,13 +1555,13 @@ def _update_solicitud(solicitud_id: int, fields: dict):
     params = list(fields.values()) + [solicitud_id]
     with get_db_transaction() as conn:
         cur = conn.cursor()
-        cur.execute(f"UPDATE solicitudes SET {set_clause} WHERE id=?", params)
+        cur.execute(f"UPDATE solicitud SET {set_clause} WHERE id=?", params)
 
 
 def _get_raw(solicitud_id: int):
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM solicitudes WHERE id=?", (solicitud_id,))
+        cur.execute("SELECT * FROM solicitud WHERE id=?", (solicitud_id,))
         row = cur.fetchone()
         if row is None:
             return None
@@ -1622,10 +1609,7 @@ def _validar_consumo_previo_balanceado(solicitud_id: int) -> tuple:
     Returns:
         Tuple (balanceado: bool, consumos: int, reversiones: int)
     """
-    try:
-        from backend.core.budget_schemas import TipoMovimiento
-    except ImportError:
-        from core.budget_schemas import TipoMovimiento
+    from backend.core.budget_schemas import TipoMovimiento
 
     try:
         with get_db_connection() as conn:
@@ -1671,10 +1655,7 @@ def _obtener_monto_consumo_solicitud(solicitud_id: int) -> int:
     Returns:
         Monto en centavos (positivo) o 0 si no hay consumo registrado.
     """
-    try:
-        from backend.core.budget_schemas import TipoMovimiento
-    except ImportError:
-        from core.budget_schemas import TipoMovimiento
+    from backend.core.budget_schemas import TipoMovimiento
 
     try:
         with get_db_connection() as conn:
@@ -1714,10 +1695,7 @@ def _revertir_presupuesto_aprobacion_fallida(
     if monto_cents <= 0:
         return  # Nada que revertir
 
-    try:
-        from backend.core.budget_transaction import AtomicBudgetTransaction, TransactionContext
-    except ImportError:
-        from core.budget_transaction import AtomicBudgetTransaction, TransactionContext
+    from backend.core.budget_transaction import AtomicBudgetTransaction, TransactionContext
 
     centro = solicitud.get("centro", "")
     sector = solicitud.get("sector", "")
@@ -1776,7 +1754,7 @@ def _planificador_para(centro: str, sector: str) -> str:
             # Verificar que el ID existe en la tabla usuarios
             with get_db_connection() as conn:
                 cur = conn.cursor()
-                cur.execute("SELECT id_spm FROM usuarios WHERE id_spm = ?", (planificador_id,))
+                cur.execute("SELECT id_spm FROM usuario WHERE id_spm = ?", (planificador_id,))
                 if cur.fetchone():
                     return planificador_id
 
@@ -1785,7 +1763,7 @@ def _planificador_para(centro: str, sector: str) -> str:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT id_spm FROM usuarios
+            SELECT id_spm FROM usuario
             WHERE LOWER(rol) LIKE '%planificador%'
             LIMIT 1
         """

@@ -1,27 +1,40 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
-import {
-  Container,
-  Paper,
-  Typography,
-  Box,
-  Button,
-  TextField,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  Alert,
-  CircularProgress,
-  FormControlLabel,
-  Checkbox,
-} from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+
+// MUI Components
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Alert from "@mui/material/Alert";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+import Table from "@mui/material/Table";
+import TableHead from "@mui/material/TableHead";
+import TableBody from "@mui/material/TableBody";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
+import Drawer from "@mui/material/Drawer";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
+import GroupIcon from "@mui/icons-material/Group";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Services
+import { exportToXLSX } from "../../services/export";
 
 const parseAsignaciones = (text) => {
   if (!text) return [];
@@ -42,19 +55,93 @@ const initialForm = {
   asignaciones_text: "",
 };
 
+/* ─────────────────────────────────────────────────────────────
+   Skeleton
+───────────────────────────────────────────────────────────── */
+function TableSkeleton({ rows = 5 }) {
+  return (
+    <Box>
+      {[...Array(rows)].map((_, i) => (
+        <Stack
+          key={i}
+          direction="row"
+          spacing={2}
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            py: 1.5,
+            px: 2,
+          }}
+        >
+          <Skeleton variant="text" width={64} height={24} />
+          <Skeleton variant="text" sx={{ flex: 1 }} height={24} />
+          <Skeleton variant="text" width={80} height={24} />
+          <Skeleton variant="text" width={128} height={24} />
+          <Skeleton variant="text" width={64} height={24} />
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Empty State
+───────────────────────────────────────────────────────────── */
+function EmptyState({ message, onAction, actionLabel }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
+        color: "text.secondary",
+      }}
+    >
+      <GroupIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.5 }} />
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        {message}
+      </Typography>
+      {onAction && (
+        <Button
+          onClick={onAction}
+          size="small"
+          sx={{
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            fontSize: "0.75rem",
+          }}
+        >
+          {actionLabel}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Main Component
+───────────────────────────────────────────────────────────── */
 export default function AdminPlanificadores() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
   const [planificadores, setPlanificadores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
 
+  const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // ─── Load Data ────────────────────────────────────────────
   const loadPlanificadores = useCallback(async () => {
     setLoading(true);
     try {
@@ -67,7 +154,9 @@ export default function AdminPlanificadores() {
         const rows = asign.filter((a) => a.planificador_id === p.usuario_id);
         return {
           ...p,
-          asignaciones_text: rows.map((r) => `${r.centro || ""}, ${r.sector || ""}, ${r.almacen_virtual || ""}`).join("\n"),
+          asignaciones_text: rows
+            .map((r) => `${r.centro || ""}, ${r.sector || ""}, ${r.almacen_virtual || ""}`)
+            .join("\n"),
         };
       });
 
@@ -83,91 +172,25 @@ export default function AdminPlanificadores() {
     loadPlanificadores();
   }, [loadPlanificadores]);
 
-  const columns = useMemo(() => [
-    {
-      field: "usuario_id",
-      headerName: "Usuario",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "nombre",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 180,
-      headerAlign: "center",
-    },
-    {
-      field: "activo",
-      headerName: "Estado",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const isActivo = params.value === 1 || params.value === true;
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isActivo ? "#1b5e20" : "#b71c1c",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {isActivo ? "Activo" : "Inactivo"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "asignaciones_text",
-      headerName: "Asignaciones",
-      flex: 1.5,
-      minWidth: 250,
-      headerAlign: "center",
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", height: "100%", whiteSpace: "pre-line", fontSize: "12px" }}>
-          {params.value || "-"}
-        </Box>
-      ),
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, item: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  // ─── Filtered Data ────────────────────────────────────────
+  const filteredPlanificadores = planificadores.filter((r) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      r.usuario_id?.toString().toLowerCase().includes(term) ||
+      r.nombre?.toLowerCase().includes(term)
+    );
+  });
 
-  const handleEdit = useCallback((row) => {
+  // ─── Handlers ─────────────────────────────────────────────
+  const handleNew = () => {
+    setEditingId(null);
+    setForm(initialForm);
+    setDrawerOpen(true);
+    setError("");
+  };
+
+  const handleEdit = (row) => {
     setEditingId(row.usuario_id);
     setForm({
       usuario_id: row.usuario_id || "",
@@ -175,28 +198,18 @@ export default function AdminPlanificadores() {
       activo: row.activo ?? 1,
       asignaciones_text: row.asignaciones_text || "",
     });
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
-  }, []);
+  };
 
-  const handleNew = useCallback(() => {
-    setEditingId(null);
-    setForm(initialForm);
-    setShowForm(true);
-    setError("");
-    setSuccess("");
-  }, []);
-
-  const handleChange = useCallback((e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  }, []);
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-  const handleSubmit = useCallback(async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!form.usuario_id) {
       setError(t("admin_required_fields", "Faltan campos obligatorios"));
@@ -220,7 +233,7 @@ export default function AdminPlanificadores() {
         setSuccess(t("crud_record_created", "Planificador creado correctamente"));
       }
 
-      setShowForm(false);
+      setDrawerOpen(false);
       setForm(initialForm);
       setEditingId(null);
       await loadPlanificadores();
@@ -230,15 +243,14 @@ export default function AdminPlanificadores() {
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingId, loadPlanificadores, t]);
+  };
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.item) return;
+  const handleDelete = async (id) => {
     setSubmitting(true);
     try {
-      await admin.remove("planificadores", deleteDialog.item.usuario_id);
+      await admin.remove("planificadores", id);
       setSuccess(t("crud_record_deleted", "Planificador eliminado correctamente"));
-      setDeleteDialog({ open: false, item: null });
+      setDeletingId(null);
       await loadPlanificadores();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -246,212 +258,571 @@ export default function AdminPlanificadores() {
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.item, loadPlanificadores, t]);
+  };
 
-  return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1400 }}>
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
+  // ─── Render ───────────────────────────────────────────────
+  
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportToXLSX(
+        filteredPlanificadores,
+        "planificadores",
+        "Planificadores"
+      );
+      setSuccess("Planificadores exportados correctamente");
+    } catch (err) {
+      setError(err.message || "Error al exportar planificadores");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+return (
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
+      <Box sx={{ maxWidth: 1200, mx: "auto", px: 2, py: 3 }}>
+        {/* Header */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 3 }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconButton
+              onClick={() => navigate("/admin")}
+              size="small"
+              sx={{
+                color: "text.secondary",
+                "&:hover": {
+                  bgcolor: "grey.200",
+                  color: "text.primary",
+                },
+              }}
+            >
+              <ArrowBackIcon fontSize="small" />
             </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-              Planificadores
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "text.primary",
+              }}
+            >
+              {t("admin_planificadores", "Planificadores")}
             </Typography>
-          </Box>
+          </Stack>
           <Button
             variant="contained"
             onClick={handleNew}
-            sx={{ textTransform: "uppercase" }}
+            size="small"
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              fontSize: "0.75rem",
+              px: 2,
+            }}
           >
-            Nuevo
+            {t("crud_new", "Nuevo")}
           </Button>
+        </Stack>
+
+        {/* Alerts */}
+        {error && (
+          <Alert
+            severity="error"
+            onClose={() => setError("")}
+            sx={{ mb: 2 }}
+          >
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity="success"
+            onClose={() => setSuccess("")}
+            sx={{ mb: 2 }}
+          >
+            {success}
+          </Alert>
+        )}
+
+        {/* Search */}
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar por ID o nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            sx={{
+              width: 300,
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "background.paper",
+              },
+            }}
+          />
         </Box>
+
+        {/* Table */}
+        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+          {loading ? (
+            <TableSkeleton rows={5} />
+          ) : filteredPlanificadores.length === 0 ? (
+            <EmptyState
+              message={searchTerm ? "No se encontraron planificadores" : "No hay planificadores registrados"}
+              onAction={!searchTerm ? handleNew : undefined}
+              actionLabel="Crear primer planificador"
+            />
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "grey.50" }}>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      width: 100,
+                      fontWeight: 600,
+                      fontSize: "0.6875rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Usuario ID
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 180,
+                      fontWeight: 600,
+                      fontSize: "0.6875rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Nombre
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      width: 90,
+                      fontWeight: 600,
+                      fontSize: "0.6875rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Estado
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: "0.6875rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Asignaciones
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      width: 100,
+                      fontWeight: 600,
+                      fontSize: "0.6875rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                    }}
+                  >
+                    Acciones
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredPlanificadores.map((row) =>
+                  deletingId === row.usuario_id ? (
+                    <TableRow key={row.usuario_id} sx={{ bgcolor: "error.lighter" }}>
+                      <TableCell colSpan={5}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                        >
+                          <Typography variant="body2" sx={{ color: "error.dark" }}>
+                            Eliminar al planificador <strong>{row.nombre || row.usuario_id}</strong>?
+                          </Typography>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setDeletingId(null)}
+                              disabled={submitting}
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => handleDelete(row.usuario_id)}
+                              disabled={submitting}
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              {submitting ? "..." : "Eliminar"}
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow
+                      key={row.usuario_id}
+                      hover
+                      sx={{
+                        "&:last-child td": { borderBottom: 0 },
+                      }}
+                    >
+                      <TableCell
+                        align="center"
+                        sx={{
+                          fontFamily: "monospace",
+                          fontSize: "0.875rem",
+                          color: "text.primary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {row.usuario_id}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "0.875rem",
+                          color: "text.primary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {row.nombre || "-"}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        <Chip
+                          label={row.activo === 1 || row.activo === true ? "Activo" : "Inactivo"}
+                          size="small"
+                          sx={{
+                            fontSize: "0.625rem",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            height: 20,
+                            bgcolor:
+                              row.activo === 1 || row.activo === true
+                                ? "success.lighter"
+                                : "grey.200",
+                            color:
+                              row.activo === 1 || row.activo === true
+                                ? "success.dark"
+                                : "text.secondary",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {row.asignaciones_text ? (
+                          <Box
+                            component="pre"
+                            sx={{
+                              whiteSpace: "pre-wrap",
+                              fontFamily: "monospace",
+                              m: 0,
+                              fontSize: "inherit",
+                            }}
+                          >
+                            {row.asignaciones_text}
+                          </Box>
+                        ) : (
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "text.disabled" }}
+                          >
+                            Sin asignaciones
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="center"
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(row)}
+                            title="Editar"
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": {
+                                color: "primary.main",
+                                bgcolor: "primary.lighter",
+                              },
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => setDeletingId(row.usuario_id)}
+                            title="Eliminar"
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": {
+                                color: "error.main",
+                                bgcolor: "error.lighter",
+                              },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </Paper>
+
+        {/* Footer */}
+        <Typography
+          variant="caption"
+          sx={{ display: "block", mt: 2, color: "text.disabled" }}
+        >
+          {filteredPlanificadores.length} de {planificadores.length} planificadores
+        </Typography>
       </Box>
 
-      {/* Alertas */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-          {success}
-        </Alert>
-      )}
-
-      {/* DataGrid */}
-      <Paper elevation={2} sx={{ height: 600 }}>
-        <DataGrid
-          rows={planificadores}
-          columns={columns}
-          getRowId={(row) => row.usuario_id}
-          loading={loading}
-          pageSizeOptions={[20, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 20 } },
-          }}
-          disableRowSelectionOnClick
-          rowHeight={67}
-          localeText={{
-            MuiTablePagination: {
-              labelRowsPerPage: "Filas por página:",
-            },
-          }}
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "grey.100",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              fontSize: "12px",
-            },
-            "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": {
-              justifyContent: "center",
-            },
-            "& .MuiDataGrid-columnHeader": {
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-            "& .MuiDataGrid-cell": {
-              fontSize: "13px",
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-          }}
-        />
-      </Paper>
-
-      {/* Modal de Formulario */}
-      <Dialog
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        maxWidth="sm"
-        fullWidth
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: "100%",
+            maxWidth: 400,
+          },
+        }}
       >
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>
-          {editingId ? "Editar" : "Nuevo"}
-        </DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            py: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "grey.50",
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "text.primary",
+            }}
+          >
+            {editingId ? "Editar Planificador" : "Nuevo Planificador"}
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={() => setDrawerOpen(false)}
+            sx={{ color: "text.secondary" }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            flex: 1,
+            overflow: "auto",
+            p: 2.5,
+          }}
+        >
+          <Stack spacing={2.5}>
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+              <Alert severity="error" sx={{ py: 0.5 }}>
                 {error}
               </Alert>
             )}
 
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="usuario_id"
-                  label="Usuario ID"
-                  value={form.usuario_id}
-                  onChange={handleChange}
-                  required
-                  disabled={!!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="nombre"
-                  label="Nombre"
-                  value={form.nombre}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={form.activo === 1 || form.activo === true}
-                      onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked ? 1 : 0 }))}
-                      size="small"
-                    />
-                  }
-                  label="Activo"
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="asignaciones_text"
-                  label="Asignaciones"
-                  value={form.asignaciones_text}
-                  onChange={handleChange}
-                  multiline
-                  rows={4}
-                  placeholder="Una por línea: centro, sector, almacen"
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => setShowForm(false)}
-              disabled={submitting}
-              sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-              sx={{ textTransform: "uppercase" }}
-            >
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+            <TextField
+              label="Usuario ID"
+              name="usuario_id"
+              value={form.usuario_id}
+              onChange={handleChange}
+              required
+              disabled={!!editingId}
+              size="small"
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
 
-      {/* Modal de Confirmación de Eliminación */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, item: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>
-          Eliminar
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Eliminar al planificador <strong>{deleteDialog.item?.nombre || deleteDialog.item?.usuario_id}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={() => setDeleteDialog({ open: false, item: null })}
-            disabled={submitting}
-            sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-            sx={{ textTransform: "uppercase" }}
-          >
-            {submitting ? "Eliminando..." : "Eliminar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            <TextField
+              label="Nombre"
+              name="nombre"
+              value={form.nombre}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={form.activo === 1 || form.activo === true}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, activo: e.target.checked ? 1 : 0 }))
+                  }
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ color: "text.primary" }}>
+                  Activo
+                </Typography>
+              }
+            />
+
+            <TextField
+              label="Asignaciones"
+              name="asignaciones_text"
+              value={form.asignaciones_text}
+              onChange={handleChange}
+              size="small"
+              fullWidth
+              multiline
+              rows={5}
+              placeholder="Una por linea: centro, sector, almacen"
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 1.5,
+                bgcolor: "grey.50",
+              }}
+            >
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                Formato: centro, sector, almacen_virtual (una por linea)
+              </Typography>
+            </Paper>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                pt: 2,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={() => setDrawerOpen(false)}
+                disabled={submitting}
+                fullWidth
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={submitting}
+                fullWidth
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  fontSize: "0.75rem",
+                }}
+              >
+                {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }

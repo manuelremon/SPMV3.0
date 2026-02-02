@@ -7,14 +7,20 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { MessageSquare, Wifi, User, Settings, LogOut, ChevronDown, Bell, Home } from "./ui/Icons";
-import Badge from "@mui/material/Badge";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import { useRealtimeStore } from "../store/realtimeStore";
-import clsx from "clsx";
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  MenuItem,
+  Badge,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { MessageSquare, Wifi, User, Settings, LogOut, ChevronDown, Bell, Home } from "./ui/Icons";
+import { useRealtimeStore } from "../store/realtimeStore";
 import { useAuthStore } from "../store/authStore";
 import { useVertexStore } from "../store/vertexStore";
 import { useRealtime } from "../hooks/useRealtime";
@@ -55,260 +61,409 @@ export default function Layout({ children }) {
 
   const isPathActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
+  const menuItemSx = {
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    py: 1,
+    px: 2,
+    color: 'white',
+    borderBottom: '1px solid var(--header-border, #424242)',
+    '&:hover': {
+      backgroundColor: 'var(--header-border, #424242)',
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text-primary)] transition-colors duration-200">
+    <Box
+      sx={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg)',
+        color: 'var(--text-primary)',
+        transition: 'color 0.2s, background-color 0.2s',
+      }}
+    >
       {/* Skip Navigation Link - Accesibilidad WCAG 2.1 AA */}
       <SkipLink targetId="main-content" />
 
       {/* Header Menu - 43px alto, ancho completo */}
-      <header className="fixed top-0 left-0 right-0 h-[43px] z-50 bg-[#212121] border-b border-[#424242] flex items-center">
-        {/* Izquierda: Logo SPM */}
-        <div className="flex-shrink-0">
-          <div className="w-[86px] h-[43px] flex items-center justify-center bg-[#fc1b80] border-r border-[#424242]">
-            <span className="text-sm font-bold text-[#bbdefb] uppercase tracking-wide">
-              {t("app_name", "SPM")}
-            </span>
-          </div>
-        </div>
-
-        {/* Centro: Dashboard + Navegación (centrado) */}
-        <div className="flex-1 flex items-center justify-center h-[43px]">
-          <div className="flex items-center">
-            {/* Home icon */}
-            <NavLink
-              to="/dashboard"
-              className={clsx(
-                "flex items-center justify-center w-[43px] h-[43px] border-l border-r border-[#424242] transition-all duration-200",
-                isPathActive("/dashboard")
-                  ? "bg-[#1976d2] text-white"
-                  : "text-white hover:bg-[#424242]"
-              )}
-              title={t("nav_dashboard", "Dashboard")}
-            >
-              <Home className="w-5 h-5" />
-            </NavLink>
-            {/* Header Navigation */}
-            <HeaderNav />
-          </div>
-        </div>
-
-        {/* Derecha: User Menu + Notificaciones */}
-        <div className="flex-shrink-0 flex items-center h-[43px]">
-          {/* User Menu - primero, con mismo estilo que botones del menú */}
-          <div className="h-[43px] border-l border-[#424242]">
-            <button
-              type="button"
-              onClick={(e) => setUserMenuAnchor(e.currentTarget)}
-              className={clsx(
-                "flex items-center gap-2 h-[43px] px-4 transition-all duration-200",
-                "text-[10px] font-semibold uppercase tracking-wide",
-                userMenuAnchor || isPathActive("/mi-cuenta") || isPathActive("/ajustes")
-                  ? "bg-[#1976d2] text-white"
-                  : "text-white hover:bg-[#424242]"
-              )}
-            >
-              <span className="truncate max-w-[100px]">
-                {user?.nombre || t("user_default", "Usuario")}
-              </span>
-              <ChevronDown
-                className={clsx(
-                  "w-3 h-3 transition-transform duration-200",
-                  userMenuAnchor && "rotate-180"
-                )}
-              />
-            </button>
-
-            {/* Dropdown Menu - MUI Menu */}
-            <Menu
-              anchorEl={userMenuAnchor}
-              open={Boolean(userMenuAnchor)}
-              onClose={() => setUserMenuAnchor(null)}
-              disableScrollLock={true}
-              MenuListProps={{ sx: { py: 0 } }}
-              PaperProps={{
-                sx: {
-                  minWidth: 150,
-                  backgroundColor: '#212121',
-                  border: '1px solid #424242',
-                }
-              }}
-            >
-              <MenuItem
-                component={NavLink}
-                to="/mi-cuenta"
-                onClick={() => setUserMenuAnchor(null)}
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  py: 1,
-                  px: 2,
-                  color: 'white',
-                  borderBottom: '1px solid #424242',
-                  backgroundColor: isPathActive("/mi-cuenta") ? '#1976d2' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: isPathActive("/mi-cuenta") ? '#1565c0' : '#424242',
-                  },
-                }}
-              >
-                {t("user_mi_cuenta", "Mi Cuenta")}
-              </MenuItem>
-              <MenuItem
-                component={NavLink}
-                to="/ajustes"
-                onClick={() => setUserMenuAnchor(null)}
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  py: 1,
-                  px: 2,
-                  color: 'white',
-                  borderBottom: '1px solid #424242',
-                  backgroundColor: isPathActive("/ajustes") ? '#1976d2' : 'transparent',
-                  '&:hover': {
-                    backgroundColor: isPathActive("/ajustes") ? '#1565c0' : '#424242',
-                  },
-                }}
-              >
-                {t("user_ajustes", "Ajustes")}
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setUserMenuAnchor(null);
-                  handleLogout();
-                }}
-                sx={{
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  py: 1,
-                  px: 2,
-                  color: '#ef5350',
-                  '&:hover': {
-                    backgroundColor: '#424242',
-                  },
-                }}
-              >
-                {t("user_logout", "Cerrar Sesión")}
-              </MenuItem>
-            </Menu>
-          </div>
-
-          {/* Botón Notificaciones */}
-          <NavLink
-            to="/centro-interaccion"
-            className={clsx(
-              "flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242] transition-all duration-200",
-              isPathActive("/centro-interaccion")
-                ? "bg-[#1976d2] text-white"
-                : "text-white hover:bg-[#424242]"
-            )}
-            title={t("nav_notificaciones", "Notificaciones")}
-          >
-            <Badge
-              badgeContent={unreadCount}
-              color="error"
-              max={99}
+      <AppBar
+        position="fixed"
+        sx={{
+          height: 43,
+          backgroundColor: 'var(--header-bg, #212121)',
+          borderBottom: '1px solid var(--header-border, #424242)',
+          boxShadow: 'none',
+        }}
+      >
+        <Toolbar
+          disableGutters
+          sx={{
+            minHeight: '43px !important',
+            height: 43,
+          }}
+        >
+          {/* Izquierda: Logo SPM */}
+          <Box sx={{ flexShrink: 0 }}>
+            <Box
               sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.6rem',
-                  minWidth: '16px',
-                  height: '16px',
-                }
+                width: 86,
+                height: 43,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'var(--primary-dark)',
+                borderRight: '1px solid var(--header-border, #424242)',
               }}
             >
-              <Bell className={clsx("w-4 h-4", unreadCount > 0 && "animate-notification-blink")} />
-            </Badge>
-          </NavLink>
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  fontWeight: 'bold',
+                  color: 'var(--primary-light, #bbdefb)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {t("app_name", "SPM")}
+              </Typography>
+            </Box>
+          </Box>
 
-          {/* Foro Icon */}
-          <NavLink
-            to="/foro"
-            className={clsx(
-              "flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242] transition-all duration-200",
-              isPathActive("/foro")
-                ? "bg-[#1976d2] text-white"
-                : "text-white hover:bg-[#424242]"
-            )}
-            title={t("nav_foro", "Foro")}
+          {/* Centro: Dashboard + Navegacion (centrado) */}
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 43,
+            }}
           >
-            <MessageSquare className="w-4 h-4" />
-          </NavLink>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {/* Home icon */}
+              <Box
+                component={NavLink}
+                to="/dashboard"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 43,
+                  height: 43,
+                  borderLeft: '1px solid var(--header-border, #424242)',
+                  borderRight: '1px solid var(--header-border, #424242)',
+                  transition: 'all 0.2s',
+                  textDecoration: 'none',
+                  backgroundColor: isPathActive("/dashboard") ? 'var(--primary)' : 'transparent',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: isPathActive("/dashboard") ? 'var(--primary)' : 'var(--header-border, #424242)',
+                  },
+                }}
+                title={t("nav_dashboard", "Dashboard")}
+              >
+                <Home style={{ width: 20, height: 20 }} />
+              </Box>
+              {/* Header Navigation */}
+              <HeaderNav />
+            </Box>
+          </Box>
 
-          {/* Connection Status Indicator */}
-          <div
-            className="flex items-center justify-center w-[43px] h-[43px] border-l border-[#424242]"
-            title={isConnected ? "Real Time" : "Offline"}
-          >
-            <div className="relative flex items-center justify-center w-6 h-6">
-              <Wifi className="w-4 h-4 text-[#616161] absolute" />
-              {isConnected && (
-                <Wifi className="w-4 h-4 text-[#4caf50] absolute animate-wifi-fill" />
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+          {/* Derecha: User Menu + Notificaciones */}
+          <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', height: 43 }}>
+            {/* User Menu - primero, con mismo estilo que botones del menu */}
+            <Box sx={{ height: 43, borderLeft: '1px solid var(--header-border, #424242)' }}>
+              <Box
+                component="button"
+                onClick={(e) => setUserMenuAnchor(e.currentTarget)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  height: 43,
+                  px: 2,
+                  transition: 'all 0.2s',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  backgroundColor: userMenuAnchor || isPathActive("/mi-cuenta") || isPathActive("/ajustes")
+                    ? 'var(--primary)'
+                    : 'transparent',
+                  color: 'white',
+                  border: 'none',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: userMenuAnchor || isPathActive("/mi-cuenta") || isPathActive("/ajustes")
+                      ? 'var(--primary)'
+                      : 'var(--header-border, #424242)',
+                  },
+                }}
+              >
+                <Typography
+                  component="span"
+                  sx={{
+                    maxWidth: 100,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    fontSize: 'inherit',
+                    fontWeight: 'inherit',
+                    textTransform: 'inherit',
+                    letterSpacing: 'inherit',
+                  }}
+                >
+                  {user?.nombre || t("user_default", "Usuario")}
+                </Typography>
+                <ChevronDown
+                  style={{
+                    width: 12,
+                    height: 12,
+                    transition: 'transform 0.2s',
+                    transform: userMenuAnchor ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </Box>
+
+              {/* Dropdown Menu - MUI Menu */}
+              <Menu
+                anchorEl={userMenuAnchor}
+                open={Boolean(userMenuAnchor)}
+                onClose={() => setUserMenuAnchor(null)}
+                disableScrollLock={true}
+                MenuListProps={{ sx: { py: 0 } }}
+                PaperProps={{
+                  sx: {
+                    minWidth: 150,
+                    backgroundColor: 'var(--header-bg, #212121)',
+                    border: '1px solid var(--header-border, #424242)',
+                  }
+                }}
+              >
+                <MenuItem
+                  component={NavLink}
+                  to="/mi-cuenta"
+                  onClick={() => setUserMenuAnchor(null)}
+                  sx={{
+                    ...menuItemSx,
+                    backgroundColor: isPathActive("/mi-cuenta") ? 'var(--primary)' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: isPathActive("/mi-cuenta") ? 'var(--primary-dark)' : 'var(--header-border, #424242)',
+                    },
+                  }}
+                >
+                  {t("user_mi_cuenta", "Mi Cuenta")}
+                </MenuItem>
+                <MenuItem
+                  component={NavLink}
+                  to="/ajustes"
+                  onClick={() => setUserMenuAnchor(null)}
+                  sx={{
+                    ...menuItemSx,
+                    backgroundColor: isPathActive("/ajustes") ? 'var(--primary)' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: isPathActive("/ajustes") ? 'var(--primary-dark)' : 'var(--header-border, #424242)',
+                    },
+                  }}
+                >
+                  {t("user_ajustes", "Ajustes")}
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    setUserMenuAnchor(null);
+                    handleLogout();
+                  }}
+                  sx={{
+                    ...menuItemSx,
+                    color: 'var(--danger)',
+                    borderBottom: 'none',
+                  }}
+                >
+                  {t("user_logout", "Cerrar Sesion")}
+                </MenuItem>
+              </Menu>
+            </Box>
+
+            {/* Boton Notificaciones */}
+            <Box
+              component={NavLink}
+              to="/centro-interaccion"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 43,
+                height: 43,
+                borderLeft: '1px solid var(--header-border, #424242)',
+                transition: 'all 0.2s',
+                textDecoration: 'none',
+                backgroundColor: isPathActive("/centro-interaccion") ? 'var(--primary)' : 'transparent',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: isPathActive("/centro-interaccion") ? 'var(--primary)' : 'var(--header-border, #424242)',
+                },
+              }}
+              title={t("nav_notificaciones", "Notificaciones")}
+            >
+              <Badge
+                badgeContent={unreadCount}
+                color="error"
+                max={99}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.6rem',
+                    minWidth: '16px',
+                    height: '16px',
+                  }
+                }}
+              >
+                <Bell
+                  style={{ width: 16, height: 16 }}
+                  className={unreadCount > 0 ? "animate-notification-blink" : ""}
+                />
+              </Badge>
+            </Box>
+
+            {/* Foro Icon */}
+            <Box
+              component={NavLink}
+              to="/foro"
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 43,
+                height: 43,
+                borderLeft: '1px solid var(--header-border, #424242)',
+                transition: 'all 0.2s',
+                textDecoration: 'none',
+                backgroundColor: isPathActive("/foro") ? 'var(--primary)' : 'transparent',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: isPathActive("/foro") ? 'var(--primary)' : 'var(--header-border, #424242)',
+                },
+              }}
+              title={t("nav_foro", "Foro")}
+            >
+              <MessageSquare style={{ width: 16, height: 16 }} />
+            </Box>
+
+            {/* Connection Status Indicator */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 43,
+                height: 43,
+                borderLeft: '1px solid var(--header-border, #424242)',
+              }}
+              title={isConnected ? "Real Time" : "Offline"}
+            >
+              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24 }}>
+                <Wifi style={{ width: 16, height: 16, color: 'var(--fg-muted)', position: 'absolute' }} />
+                {isConnected && (
+                  <Wifi
+                    style={{ width: 16, height: 16, color: 'var(--success)', position: 'absolute' }}
+                    className="animate-wifi-fill"
+                  />
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
       {/* Main content area - sin sidebar */}
-      <div
-        className={clsx(
-          "min-h-screen transition-all duration-300 ease-spring",
-          // Padding top para el header (43px)
-          "pt-[43px]"
-        )}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          pt: '43px',
+        }}
       >
         {/* Page content - Responsive padding */}
-        <main
+        <Box
+          component="main"
           id="main-content"
-          className="p-3 sm:p-4 lg:p-6"
           tabIndex={-1}
+          sx={{
+            p: { xs: 1.5, sm: 2, lg: 3 },
+          }}
         >
           {children}
-        </main>
-      </div>
+        </Box>
+      </Box>
 
       {/* Floating Chat Button - Vertex IA */}
-      <button
-        type="button"
+      <IconButton
         onClick={toggleChat}
-        className={clsx(
-          "fixed z-50",
-          // Posición responsive
-          isMobile ? "bottom-4 right-4" : "bottom-6 right-6",
-          // Tamaño responsive
-          isMobile ? "h-12 w-12" : "h-14 w-14",
-          "rounded-full grid place-items-center",
-          "text-white shadow-lg",
-          "hover:shadow-xl",
-          "transition-all duration-300 ease-spring",
-          "hover:scale-105",
-          // Touch target mínimo de 44px
-          "min-h-[44px] min-w-[44px]"
-        )}
-        style={{ backgroundColor: '#fc1b80' }}
+        sx={{
+          position: 'fixed',
+          zIndex: 50,
+          bottom: isMobile ? 16 : 24,
+          right: isMobile ? 16 : 24,
+          height: isMobile ? 48 : 56,
+          width: isMobile ? 48 : 56,
+          minHeight: 44,
+          minWidth: 44,
+          borderRadius: '50%',
+          backgroundColor: 'var(--primary-dark)',
+          color: 'white',
+          boxShadow: 3,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:hover': {
+            boxShadow: 6,
+            transform: 'scale(1.05)',
+            backgroundColor: 'var(--primary-dark)',
+          },
+        }}
         aria-label="Abrir Vertex IA"
         title={t("tooltip_chat", "Vertex IA - Asistente")}
       >
         {/* Avatar V */}
-        <span className={clsx("font-bold", isMobile ? "text-base" : "text-lg")}>V</span>
+        <Typography
+          component="span"
+          sx={{
+            fontWeight: 'bold',
+            fontSize: isMobile ? '1rem' : '1.125rem',
+          }}
+        >
+          V
+        </Typography>
         {/* Badge de alertas */}
         {unshownAlertsCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
+          <Box
+            component="span"
+            sx={{
+              position: 'absolute',
+              top: -4,
+              right: -4,
+              width: 20,
+              height: 20,
+              backgroundColor: 'var(--warning)',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 2,
+            }}
+          >
             {unshownAlertsCount > 9 ? '9+' : unshownAlertsCount}
-          </span>
+          </Box>
         )}
-      </button>
+      </IconButton>
 
       {/* Chat Assistant */}
       <ChatAssistant />
 
       {/* Toast Container for notifications */}
       <ToastContainer />
-    </div>
+    </Box>
   );
 }

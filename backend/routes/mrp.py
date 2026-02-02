@@ -76,7 +76,7 @@ def _calcular_lead_time_promedio() -> Tuple[float, str]:
             if is_using_postgresql():
                 cursor.execute("""
                     SELECT AVG(EXTRACT(EPOCH FROM (updated_at::timestamp - created_at::timestamp)) / 86400)
-                    FROM solicitudes
+                    FROM solicitud
                     WHERE status IN ('dispatched', 'closed')
                     AND created_at > NOW() - INTERVAL '90 days'
                     AND updated_at > created_at
@@ -84,7 +84,7 @@ def _calcular_lead_time_promedio() -> Tuple[float, str]:
             else:
                 cursor.execute("""
                     SELECT AVG(julianday(updated_at) - julianday(created_at))
-                    FROM solicitudes
+                    FROM solicitud
                     WHERE status IN ('dispatched', 'closed')
                     AND created_at > datetime('now', '-90 days')
                     AND updated_at > created_at
@@ -153,14 +153,14 @@ def _calcular_velocidad_respuesta() -> Tuple[float, str]:
             if is_using_postgresql():
                 cursor.execute("""
                     SELECT AVG(EXTRACT(EPOCH FROM (updated_at::timestamp - created_at::timestamp)) / 86400)
-                    FROM solicitudes
+                    FROM solicitud
                     WHERE status = 'approved'
                     AND created_at > NOW() - INTERVAL '90 days'
                 """)
             else:
                 cursor.execute("""
                     SELECT AVG(julianday(updated_at) - julianday(created_at))
-                    FROM solicitudes
+                    FROM solicitud
                     WHERE status = 'approved'
                     AND created_at > datetime('now', '-90 days')
                 """)
@@ -883,19 +883,25 @@ def get_kpis():
             cursor_sap.execute(query_bajo, params_mat)
             materiales_stock_bajo = cursor_sap.fetchone()["total"]
 
-            # Materiales criticos
-            query_criticos = "SELECT COUNT(DISTINCT material) as total FROM stock WHERE critico = 'SI'"
-            if centro:
-                query_criticos += " AND centro = ?"
-            cursor_sap.execute(query_criticos, params_mat)
-            materiales_criticos = cursor_sap.fetchone()["total"]
+            # Materiales criticos (columna puede no existir)
+            try:
+                query_criticos = "SELECT COUNT(DISTINCT material) as total FROM stock WHERE critico = 'SI'"
+                if centro:
+                    query_criticos += " AND centro = ?"
+                cursor_sap.execute(query_criticos, params_mat)
+                materiales_criticos = cursor_sap.fetchone()["total"]
+            except Exception:
+                materiales_criticos = 0
 
-            # Materiales inmovilizados
-            query_inmov = "SELECT COUNT(DISTINCT material) as total FROM stock WHERE inmovilizado = 'INMOVILIZADO'"
-            if centro:
-                query_inmov += " AND centro = ?"
-            cursor_sap.execute(query_inmov, params_mat)
-            materiales_inmovilizados = cursor_sap.fetchone()["total"]
+            # Materiales inmovilizados (columna puede no existir)
+            try:
+                query_inmov = "SELECT COUNT(DISTINCT material) as total FROM stock WHERE inmovilizado = 'INMOVILIZADO'"
+                if centro:
+                    query_inmov += " AND centro = ?"
+                cursor_sap.execute(query_inmov, params_mat)
+                materiales_inmovilizados = cursor_sap.fetchone()["total"]
+            except Exception:
+                materiales_inmovilizados = 0
 
             # ----------------------------------------------------------------
             # KPIs REALES (reemplaza datos simulados con modulo)
@@ -1021,7 +1027,7 @@ def get_kpis():
                         COALESCE(SUM(CASE WHEN status = 'creada' THEN 1 ELSE 0 END), 0) as pendientes,
                         COALESCE(SUM(CASE WHEN status = 'enviada' THEN 1 ELSE 0 END), 0) as enviadas,
                         COALESCE(SUM(CASE WHEN status = 'completada' THEN 1 ELSE 0 END), 0) as completadas
-                    FROM solpeds
+                    FROM solicitud_pedido_sap
                     WHERE created_at >= ?
                 """,
                     (fecha_inicio_str,),
@@ -1175,16 +1181,16 @@ def get_catalogos():
             cursor = conn.cursor()
 
             cursor.execute(
-                "SELECT codigo, nombre FROM catalog_centros WHERE activo = 1 ORDER BY codigo"
+                "SELECT codigo, nombre FROM catalogo_centro WHERE activo = 1 ORDER BY codigo"
             )
             centros = [{"codigo": r["codigo"], "nombre": r["nombre"]} for r in cursor.fetchall()]
 
             cursor.execute(
-                "SELECT codigo, nombre FROM catalog_almacenes WHERE activo = 1 ORDER BY codigo"
+                "SELECT codigo, nombre FROM catalogo_almacen WHERE activo = 1 ORDER BY codigo"
             )
             almacenes = [{"codigo": r["codigo"], "nombre": r["nombre"]} for r in cursor.fetchall()]
 
-            cursor.execute("SELECT nombre FROM catalog_sectores WHERE activo = 1 ORDER BY nombre")
+            cursor.execute("SELECT nombre FROM catalogo_sector WHERE activo = 1 ORDER BY nombre")
             sectores = [{"nombre": r["nombre"]} for r in cursor.fetchall()]
 
         return jsonify(

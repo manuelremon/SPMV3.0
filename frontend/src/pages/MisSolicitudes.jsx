@@ -1,3 +1,8 @@
+/**
+ * MisSolicitudes - Lista de solicitudes del usuario
+ * Material UI Implementation
+ */
+
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { solicitudes } from "../services/spm";
@@ -8,42 +13,368 @@ import { useI18n } from "../context/i18n";
 import { formatDate, formatCurrency, getSectorNombre, formatAlmacen } from "../utils/formatters";
 import { getCriticidadConfig } from "../utils/styleConfig";
 import StatusBadge from "../components/ui/StatusBadge";
+import { SPMAgGrid } from "../components/ui/SPMAgGrid";
+
+// MUI Components
 import {
-  Container,
+  Box,
   Paper,
   Typography,
-  Box,
   Button,
-  Alert,
   IconButton,
-  Chip,
+  Alert,
   Tabs,
   Tab,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableFooter,
+  Stack,
   Divider,
-  Tooltip,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import {
-  ArrowBack,
-  Edit,
-  Delete,
-  Visibility,
-  Close,
-  CalendarToday,
-  Business,
-  LocationOn,
-  Inventory,
-  Tag,
-  Schedule,
-} from "@mui/icons-material";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import CloseIcon from "@mui/icons-material/Close";
+import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import BusinessIcon from "@mui/icons-material/Business";
+import PlaceIcon from "@mui/icons-material/Place";
+import WarehouseIcon from "@mui/icons-material/Warehouse";
+import TagIcon from "@mui/icons-material/Tag";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 const DEBOUNCE_MS = 300;
 
+/* -------------------------------------------------------------
+   Delete Modal
+------------------------------------------------------------- */
+function DeleteModal({ open, onClose, onConfirm, deleting, t }) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 2 }
+      }}
+    >
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, pb: 1 }}>
+        <Box
+          sx={{
+            p: 1,
+            borderRadius: "50%",
+            bgcolor: "error.lighter",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <DeleteIcon sx={{ fontSize: 20, color: "error.main" }} />
+        </Box>
+        <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+          {t("mis_delete_title", "Eliminar solicitud")}
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary">
+          {t("mis_delete_desc", "Esta seguro de eliminar esta solicitud? Esta accion no se puede deshacer.")}
+        </Typography>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2, bgcolor: "grey.50" }}>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          size="small"
+          sx={{ textTransform: "none" }}
+        >
+          {t("common_cancel", "Cancelar")}
+        </Button>
+        <Button
+          onClick={onConfirm}
+          disabled={deleting}
+          variant="contained"
+          color="error"
+          size="small"
+          sx={{ textTransform: "none" }}
+        >
+          {deleting ? "Eliminando..." : t("mis_delete_confirm", "Eliminar")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------
+   Detail Modal
+------------------------------------------------------------- */
+function DetalleModal({ open, solicitud, sectores, onClose, onViewFull, t }) {
+  if (!solicitud) return null;
+
+  const criticidadConfig = getCriticidadConfig(solicitud.criticidad || "Normal");
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: { borderRadius: 2, maxHeight: "90vh" }
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+          Solicitud #{solicitud.id}
+        </Typography>
+        <IconButton
+          onClick={onClose}
+          size="small"
+          sx={{ color: "text.secondary" }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ py: 3 }}>
+        <Stack spacing={3}>
+          {/* Estado y Criticidad */}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <StatusBadge
+              estado={solicitud.estado || solicitud.status}
+              tooltipInfo={{
+                aprobador: [solicitud.aprobador_nombre, solicitud.aprobador_apellido].filter(Boolean).join(" ") || null,
+                planificador: [solicitud.planner_nombre, solicitud.planner_apellido].filter(Boolean).join(" ") || null,
+                fechaEnvio: solicitud.created_at,
+              }}
+            />
+            {solicitud.criticidad && (
+              <Chip
+                label={criticidadConfig.label}
+                size="small"
+                sx={{
+                  color: criticidadConfig.color,
+                  bgcolor: criticidadConfig.bg,
+                  fontWeight: 600,
+                  fontSize: "0.75rem",
+                }}
+              />
+            )}
+          </Box>
+
+          {/* Info y Ubicacion */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2,
+            }}
+          >
+            {/* Informacion General */}
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5, display: "block" }}
+              >
+                Informacion General
+              </Typography>
+              <Stack spacing={1.5}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <TagIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>ID:</strong> {solicitud.id}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <CalendarTodayIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Creacion:</strong> {formatDate(solicitud.created_at)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <AccessTimeIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Necesidad:</strong> {formatDate(solicitud.fecha_necesidad)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
+
+            {/* Ubicacion */}
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5, display: "block" }}
+              >
+                Ubicacion
+              </Typography>
+              <Stack spacing={1.5}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <BusinessIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Centro:</strong> {solicitud.centro || "-"}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <PlaceIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Sector:</strong> {getSectorNombre(solicitud.sector, sectores)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <WarehouseIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Almacen:</strong> {formatAlmacen(solicitud.almacen_virtual) || "-"}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
+          </Box>
+
+          {/* Justificacion */}
+          {solicitud.justificacion && (
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderColor: "info.light",
+                bgcolor: "info.lighter",
+              }}
+            >
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: "0.05em", mb: 1, display: "block" }}
+              >
+                Justificacion
+              </Typography>
+              <Typography variant="body2" color="text.primary">
+                {solicitud.justificacion}
+              </Typography>
+            </Paper>
+          )}
+
+          {/* Items */}
+          {solicitud.items && solicitud.items.length > 0 && (
+            <Box>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{ textTransform: "uppercase", letterSpacing: "0.05em", mb: 1.5, display: "block" }}
+              >
+                Materiales ({solicitud.items.length})
+              </Typography>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "grey.50" }}>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Codigo
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Descripcion
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Cant.
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Precio
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, fontSize: "0.6875rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Subtotal
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {solicitud.items.map((item, idx) => (
+                      <TableRow key={idx} hover>
+                        <TableCell sx={{ fontFamily: "monospace", fontSize: "0.75rem", color: "text.secondary" }}>
+                          {item.codigo || item.codigo_sap}
+                        </TableCell>
+                        <TableCell sx={{ color: "text.primary" }}>
+                          {item.descripcion}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: "text.primary" }}>
+                          {item.cantidad}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: "text.secondary" }}>
+                          {formatCurrency(item.precio_unitario || 0)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600, color: "text.primary" }}>
+                          {formatCurrency((item.cantidad || 0) * (item.precio_unitario || 0))}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow sx={{ bgcolor: "grey.50" }}>
+                      <TableCell colSpan={4} align="right" sx={{ fontWeight: 700, color: "text.primary", borderTop: 1, borderColor: "divider" }}>
+                        Total:
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: "primary.main", borderTop: 1, borderColor: "divider" }}>
+                        {formatCurrency(solicitud.total_monto || 0)}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </Stack>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2, bgcolor: "grey.50", borderTop: 1, borderColor: "divider" }}>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          size="small"
+          sx={{ textTransform: "none" }}
+        >
+          Cerrar
+        </Button>
+        <Button
+          onClick={onViewFull}
+          variant="contained"
+          size="small"
+          sx={{ textTransform: "none" }}
+        >
+          Ver detalle completo
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* -------------------------------------------------------------
+   Main Component
+------------------------------------------------------------- */
 export default function MisSolicitudes() {
   const { user } = useAuthStore();
   const { t } = useI18n();
@@ -59,7 +390,7 @@ export default function MisSolicitudes() {
   // Filtros
   const [activeTab, setActiveTab] = useState(0);
 
-  // Modal de confirmación para eliminar
+  // Modal de confirmacion para eliminar
   const [deleteModal, setDeleteModal] = useState({ open: false, solicitudId: null });
   const [deleting, setDeleting] = useState(false);
 
@@ -78,17 +409,17 @@ export default function MisSolicitudes() {
   useEffect(() => {
     const fetchSectores = async () => {
       try {
-        const res = await api.get('/catalogos/sectores');
+        const res = await api.get("/catalogos/sectores");
         const data = Array.isArray(res.data) ? res.data : [];
         setSectores(data);
       } catch (err) {
-        console.error('Error cargando sectores:', err);
+        console.error("Error cargando sectores:", err);
       }
     };
     fetchSectores();
   }, []);
 
-  // Función para cargar solicitudes
+  // Funcion para cargar solicitudes
   const fetchSolicitudes = useCallback(async (showLoading = true) => {
     if (!user?.id) return;
     if (showLoading) setLoading(true);
@@ -117,7 +448,7 @@ export default function MisSolicitudes() {
     { label: "Cerradas", key: "cerradas", filter: (e) => e === "closed" || e === "completed" },
   ];
 
-  // Calcular estadísticas
+  // Calcular estadisticas
   const stats = useMemo(() => {
     return tabFilters.map((tab) => {
       if (tab.key === "todas") return items.length;
@@ -138,7 +469,7 @@ export default function MisSolicitudes() {
       });
     }
 
-    // Filtro de búsqueda
+    // Filtro de busqueda
     const term = debouncedQ.trim().toLowerCase();
     if (term) {
       result = result.filter((s) => {
@@ -179,428 +510,333 @@ export default function MisSolicitudes() {
     }
   }, [deleteModal.solicitudId, t]);
 
-  // Columnas del DataGrid
-  const columns = useMemo(() => [
-    {
-      field: "id",
-      headerName: "ID",
-      width: 70,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "fecha_creacion",
-      headerName: "Fecha",
-      width: 100,
-      headerAlign: "center",
-      align: "center",
-      valueGetter: (value, row) => row.fecha_creacion || row.created_at,
-      renderCell: (params) => (
-        <Typography variant="body2" color="text.secondary">
-          {formatDate(params.value)}
-        </Typography>
-      ),
-    },
-    {
-      field: "justificacion",
-      headerName: "Justificacion",
-      flex: 1,
-      minWidth: 150,
-      renderCell: (params) => {
-        const texto = params.value || "-";
-        const truncado = texto.length > 30;
-        return (
-          <Tooltip title={truncado ? texto : ""} arrow>
-            <Typography variant="body2" noWrap>
+  // Columnas del DataGrid - AG Grid format
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "id",
+        headerName: "ID",
+        flex: 0.4,
+        minWidth: 60,
+      },
+      {
+        field: "fecha_creacion",
+        headerName: "Fecha",
+        flex: 0.6,
+        minWidth: 90,
+        valueGetter: (params) => params.data.fecha_creacion || params.data.created_at,
+        cellRenderer: (params) => (
+          <Typography variant="body2" color="text.secondary">
+            {formatDate(params.value)}
+          </Typography>
+        ),
+      },
+      {
+        field: "justificacion",
+        headerName: "Justificacion",
+        flex: 1.5,
+        minWidth: 150,
+        cellRenderer: (params) => {
+          const texto = params.value || "-";
+          const truncado = texto.length > 30;
+          return (
+            <Typography
+              variant="body2"
+              color="text.primary"
+              noWrap
+              title={truncado ? texto : undefined}
+            >
               {truncado ? texto.slice(0, 30) + "..." : texto}
             </Typography>
-          </Tooltip>
-        );
+          );
+        },
       },
-    },
-    {
-      field: "centro",
-      headerName: "Centro",
-      width: 90,
-      headerAlign: "center",
-      align: "center",
-      valueGetter: (value, row) => row.centro || row.centro_id || "-",
-    },
-    {
-      field: "almacen_virtual",
-      headerName: "Almacen",
-      width: 90,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => formatAlmacen(params.value || params.row.almacen) || "-",
-    },
-    {
-      field: "sector",
-      headerName: "Sector",
-      width: 120,
-      valueGetter: (value, row) => getSectorNombre(row.sector || row.sector_id, sectores),
-    },
-    {
-      field: "criticidad",
-      headerName: "Criticidad",
-      width: 90,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const criticidad = params.value || "Normal";
-        const config = getCriticidadConfig(criticidad);
-        return (
-          <Typography variant="body2" fontWeight={600} sx={{ color: config.color }}>
-            {config.label}
+      {
+        field: "centro",
+        headerName: "Centro",
+        flex: 0.5,
+        minWidth: 70,
+        valueGetter: (params) => params.data.centro || params.data.centro_id || "-",
+      },
+      {
+        field: "almacen_virtual",
+        headerName: "Almacen",
+        flex: 0.5,
+        minWidth: 70,
+        cellRenderer: (params) => formatAlmacen(params.value || params.data.almacen) || "-",
+      },
+      {
+        field: "sector",
+        headerName: "Sector",
+        flex: 0.8,
+        minWidth: 100,
+        valueGetter: (params) => getSectorNombre(params.data.sector || params.data.sector_id, sectores),
+      },
+      {
+        field: "criticidad",
+        headerName: "Criticidad",
+        flex: 0.5,
+        minWidth: 80,
+        cellRenderer: (params) => {
+          const criticidad = params.value || "Normal";
+          const config = getCriticidadConfig(criticidad);
+          return (
+            <Typography
+              variant="body2"
+              fontWeight={600}
+              sx={{ color: config.color }}
+            >
+              {config.label}
+            </Typography>
+          );
+        },
+      },
+      {
+        field: "total_monto",
+        headerName: "Monto",
+        flex: 0.7,
+        minWidth: 100,
+        cellRenderer: (params) => (
+          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.primary" }}>
+            {formatCurrency(params.value || 0)}
           </Typography>
-        );
+        ),
       },
-    },
-    {
-      field: "total_monto",
-      headerName: "Monto",
-      width: 120,
-      headerAlign: "right",
-      align: "right",
-      renderCell: (params) => (
-        <Typography variant="body2" fontFamily="monospace">
-          {formatCurrency(params.value || 0)}
-        </Typography>
-      ),
-    },
-    {
-      field: "status",
-      headerName: "Estado",
-      width: 120,
-      headerAlign: "center",
-      align: "center",
-      valueGetter: (value, row) => row.estado || row.status || "pendiente",
-      renderCell: (params) => <StatusBadge estado={params.value} showIcon={false} />,
-    },
-    {
-      field: "planner_nombre",
-      headerName: "Planificador",
-      width: 140,
-      valueGetter: (value, row) => {
-        const nombre = row.planner_nombre || "";
-        const apellido = row.planner_apellido || "";
-        return `${nombre} ${apellido}`.trim() || "-";
+      {
+        field: "status",
+        headerName: "Estado",
+        flex: 0.7,
+        minWidth: 100,
+        valueGetter: (params) => params.data.estado || params.data.status || "pendiente",
+        cellRenderer: (params) => {
+          const data = params.data;
+          const aprobador = [data.aprobador_nombre, data.aprobador_apellido].filter(Boolean).join(" ") || null;
+          const planner = [data.planner_nombre, data.planner_apellido].filter(Boolean).join(" ") || null;
+          return (
+            <StatusBadge
+              estado={params.value}
+              showIcon={false}
+              tooltipInfo={{
+                aprobador,
+                planificador: planner,
+                fechaEnvio: data.created_at,
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      width: 120,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => {
-        const estado = (params.row.estado || params.row.status || "").toLowerCase();
-        const esBorrador = estado === "draft" || estado === "borrador";
+      {
+        field: "planner_nombre",
+        headerName: "Planificador",
+        flex: 0.8,
+        minWidth: 120,
+        valueGetter: (params) => {
+          const nombre = params.data.planner_nombre || "";
+          const apellido = params.data.planner_apellido || "";
+          return `${nombre} ${apellido}`.trim() || "-";
+        },
+      },
+      {
+        field: "acciones",
+        headerName: "Acciones",
+        flex: 1,
+        minWidth: 180,
+        sortable: false,
+        filter: false,
+        cellRenderer: (params) => {
+          const estado = (params.data.estado || params.data.status || "").toLowerCase();
+          const esBorrador = estado === "draft" || estado === "borrador";
 
-        return (
-          <Box sx={{ display: "flex", gap: 0.5 }}>
-            {esBorrador ? (
-              <>
-                <Tooltip title="Editar">
-                  <IconButton
+          return (
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              {esBorrador ? (
+                <>
+                  <Button
                     size="small"
-                    color="warning"
-                    onClick={() => navigate(`/solicitudes/${params.row.id}/materiales`)}
+                    variant="text"
+                    onClick={() => navigate(`/solicitudes/${params.data.id}/materiales`)}
+                    sx={{
+                      minWidth: "auto",
+                      px: 1,
+                      py: 0.25,
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color: "warning.dark",
+                      "&:hover": { bgcolor: "warning.lighter" },
+                    }}
                   >
-                    <Edit fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Eliminar">
-                  <IconButton
+                    Editar
+                  </Button>
+                  <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+                  <Button
                     size="small"
-                    color="error"
-                    onClick={() => setDeleteModal({ open: true, solicitudId: params.row.id })}
+                    variant="text"
+                    onClick={() => setDeleteModal({ open: true, solicitudId: params.data.id })}
+                    sx={{
+                      minWidth: "auto",
+                      px: 1,
+                      py: 0.25,
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      color: "error.main",
+                      "&:hover": { bgcolor: "error.lighter" },
+                    }}
                   >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </>
-            ) : (
-              <Tooltip title="Ver detalle">
-                <IconButton
+                    Borrar
+                  </Button>
+                </>
+              ) : (
+                <Button
                   size="small"
-                  color="primary"
-                  onClick={() => setDetalleModal({ open: true, solicitud: params.row })}
+                  variant="text"
+                  onClick={() => setDetalleModal({ open: true, solicitud: params.data })}
+                  sx={{
+                    minWidth: "auto",
+                    px: 1,
+                    py: 0.25,
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    color: "primary.main",
+                    "&:hover": { bgcolor: "primary.lighter" },
+                  }}
                 >
-                  <Visibility fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-        );
+                  Ver
+                </Button>
+              )}
+            </Stack>
+          );
+        },
       },
-    },
-  ], [navigate, sectores]);
+    ],
+    [navigate, sectores]
+  );
 
   // Rows para DataGrid
   const rows = useMemo(() => filtered.map((item) => ({ ...item, id: item.id })), [filtered]);
 
   return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1400 }}>
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <IconButton onClick={() => navigate(-1)} size="small" sx={{ color: "text.secondary" }}>
-            <ArrowBack />
-          </IconButton>
-          <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-            {t("mis_page_title", "Mis Solicitudes")}
-          </Typography>
-        </Box>
-      </Box>
-
-      {/* Alertas */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-          {success}
-        </Alert>
-      )}
-
-      {/* Tabs */}
-      <Box sx={{ mb: 2, borderBottom: 2, borderColor: "primary.main" }}>
-        <Tabs
-          value={activeTab}
-          onChange={(e, v) => setActiveTab(v)}
-          variant="standard"
-          sx={{
-            minHeight: 42,
-            "& .MuiTab-root": {
-              minHeight: 42,
-              textTransform: "uppercase",
-              fontWeight: 600,
-              fontSize: "0.8rem",
-              letterSpacing: "0.5px",
-            },
-          }}
-        >
-          {tabFilters.map((tab, idx) => (
-            <Tab
-              key={tab.key}
-              label={`${tab.label} (${stats[idx]})`}
-              disableRipple
-            />
-          ))}
-        </Tabs>
-      </Box>
-
-      {/* DataGrid */}
-      <Paper elevation={2} sx={{ height: 600 }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          loading={loading}
-          pageSizeOptions={[10, 25, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 25 } },
-            sorting: { sortModel: [{ field: "fecha_creacion", sort: "desc" }] },
-          }}
-          disableRowSelectionOnClick
-          onRowDoubleClick={(params) => setDetalleModal({ open: true, solicitud: params.row })}
-          localeText={{
-            noRowsLabel: t("mis_empty_title", "No tienes solicitudes"),
-            MuiTablePagination: {
-              labelRowsPerPage: "Filas por página:",
-            },
-          }}
-          sx={{
-            border: "none",
-            "& .MuiDataGrid-columnHeaders": {
-              bgcolor: "grey.50",
-              borderBottom: 2,
-              borderColor: "divider",
-            },
-            "& .MuiDataGrid-cell": {
-              borderColor: "divider",
-            },
-            "& .MuiDataGrid-row:hover": {
-              bgcolor: "action.hover",
-              cursor: "pointer",
-            },
-          }}
-        />
-      </Paper>
-
-      {/* Modal de confirmación para eliminar */}
-      <Dialog
-        open={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, solicitudId: null })}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Delete color="error" />
-          {t("mis_delete_title", "Eliminar solicitud")}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            {t("mis_delete_desc", "¿Estás seguro de eliminar esta solicitud? Esta acción no se puede deshacer.")}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteModal({ open: false, solicitudId: null })} color="inherit">
-            {t("common_cancel", "Cancelar")}
-          </Button>
-          <Button onClick={handleEliminar} color="error" variant="contained" disabled={deleting}>
-            {deleting ? "Eliminando..." : t("mis_delete_confirm", "Eliminar")}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Modal de detalle */}
-      <Dialog
-        open={detalleModal.open}
-        onClose={() => setDetalleModal({ open: false, solicitud: null })}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="h6" fontWeight={600}>
-            Solicitud #{detalleModal.solicitud?.id}
-          </Typography>
-          <IconButton onClick={() => setDetalleModal({ open: false, solicitud: null })} size="small">
-            <Close />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          {detalleModal.solicitud && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Estado y Criticidad */}
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <StatusBadge estado={detalleModal.solicitud.estado || detalleModal.solicitud.status} />
-                {detalleModal.solicitud.criticidad && (
-                  <Chip
-                    label={detalleModal.solicitud.criticidad}
-                    size="small"
-                    color={detalleModal.solicitud.criticidad === "Critica" ? "error" : detalleModal.solicitud.criticidad === "Alta" ? "warning" : "default"}
-                  />
-                )}
-              </Box>
-
-              {/* Info y Ubicación */}
-              <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", fontSize: 11 }}>
-                      Información General
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Tag fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>ID:</strong> {detalleModal.solicitud.id}</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CalendarToday fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>Creación:</strong> {formatDate(detalleModal.solicitud.created_at)}</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Schedule fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>Necesidad:</strong> {formatDate(detalleModal.solicitud.fecha_necesidad)}</Typography>
-                      </Box>
-                    </Box>
-                  </Paper>
-                </Grid>
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", fontSize: 11 }}>
-                      Ubicación
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Business fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>Centro:</strong> {detalleModal.solicitud.centro || "-"}</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <LocationOn fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>Sector:</strong> {getSectorNombre(detalleModal.solicitud.sector, sectores)}</Typography>
-                      </Box>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Inventory fontSize="small" color="action" />
-                        <Typography variant="body2"><strong>Almacén:</strong> {formatAlmacen(detalleModal.solicitud.almacen_virtual) || "-"}</Typography>
-                      </Box>
-                    </Box>
-                  </Paper>
-                </Grid>
-              </Grid>
-
-              {/* Justificación */}
-              {detalleModal.solicitud.justificacion && (
-                <Paper variant="outlined" sx={{ p: 2, bgcolor: "primary.50" }}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", fontSize: 11 }}>
-                    Justificación
-                  </Typography>
-                  <Typography variant="body2">{detalleModal.solicitud.justificacion}</Typography>
-                </Paper>
-              )}
-
-              {/* Items */}
-              {detalleModal.solicitud.items && detalleModal.solicitud.items.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", fontSize: 11 }}>
-                    Materiales ({detalleModal.solicitud.items.length})
-                  </Typography>
-                  <Paper variant="outlined">
-                    <Box sx={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                        <thead>
-                          <tr style={{ backgroundColor: "#f5f5f5" }}>
-                            <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Código</th>
-                            <th style={{ padding: "8px 12px", textAlign: "left", borderBottom: "1px solid #ddd" }}>Descripción</th>
-                            <th style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid #ddd" }}>Cant.</th>
-                            <th style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid #ddd" }}>Precio</th>
-                            <th style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid #ddd" }}>Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {detalleModal.solicitud.items.map((item, idx) => (
-                            <tr key={idx}>
-                              <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontFamily: "monospace", fontSize: 12 }}>{item.codigo || item.codigo_sap}</td>
-                              <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee" }}>{item.descripcion}</td>
-                              <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee", textAlign: "right", fontWeight: 600 }}>{item.cantidad}</td>
-                              <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee", textAlign: "right" }}>{formatCurrency(item.precio_unitario || 0)}</td>
-                              <td style={{ padding: "8px 12px", borderBottom: "1px solid #eee", textAlign: "right", fontWeight: 600 }}>{formatCurrency((item.cantidad || 0) * (item.precio_unitario || 0))}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{ backgroundColor: "#f9f9f9" }}>
-                            <td colSpan={4} style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>Total:</td>
-                            <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#1976d2" }}>{formatCurrency(detalleModal.solicitud.total_monto || 0)}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </Box>
-                  </Paper>
-                </Box>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetalleModal({ open: false, solicitud: null })} color="inherit">
-            Cerrar
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setDetalleModal({ open: false, solicitud: null });
-              navigate(`/solicitudes/${detalleModal.solicitud?.id}`);
+          <IconButton
+            onClick={() => navigate(-1)}
+            sx={{
+              color: "text.disabled",
+              border: 1,
+              borderColor: "transparent",
+              "&:hover": {
+                color: "text.secondary",
+                bgcolor: "background.paper",
+                borderColor: "divider",
+              },
             }}
           >
-            Ver detalle completo
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            <ArrowBackIcon />
+          </IconButton>
+          <Box>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+            >
+              {t("mis_page_title", "Mis Solicitudes")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t("mis_page_subtitle", "Gestiona tus solicitudes de materiales")}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Alertas */}
+        {error && (
+          <Alert severity="error" onClose={() => setError("")}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" onClose={() => setSuccess("")}>
+            {success}
+          </Alert>
+        )}
+
+        {/* Main Card */}
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+          {/* Tabs */}
+          <Box sx={{ bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={activeTab}
+              onChange={(e, newValue) => setActiveTab(newValue)}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{
+                minHeight: 44,
+                "& .MuiTab-root": {
+                  minHeight: 44,
+                  textTransform: "none",
+                  fontWeight: 500,
+                  fontSize: "0.875rem",
+                },
+              }}
+            >
+              {tabFilters.map((tab, idx) => (
+                <Tab
+                  key={tab.key}
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {tab.label}
+                      <Chip
+                        label={stats[idx]}
+                        size="small"
+                        sx={{
+                          height: 20,
+                          fontSize: "0.75rem",
+                          fontWeight: 600,
+                          bgcolor: activeTab === idx ? "primary.main" : "grey.300",
+                          color: activeTab === idx ? "common.white" : "text.secondary",
+                        }}
+                      />
+                    </Box>
+                  }
+                />
+              ))}
+            </Tabs>
+          </Box>
+
+          {/* AG Grid */}
+          <SPMAgGrid
+            rowData={rows}
+            columnDefs={columnDefs}
+            loading={loading}
+            height={600}
+            paginationPageSize={25}
+            paginationPageSizeSelector={[10, 25, 50, 100]}
+            onRowDoubleClick={(data) => setDetalleModal({ open: true, solicitud: data })}
+            exportFileName="mis_solicitudes"
+            emptyMessage={t("mis_empty_title", "No tienes solicitudes")}
+          />
+        </Paper>
+
+        {/* Modal de confirmacion para eliminar */}
+        <DeleteModal
+          open={deleteModal.open}
+          onClose={() => setDeleteModal({ open: false, solicitudId: null })}
+          onConfirm={handleEliminar}
+          deleting={deleting}
+          t={t}
+        />
+
+        {/* Modal de detalle */}
+        <DetalleModal
+          open={detalleModal.open}
+          solicitud={detalleModal.solicitud}
+          sectores={sectores}
+          onClose={() => setDetalleModal({ open: false, solicitud: null })}
+          onViewFull={() => {
+            setDetalleModal({ open: false, solicitud: null });
+            navigate(`/solicitudes/${detalleModal.solicitud?.id}`);
+          }}
+          t={t}
+        />
+    </Box>
   );
 }

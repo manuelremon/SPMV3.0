@@ -4,7 +4,7 @@
  * Estos componentes se cargan dinámicamente para reducir el bundle inicial.
  * Solo se cargan cuando el usuario navega a Forecast o Masivo.
  *
- * Esto permite que @mui/x-charts solo se incluya cuando sea necesario.
+ * Esto permite que Chart.js solo se incluya cuando sea necesario.
  */
 
 import React, { lazy, Suspense } from 'react'

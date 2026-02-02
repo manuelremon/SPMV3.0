@@ -57,35 +57,59 @@ export function SPMDataGrid({
   emptyMessage = 'Sin datos para mostrar',
   ...props
 }) {
-  // Estilos personalizados para integrar con el sistema de diseño SPM
+  // Estilos personalizados para integrar con el sistema de diseño SPM (Corporate Blue)
   const spmStyles = {
     height,
     width: '100%',
     '& .MuiDataGrid-root': {
-      border: '1px solid var(--border-default)',
+      border: '1px solid #dce0e6',
       borderRadius: 'var(--radius-md)',
-      backgroundColor: 'var(--bg-primary)',
+      backgroundColor: '#ffffff',
     },
     '& .MuiDataGrid-columnHeaders': {
-      backgroundColor: 'var(--bg-soft)',
-      borderBottom: '2px solid #cbd5e1',
+      backgroundColor: '#ffffff !important',
+      color: '#1f1f20 !important',
+      borderBottom: '2px solid #dce0e6',
     },
     '& .MuiDataGrid-columnHeader': {
-      borderRight: '1px solid #e2e8f0 !important',
+      backgroundColor: '#ffffff !important',
+      color: '#1f1f20 !important',
+      borderRight: '1px solid #dce0e6 !important',
       '&:last-of-type': {
         borderRight: 'none !important',
       },
     },
     '& .MuiDataGrid-columnHeaderTitle': {
       fontWeight: 600,
-      color: 'var(--fg-primary)',
+      color: '#1f1f20 !important',
       fontSize: '0.875rem',
       padding: '0 4px',
     },
+    '& .MuiDataGrid-sortIcon': {
+      color: '#606d80 !important',
+      fill: '#606d80 !important',
+      opacity: '1 !important',
+    },
+    '& .MuiDataGrid-sortIcon path': {
+      fill: '#606d80 !important',
+    },
+    '& .MuiDataGrid-menuIconButton': {
+      color: '#606d80 !important',
+    },
+    '& .MuiDataGrid-iconButtonContainer': {
+      visibility: 'visible !important',
+    },
+    '& .MuiDataGrid-columnHeader svg': {
+      color: '#606d80 !important',
+      fill: '#606d80 !important',
+    },
+    '& .MuiDataGrid-columnHeader svg path': {
+      fill: '#606d80 !important',
+    },
     '& .MuiDataGrid-cell': {
-      borderBottom: '1px solid #e2e8f0 !important',
-      borderRight: '1px solid #e2e8f0 !important',
-      color: 'var(--fg-primary)',
+      borderBottom: '1px solid #dce0e6 !important',  // Color5
+      borderRight: '1px solid #dce0e6 !important',
+      color: '#1f1f20',                              // Color1
       fontSize: '0.875rem',
       padding: '0 12px',
       '&:last-of-type': {
@@ -94,39 +118,39 @@ export function SPMDataGrid({
     },
     '& .MuiDataGrid-row': {
       '& .MuiDataGrid-cell': {
-        borderRight: '1px solid #e2e8f0 !important',
+        borderRight: '1px solid #dce0e6 !important',
         '&:last-of-type': {
           borderRight: 'none !important',
         },
       },
     },
     '& .MuiDataGrid-row:hover': {
-      backgroundColor: 'var(--bg-soft)',
+      backgroundColor: '#f0f2f5',        // Gris muy claro
     },
     '& .MuiDataGrid-row.Mui-selected': {
-      backgroundColor: 'var(--primary-soft)',
+      backgroundColor: '#e8eef5',        // Azul muy claro
       '&:hover': {
-        backgroundColor: 'var(--primary-soft)',
+        backgroundColor: '#e8eef5',
       },
     },
     '& .MuiDataGrid-footerContainer': {
-      borderTop: '1px solid var(--border-default)',
-      backgroundColor: 'var(--bg-soft)',
+      borderTop: '1px solid #dce0e6',
+      backgroundColor: '#f5f7fa',        // Fondo principal
     },
     '& .MuiDataGrid-toolbarContainer': {
       padding: '8px 16px',
       gap: '8px',
-      borderBottom: '1px solid var(--border-soft)',
+      borderBottom: '1px solid #dce0e6',
     },
     '& .MuiButton-root': {
       textTransform: 'none',
       fontSize: '0.875rem',
     },
     '& .MuiDataGrid-overlay': {
-      backgroundColor: 'var(--bg-primary)',
+      backgroundColor: '#ffffff',
     },
     '& .MuiTablePagination-root': {
-      color: 'var(--fg-primary)',
+      color: '#1f1f20',
     },
     '& .MuiDataGrid-columnSeparator': {
       display: 'none',
@@ -134,7 +158,7 @@ export function SPMDataGrid({
     // Asegurar bordes visibles en todas las celdas
     '& .MuiDataGrid-virtualScroller': {
       '& .MuiDataGrid-cell': {
-        borderRight: '1px solid #e2e8f0 !important',
+        borderRight: '1px solid #dce0e6 !important',
       },
     },
   };
@@ -174,18 +198,22 @@ export function SPMDataGrid({
     XLSX.writeFile(wb, fileName);
   }, [rows, columns]);
 
-  // Toolbar personalizado con iconos de búsqueda y descarga XLSX
+  // Toolbar personalizado con búsqueda y descarga XLSX
   const CustomToolbar = useCallback(() => (
-    <GridToolbarContainer sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+    <GridToolbarContainer sx={{
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      p: 1,
+      gap: 1,
+      borderBottom: '1px solid #dce0e6',
+      backgroundColor: '#f8f9fa',
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <GridToolbar
           showQuickFilter
           quickFilterProps={{
             debounceMs: 300,
             placeholder: 'Buscar...',
-            InputProps: {
-              startAdornment: <SearchIcon sx={{ color: '#757575', mr: 0.5, fontSize: '1.2rem' }} />,
-            },
           }}
           printOptions={{ disableToolbarButton: true }}
         />
@@ -195,13 +223,12 @@ export function SPMDataGrid({
           onClick={handleExportXLSX}
           size="medium"
           sx={{
-            color: '#2196f3',
-            border: '1px solid #2196f3',
+            color: '#567ebb',
+            border: '1px solid #567ebb',
             borderRadius: '8px',
             padding: '6px',
-            ml: 1,
             '&:hover': {
-              backgroundColor: '#2196f3',
+              backgroundColor: '#567ebb',
               color: '#fff'
             }
           }}
@@ -212,10 +239,9 @@ export function SPMDataGrid({
     </GridToolbarContainer>
   ), [handleExportXLSX]);
 
-  // Configuración de slots para toolbar
-  const slots = showToolbar ? { toolbar: CustomToolbar } : {};
-
-  const slotProps = {};
+  // Configuración de slots para toolbar (compatible con MUI DataGrid v6+)
+  const slots = showToolbar ? { toolbar: CustomToolbar } : undefined;
+  const components = showToolbar ? { Toolbar: CustomToolbar } : undefined;
 
   // Estado de paginación controlado
   const [paginationModel, setPaginationModel] = useState({
@@ -300,26 +326,59 @@ export function SPMDataGrid({
   };
 
   return (
-    <Box sx={spmStyles}>
-      <DataGrid
-        {...props}
-        rows={rows}
-        columns={columns}
-        loading={loading}
-        density={density}
-        disableRowSelectionOnClick={disableRowSelectionOnClick}
-        initialState={mergedInitialState}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        pageSizeOptions={pageSizeOptions}
-        slots={slots}
-        slotProps={slotProps}
-        getRowId={getRowId}
-        localeText={localeText}
-        disableColumnFilter={false}
-        disableColumnSelector={false}
-        disableDensitySelector={false}
-      />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height }}>
+      {/* Toolbar externo con botón de exportación */}
+      {showToolbar && (
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          p: 1,
+          borderBottom: '1px solid #dce0e6',
+          backgroundColor: '#f8f9fa',
+          gap: 1,
+        }}>
+          <Tooltip title="Descargar XLSX">
+            <IconButton
+              onClick={handleExportXLSX}
+              size="small"
+              sx={{
+                color: '#388e3c',
+                border: '1px solid #388e3c',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '0.75rem',
+                '&:hover': {
+                  backgroundColor: '#388e3c',
+                  color: '#fff'
+                }
+              }}
+            >
+              <DownloadXlsxIcon sx={{ fontSize: '1rem', mr: 0.5 }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>XLSX</span>
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+      <Box sx={{ ...spmStyles, height: showToolbar ? 'calc(100% - 48px)' : '100%' }}>
+        <DataGrid
+          {...props}
+          rows={rows}
+          columns={columns}
+          loading={loading}
+          density={density}
+          disableRowSelectionOnClick={disableRowSelectionOnClick}
+          initialState={mergedInitialState}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={pageSizeOptions}
+          getRowId={getRowId}
+          localeText={localeText}
+          disableColumnFilter={false}
+          disableColumnSelector={false}
+          disableDensitySelector={false}
+        />
+      </Box>
     </Box>
   );
 }

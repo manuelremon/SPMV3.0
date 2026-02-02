@@ -1,53 +1,374 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
-import {
-  Container,
-  Paper,
-  Typography,
-  Box,
-  Button,
-  TextField,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  Alert,
-  CircularProgress,
-  FormControlLabel,
-  Checkbox,
-} from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-const initialForm = {
-  codigo: "",
-  nombre: "",
-  activo: 1,
-};
+// MUI Components
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  FormControlLabel,
+  Checkbox,
+  Alert,
+  Skeleton,
+  Stack,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Drawer,
+  InputAdornment,
+  Chip,
+  CircularProgress,
+} from "@mui/material";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import DeleteIcon from "@mui/icons-material/Delete";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import CloseIcon from "@mui/icons-material/Close";
+import WarehouseIcon from "@mui/icons-material/Warehouse";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Services
+import { exportToXLSX } from "../../services/export";
+
+// ============================================================================
+// COMPONENTES UI
+// ============================================================================
+
+function FormInput({ label, name, value, onChange, required = false, disabled = false, placeholder = "" }) {
+  return (
+    <TextField
+      fullWidth
+      size="small"
+      label={label}
+      name={name}
+      value={value}
+      onChange={onChange}
+      required={required}
+      disabled={disabled}
+      placeholder={placeholder}
+      sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: 0,
+        },
+      }}
+    />
+  );
+}
+
+function FormCheckbox({ label, checked, onChange }) {
+  return (
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={checked}
+          onChange={onChange}
+          size="small"
+          sx={{ color: 'primary.main' }}
+        />
+      }
+      label={<Typography variant="body2" sx={{ color: 'text.primary' }}>{label}</Typography>}
+    />
+  );
+}
+
+function AlertMessage({ type = "error", children, onClose }) {
+  return (
+    <Alert
+      severity={type}
+      onClose={onClose}
+      sx={{
+        borderRadius: 0,
+        '& .MuiAlert-message': {
+          fontSize: '0.875rem',
+        },
+      }}
+    >
+      {children}
+    </Alert>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <Box>
+      {[...Array(5)].map((_, i) => (
+        <Box
+          key={i}
+          sx={{
+            display: 'flex',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ width: 100, px: 1.5, py: 2 }}>
+            <Skeleton variant="text" height={20} />
+          </Box>
+          <Box sx={{ flex: 1, px: 1.5, py: 2 }}>
+            <Skeleton variant="text" height={20} width="75%" />
+          </Box>
+          <Box sx={{ width: 100, px: 1.5, py: 2 }}>
+            <Skeleton variant="text" height={20} width="50%" sx={{ mx: 'auto' }} />
+          </Box>
+          <Box sx={{ width: 150, px: 1.5, py: 2 }}>
+            <Skeleton variant="text" height={20} width="66%" sx={{ mx: 'auto' }} />
+          </Box>
+          <Box sx={{ width: 50, px: 1.5, py: 2 }}>
+            <Skeleton variant="text" height={20} />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function EmptyState({ onClear, hasFilters }) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 8,
+        color: 'text.secondary',
+      }}
+    >
+      <WarehouseIcon sx={{ fontSize: 48, mb: 1.5, color: 'action.disabled' }} />
+      <Typography variant="body2" fontWeight={500}>
+        No se encontraron almacenes
+      </Typography>
+      {hasFilters && (
+        <Button
+          size="small"
+          onClick={onClear}
+          sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem' }}
+        >
+          Limpiar busqueda
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+function AlmacenRow({ almacen, onEdit, onDelete, isDeleting, onCancelDelete, onConfirmDelete }) {
+  const isActivo = almacen.activo === 1 || almacen.activo === true;
+
+  if (isDeleting) {
+    return (
+      <TableRow
+        sx={{
+          bgcolor: 'error.lighter',
+          borderLeft: '4px solid',
+          borderLeftColor: 'error.main',
+        }}
+      >
+        <TableCell colSpan={5} sx={{ py: 1.5 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.dark' }}>
+              <WarningAmberIcon sx={{ fontSize: 20 }} />
+              <Typography variant="body2" fontWeight={500}>
+                Eliminar el almacen <strong>{almacen.codigo}</strong>?
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={onCancelDelete}
+                sx={{
+                  borderRadius: 0,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="error"
+                onClick={onConfirmDelete}
+                sx={{
+                  borderRadius: 0,
+                  textTransform: 'none',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                Eliminar
+              </Button>
+            </Stack>
+          </Box>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow
+      onClick={onEdit}
+      sx={{
+        cursor: 'pointer',
+        '&:hover': {
+          bgcolor: 'action.hover',
+        },
+        '&:hover .delete-btn': {
+          opacity: 1,
+        },
+      }}
+    >
+      <TableCell
+        sx={{
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          py: 1.25,
+          px: 1.5,
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            fontFamily: 'monospace',
+            fontSize: '0.8125rem',
+            color: 'text.secondary',
+          }}
+        >
+          {almacen.codigo}
+        </Typography>
+      </TableCell>
+      <TableCell
+        sx={{
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          py: 1.25,
+          px: 1.5,
+        }}
+      >
+        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.8125rem' }}>
+          {almacen.nombre || "—"}
+        </Typography>
+      </TableCell>
+      <TableCell
+        align="center"
+        sx={{
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          py: 1.25,
+          px: 1.5,
+        }}
+      >
+        <Chip
+          size="small"
+          label={isActivo ? "Activo" : "Inactivo"}
+          sx={{
+            height: 20,
+            fontSize: '0.625rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            bgcolor: isActivo ? 'success.lighter' : 'action.disabledBackground',
+            color: isActivo ? 'success.dark' : 'text.disabled',
+            '& .MuiChip-label': {
+              px: 1,
+            },
+          }}
+          icon={
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: isActivo ? 'success.main' : 'action.disabled',
+                ml: 0.5,
+              }}
+            />
+          }
+        />
+      </TableCell>
+      <TableCell
+        align="center"
+        sx={{
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          py: 1.25,
+          px: 1.5,
+        }}
+      >
+        <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+          {almacen.created_at || "—"}
+        </Typography>
+      </TableCell>
+      <TableCell align="center" sx={{ py: 1.25, px: 1 }}>
+        <IconButton
+          size="small"
+          className="delete-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          sx={{
+            opacity: 0,
+            transition: 'opacity 0.15s, color 0.15s',
+            color: 'action.disabled',
+            '&:hover': {
+              color: 'error.main',
+              bgcolor: 'error.lighter',
+            },
+          }}
+          aria-label="Eliminar"
+        >
+          <DeleteIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
+const initialForm = { codigo: "", nombre: "", activo: 1 };
 
 export default function AdminAlmacenes() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
   const [almacenes, setAlmacenes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadAlmacenes = useCallback(async () => {
     setLoading(true);
     try {
       const res = await admin.list("almacenes");
-      const data = Array.isArray(res.data) ? res.data : [];
-      setAlmacenes(data);
+      setAlmacenes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message);
     } finally {
@@ -55,108 +376,26 @@ export default function AdminAlmacenes() {
     }
   }, []);
 
-  useEffect(() => {
-    loadAlmacenes();
-  }, [loadAlmacenes]);
+  useEffect(() => { loadAlmacenes(); }, [loadAlmacenes]);
 
-  const columns = useMemo(() => [
-    {
-      field: "codigo",
-      headerName: "Código",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "nombre",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 200,
-      headerAlign: "center",
-    },
-    {
-      field: "activo",
-      headerName: "Estado",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const isActivo = params.value === 1 || params.value === true;
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isActivo ? "#1b5e20" : "#b71c1c",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {isActivo ? "Activo" : "Inactivo"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "created_at",
-      headerName: "Creado",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, item: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  const filteredAlmacenes = useMemo(() => {
+    if (!search) return almacenes;
+    const term = search.toLowerCase();
+    return almacenes.filter(a => a.codigo?.toLowerCase().includes(term) || a.nombre?.toLowerCase().includes(term));
+  }, [almacenes, search]);
 
-  const handleEdit = useCallback((row) => {
-    setEditingId(row.codigo);
-    setForm({
-      codigo: row.codigo || "",
-      nombre: row.nombre || "",
-      activo: row.activo ?? 1,
-    });
-    setShowForm(true);
+  const handleEdit = useCallback((almacen) => {
+    setEditingId(almacen.codigo);
+    setForm({ codigo: almacen.codigo || "", nombre: almacen.nombre || "", activo: almacen.activo ?? 1 });
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
   }, []);
 
   const handleNew = useCallback(() => {
     setEditingId(null);
     setForm(initialForm);
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
   }, []);
 
   const handleChange = useCallback((e) => {
@@ -167,24 +406,17 @@ export default function AdminAlmacenes() {
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
-
-    if (!form.codigo) {
-      setError(t("admin_required_fields", "Faltan campos obligatorios"));
-      return;
-    }
-
+    if (!form.codigo) { setError(t("admin_required_fields", "Faltan campos obligatorios")); return; }
     setSubmitting(true);
     try {
       if (editingId) {
         await admin.update("almacenes", editingId, form);
-        setSuccess(t("crud_record_updated", "Almacén actualizado correctamente"));
+        setSuccess(t("crud_record_updated", "Almacen actualizado correctamente"));
       } else {
         await admin.create("almacenes", form);
-        setSuccess(t("crud_record_created", "Almacén creado correctamente"));
+        setSuccess(t("crud_record_created", "Almacen creado correctamente"));
       }
-
-      setShowForm(false);
+      setDrawerOpen(false);
       setForm(initialForm);
       setEditingId(null);
       await loadAlmacenes();
@@ -196,13 +428,12 @@ export default function AdminAlmacenes() {
     }
   }, [form, editingId, loadAlmacenes, t]);
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.item) return;
+  const handleDelete = useCallback(async (codigo) => {
     setSubmitting(true);
     try {
-      await admin.remove("almacenes", deleteDialog.item.codigo);
-      setSuccess(t("crud_record_deleted", "Almacén eliminado correctamente"));
-      setDeleteDialog({ open: false, item: null });
+      await admin.remove("almacenes", codigo);
+      setSuccess(t("crud_record_deleted", "Almacen eliminado correctamente"));
+      setDeletingId(null);
       await loadAlmacenes();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -210,92 +441,420 @@ export default function AdminAlmacenes() {
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.item, loadAlmacenes, t]);
+  }, [loadAlmacenes, t]);
 
-  return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1200 }}>
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
-            </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-              {t("admin_almacenes", "Almacenes")}
-            </Typography>
+  
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportToXLSX(
+        filteredAlmacenes,
+        "almacenes",
+        "Almacenes"
+      );
+      setSuccess("Almacenes exportados correctamente");
+    } catch (err) {
+      setError(err.message || "Error al exportar almacenes");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+return (
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* Header */}
+      <Paper
+        elevation={1}
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          borderRadius: 0,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ maxWidth: 1600, mx: 'auto', px: 2, py: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <IconButton
+                onClick={() => navigate("/admin")}
+                size="small"
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'text.primary',
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={700}
+                  sx={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'text.primary',
+                  }}
+                >
+                  {t("admin_almacenes", "Almacenes")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Gestion de almacenes del sistema
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleNew}
+              sx={{
+                borderRadius: 0,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 2,
+              }}
+            >
+              Nuevo
+            </Button>
           </Box>
-          <Button variant="contained" onClick={handleNew} sx={{ textTransform: "uppercase" }}>
-            Nuevo
-          </Button>
         </Box>
-      </Box>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>{success}</Alert>}
-
-      <Paper elevation={2} sx={{ height: 500 }}>
-        <DataGrid
-          rows={almacenes}
-          columns={columns}
-          getRowId={(row) => row.codigo}
-          loading={loading}
-          pageSizeOptions={[20, 50, 100]}
-          initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-          disableRowSelectionOnClick
-          rowHeight={67}
-          localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            "& .MuiDataGrid-columnHeaders": { backgroundColor: "grey.100", fontWeight: 700, textTransform: "uppercase", fontSize: "12px" },
-            "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": { justifyContent: "center" },
-            "& .MuiDataGrid-columnHeader": { borderRight: "1px solid", borderColor: "divider" },
-            "& .MuiDataGrid-cell": { fontSize: "13px", borderRight: "1px solid", borderColor: "divider" },
-          }}
-        />
       </Paper>
 
-      <Dialog open={showForm} onClose={() => setShowForm(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>{editingId ? "Editar" : "Nuevo"}</DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
-            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField fullWidth size="small" name="codigo" label="Código" value={form.codigo} onChange={handleChange} required disabled={!!editingId} slotProps={{ inputLabel: { shrink: true } }} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField fullWidth size="small" name="nombre" label="Nombre" value={form.nombre} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }} />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={<Checkbox checked={form.activo === 1 || form.activo === true} onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked ? 1 : 0 }))} size="small" />}
-                  label="Activo"
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button variant="outlined" color="inherit" onClick={() => setShowForm(false)} disabled={submitting} sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}>Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={submitting} startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null} sx={{ textTransform: "uppercase" }}>
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {/* Contenido */}
+      <Box sx={{ maxWidth: 1600, mx: 'auto', px: 2, py: 2 }}>
+        {error && (
+          <Box sx={{ mb: 2 }}>
+            <AlertMessage type="error" onClose={() => setError("")}>{error}</AlertMessage>
+          </Box>
+        )}
+        {success && (
+          <Box sx={{ mb: 2 }}>
+            <AlertMessage type="success" onClose={() => setSuccess("")}>{success}</AlertMessage>
+          </Box>
+        )}
 
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, item: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>Eliminar</DialogTitle>
-        <DialogContent>
-          <Typography>¿Eliminar el almacén <strong>{deleteDialog.item?.codigo}</strong>?</Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button variant="outlined" color="inherit" onClick={() => setDeleteDialog({ open: false, item: null })} disabled={submitting} sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}>Cancelar</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={submitting} startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null} sx={{ textTransform: "uppercase" }}>
-            {submitting ? "Eliminando..." : "Eliminar"}
+        <Paper elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 0 }}>
+          {/* Filtros */}
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <TextField
+                size="small"
+                placeholder="Buscar por codigo o nombre..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={{
+                  flex: 1,
+                  maxWidth: 400,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 0,
+                    bgcolor: 'background.paper',
+                  },
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 18, color: 'action.disabled' }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <Chip
+                size="small"
+                label={`${filteredAlmacenes.length} almacenes`}
+                sx={{
+                  borderRadius: 0,
+                  height: 24,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  bgcolor: 'action.selected',
+                  color: 'text.secondary',
+                }}
+                icon={
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      bgcolor: 'action.disabled',
+                      ml: 0.5,
+                    }}
+                  />
+                }
+              />
+            </Box>
+          </Box>
+
+          {/* Tabla */}
+          {loading ? (
+            <LoadingSkeleton />
+          ) : filteredAlmacenes.length === 0 ? (
+            <EmptyState onClear={() => setSearch("")} hasFilters={!!search} />
+          ) : (
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ borderCollapse: 'collapse' }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'action.hover' }}>
+                    <TableCell
+                      sx={{
+                        width: 100,
+                        py: 1.5,
+                        px: 1.5,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'text.secondary',
+                        borderRight: '1px solid',
+                        borderBottom: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Codigo
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        py: 1.5,
+                        px: 1.5,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'text.secondary',
+                        borderRight: '1px solid',
+                        borderBottom: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Nombre
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        width: 100,
+                        py: 1.5,
+                        px: 1.5,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'text.secondary',
+                        borderRight: '1px solid',
+                        borderBottom: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Estado
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        width: 150,
+                        py: 1.5,
+                        px: 1.5,
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'text.secondary',
+                        borderRight: '1px solid',
+                        borderBottom: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      Creado
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        width: 50,
+                        py: 1.5,
+                        px: 1,
+                        borderBottom: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                    />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredAlmacenes.map((almacen) => (
+                    <AlmacenRow
+                      key={almacen.codigo}
+                      almacen={almacen}
+                      onEdit={() => handleEdit(almacen)}
+                      onDelete={() => setDeletingId(almacen.codigo)}
+                      isDeleting={deletingId === almacen.codigo}
+                      onCancelDelete={() => setDeletingId(null)}
+                      onConfirmDelete={() => handleDelete(almacen.codigo)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+
+          {!loading && filteredAlmacenes.length > 0 && (
+            <Box
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'action.hover',
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Mostrando {filteredAlmacenes.length} de {almacenes.length} almacenes
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+      </Box>
+
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 400 },
+            borderRadius: 0,
+          },
+        }}
+      >
+        {/* Drawer Header */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700}>
+              {editingId ? "Editar Almacen" : "Nuevo Almacen"}
+            </Typography>
+            {editingId && (
+              <Typography variant="caption" color="text.secondary">
+                Codigo: {editingId}
+              </Typography>
+            )}
+          </Box>
+          <IconButton
+            onClick={() => setDrawerOpen(false)}
+            size="small"
+            sx={{ color: 'text.secondary' }}
+          >
+            <CloseIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Box>
+
+        {/* Drawer Content */}
+        <Box
+          component="form"
+          id="almacen-form"
+          onSubmit={handleSubmit}
+          sx={{ p: 3, flex: 1, overflowY: 'auto' }}
+        >
+          {error && (
+            <Box sx={{ mb: 3 }}>
+              <AlertMessage type="error" onClose={() => setError("")}>{error}</AlertMessage>
+            </Box>
+          )}
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{
+                display: 'block',
+                mb: 2,
+                color: 'text.disabled',
+                fontWeight: 600,
+                letterSpacing: '0.1em',
+              }}
+            >
+              Datos del Almacen
+            </Typography>
+            <Stack spacing={2.5}>
+              <FormInput
+                label="Codigo"
+                name="codigo"
+                value={form.codigo}
+                onChange={handleChange}
+                required
+                disabled={!!editingId}
+                placeholder="Ej: ALM001"
+              />
+              <FormInput
+                label="Nombre"
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                placeholder="Nombre del almacen"
+              />
+              <FormCheckbox
+                label="Almacen activo"
+                checked={form.activo === 1 || form.activo === true}
+                onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked ? 1 : 0 }))}
+              />
+            </Stack>
+          </Box>
+        </Box>
+
+        {/* Drawer Footer */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 1.5,
+          }}
+        >
+          <Button
+            variant="outlined"
+            onClick={() => setDrawerOpen(false)}
+            disabled={submitting}
+            sx={{
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Cancelar
           </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+          <Button
+            type="submit"
+            form="almacen-form"
+            variant="contained"
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{
+              borderRadius: 0,
+              textTransform: 'none',
+              fontWeight: 600,
+            }}
+          >
+            {submitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }

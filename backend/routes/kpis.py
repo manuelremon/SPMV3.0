@@ -43,6 +43,10 @@ def get_stock_inmovilizado():
 
     Query params:
         - centros: lista de centros (códigos, ej: AA101,AA102)
+        - centro: un solo centro (alternativa a centros)
+        - almacen: filtrar por almacén específico
+        - periodo_anos: años sin consumo (1, 2, 3) - actualmente no implementado
+        - limit: límite de resultados (default 50)
 
     Returns:
         - items: lista de materiales inmovilizados con codigo, descripcion, centro y almacen
@@ -60,6 +64,18 @@ def get_stock_inmovilizado():
         # Obtener filtros de query params
         centros_param = request.args.get("centros", "")
         centros = [c.strip() for c in centros_param.split(",") if c.strip()]
+
+        # Soporte para un solo centro (alternativa)
+        centro_unico = request.args.get("centro", "").strip()
+        if centro_unico and not centros:
+            centros = [centro_unico]
+
+        # Filtro de almacén
+        almacen_param = request.args.get("almacen", "").strip()
+
+        # Límite de resultados
+        limit = int(request.args.get("limit", 50))
+        limit = min(max(limit, 1), 100)  # Entre 1 y 100
 
         with get_db_connection("sap_data") as conn:
             cursor = conn.cursor()
@@ -93,6 +109,11 @@ def get_stock_inmovilizado():
                 where_clauses.append(f"centro IN ({placeholders})")
                 params.extend(centros)
 
+            if almacen_param:
+                # Filtrar por almacén
+                where_clauses.append("almacen = ?")
+                params.append(almacen_param)
+
             where_sql = " AND ".join(where_clauses)
 
             # Query filtrada para items
@@ -110,7 +131,7 @@ def get_stock_inmovilizado():
                 WHERE {where_sql}
                 GROUP BY material, material_descripcion, centro, centro_descripcion, almacen, lote
                 ORDER BY valor_total DESC
-                LIMIT 50
+                LIMIT {limit}
             """
             cursor.execute(query, params)
             rows = cursor.fetchall()
@@ -205,7 +226,7 @@ def get_compras_evitadas_detalle():
                     (f.cantidad_asignada * COALESCE(f.precio_unitario, 0)) as valor
                 FROM decision_abastecimiento_fuentes f
                 JOIN decision_abastecimiento d ON f.decision_id = d.id
-                JOIN solicitudes s ON d.solicitud_id = s.id
+                JOIN solicitud s ON d.solicitud_id = s.id
                 WHERE f.tipo_fuente IN ('stock', 'transferencia')
                 ORDER BY s.created_at DESC
             """
@@ -281,7 +302,7 @@ def get_kpis():
                 SELECT
                     status,
                     COUNT(*) as cantidad
-                FROM solicitudes
+                FROM solicitud
                 GROUP BY status
             """
             )
@@ -305,7 +326,7 @@ def get_kpis():
                 SELECT
                     DATE(created_at) as fecha,
                     COUNT(*) as cantidad
-                FROM solicitudes
+                FROM solicitud
                 WHERE created_at >= {sql_date_relative(days=-7)}
                 GROUP BY DATE(created_at)
                 ORDER BY fecha
@@ -322,7 +343,7 @@ def get_kpis():
             # Calcular tendencia porcentual (vs semana anterior)
             cursor.execute(
                 f"""
-                SELECT COUNT(*) FROM solicitudes
+                SELECT COUNT(*) FROM solicitud
                 WHERE created_at >= {sql_date_relative(days=-14)}
                 AND created_at < {sql_date_relative(days=-7)}
             """
@@ -331,7 +352,7 @@ def get_kpis():
             prev_week = (list(row.values())[0] if isinstance(row, dict) else row[0]) or 1
             cursor.execute(
                 f"""
-                SELECT COUNT(*) FROM solicitudes
+                SELECT COUNT(*) FROM solicitud
                 WHERE created_at >= {sql_date_relative(days=-7)}
             """
             )
@@ -352,7 +373,7 @@ def get_kpis():
                     sector,
                     monto_usd,
                     saldo_usd
-                FROM presupuestos
+                FROM presupuesto
                 WHERE monto_usd > 0
                 ORDER BY monto_usd DESC
             """
@@ -462,7 +483,7 @@ def get_kpis():
             # Obtener todos los items de solicitudes y contar por código
             cursor.execute(
                 """
-                SELECT data_json FROM solicitudes
+                SELECT data_json FROM solicitud
                 WHERE status NOT IN ('draft')
             """
             )
@@ -524,7 +545,7 @@ def get_kpis():
                 f"""
                 SELECT
                     AVG({sql_date_diff_days('updated_at', 'created_at')}) as promedio_dias
-                FROM solicitudes
+                FROM solicitud
                 WHERE status IN ('approved', 'processing', 'dispatched', 'closed')
             """
             )
@@ -540,7 +561,7 @@ def get_kpis():
                     f"""
                     SELECT
                         AVG({sql_date_diff_days('updated_at', 'created_at')}) as promedio
-                    FROM solicitudes
+                    FROM solicitud
                     WHERE status IN ('approved', 'processing', 'dispatched', 'closed')
                     AND DATE(updated_at) = DATE({sql_date_relative(days=-dias_atras)})
                 """
@@ -579,7 +600,7 @@ def get_kpis():
                     {sql_format_date('created_at', '%Y-%m')} as mes,
                     status,
                     COUNT(*) as cantidad
-                FROM solicitudes
+                FROM solicitud
                 WHERE created_at >= {sql_date_relative(months=-6)}
                 GROUP BY {sql_format_date('created_at', '%Y-%m')}, status
                 ORDER BY mes

@@ -1,9 +1,29 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, X, Loader2, AlertCircle, Bell, Mic, MicOff, Volume2, VolumeX } from './ui/Icons'
 import { useVertexStore, selectFormattedMessages } from '../store/vertexStore'
 import { useAuthStore } from '../store/authStore'
 import vertexService, { sendVertexMessage, loadVertexAlerts, initializeVertex } from '../services/vertex'
 import api from '../services/api'
+
+// MUI Components
+import Box from '@mui/material/Box'
+import Paper from '@mui/material/Paper'
+import Typography from '@mui/material/Typography'
+import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
+import TextField from '@mui/material/TextField'
+import Stack from '@mui/material/Stack'
+import CircularProgress from '@mui/material/CircularProgress'
+import Badge from '@mui/material/Badge'
+
+// MUI Icons
+import SendIcon from '@mui/icons-material/Send'
+import CloseIcon from '@mui/icons-material/Close'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
+import NotificationsIcon from '@mui/icons-material/Notifications'
+import MicIcon from '@mui/icons-material/Mic'
+import MicOffIcon from '@mui/icons-material/MicOff'
+import VolumeUpIcon from '@mui/icons-material/VolumeUp'
+import VolumeOffIcon from '@mui/icons-material/VolumeOff'
 
 /**
  * Componente ChatAssistant - Vertex IA
@@ -469,246 +489,506 @@ export default function ChatAssistant() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 w-full max-w-sm h-[520px]
-                    bg-white border border-gray-200
-                    rounded-2xl shadow-lg
-                    flex flex-col
-                    animate-scale-in"
+    <Paper
+      elevation={6}
+      sx={{
+        position: 'fixed',
+        bottom: 96,
+        right: 24,
+        zIndex: 50,
+        width: '100%',
+        maxWidth: 384,
+        height: 520,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 4,
+        overflow: 'hidden',
+        animation: 'scaleIn 0.2s ease-out',
+        '@keyframes scaleIn': {
+          '0%': { transform: 'scale(0.9)', opacity: 0 },
+          '100%': { transform: 'scale(1)', opacity: 1 },
+        },
+      }}
     >
       {/* Header - Vertex IA */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between rounded-t-2xl"
-           style={{ backgroundColor: '#1976d2' }}>
-        <div className="flex items-center gap-3">
+      <Box
+        sx={{
+          px: 2,
+          py: 1.5,
+          borderBottom: 1,
+          borderColor: 'grey.200',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#093170',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5}>
           {/* Avatar Vertex */}
-          <div className="relative">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md
-                          ${isSpeaking ? 'animate-pulse' : ''}`}
-                 style={{ backgroundColor: '#fc1b80' }}>
-              <span className="text-white text-sm font-bold">V</span>
-            </div>
+          <Box sx={{ position: 'relative' }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#fc1b80',
+                boxShadow: 2,
+                animation: isSpeaking ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.7 },
+                },
+              }}
+            >
+              <Typography
+                sx={{
+                  color: 'white',
+                  fontSize: '0.875rem',
+                  fontWeight: 'bold',
+                }}
+              >
+                V
+              </Typography>
+            </Box>
             {/* Indicador de estado */}
-            <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white
-                          ${isSpeaking ? 'animate-pulse' : ''}`}
-                 style={{ backgroundColor: isSpeaking ? '#90caf9' : '#4caf50' }}></div>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-white">
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                border: '2px solid white',
+                backgroundColor: isSpeaking ? 'var(--info)' : 'var(--success)',
+                animation: isSpeaking ? 'pulse 1.5s infinite' : 'none',
+              }}
+            />
+          </Box>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'white',
+              }}
+            >
               Vertex IA
-            </h3>
-            <span className="text-xs text-blue-100">
+            </Typography>
+            <Typography
+              sx={{
+                fontSize: '0.75rem',
+                color: 'var(--primary-bg-light)',
+              }}
+            >
               {isSpeaking ? 'Hablando...' : isListening ? 'Escuchando...' : 'Tu asistente SPM'}
-            </span>
-          </div>
-        </div>
+            </Typography>
+          </Box>
+        </Stack>
 
-        <div className="flex items-center gap-1">
+        <Stack direction="row" alignItems="center" spacing={0.5}>
           {/* Toggle Voice Output */}
-          <button
+          <IconButton
             onClick={toggleVoice}
             aria-label={voiceEnabled ? 'Desactivar voz' : 'Activar voz'}
             title={voiceEnabled ? 'Desactivar voz' : 'Activar voz'}
-            className={`p-1.5 rounded-full transition-colors ${voiceEnabled ? 'text-white hover:bg-blue-600' : 'text-blue-200 hover:bg-blue-600'}`}
+            size="small"
+            sx={{
+              color: voiceEnabled ? 'white' : 'var(--primary-bg-light)',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+            }}
           >
-            {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
+            {voiceEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
+          </IconButton>
 
           {/* Badge de alertas */}
           {unshownAlertsCount > 0 && (
-            <div className="relative">
-              <Bell className="w-5 h-5 text-amber-300" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                {unshownAlertsCount}
-              </span>
-            </div>
+            <Badge
+              badgeContent={unshownAlertsCount}
+              color="warning"
+              sx={{
+                '& .MuiBadge-badge': {
+                  fontSize: '0.625rem',
+                  fontWeight: 'bold',
+                },
+              }}
+            >
+              <NotificationsIcon sx={{ color: 'var(--warning)', fontSize: 20 }} />
+            </Badge>
           )}
 
-          <button
+          <IconButton
             onClick={closeChat}
             aria-label="Cerrar chat"
-            className="p-1.5 rounded-full text-white hover:bg-blue-600 transition-colors"
+            size="small"
+            sx={{
+              color: 'white',
+              '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+            }}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Box>
 
       {/* Alertas Proactivas */}
       {pendingAlerts.length > 0 && (
-        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200">
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1,
+            backgroundColor: 'var(--warning-bg-light)',
+            borderBottom: 1,
+            borderColor: 'var(--warning)',
+          }}
+        >
           {pendingAlerts.slice(0, 1).map(alert => (
-            <div key={alert.id} className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-amber-800 truncate">
+            <Stack key={alert.id} direction="row" alignItems="flex-start" spacing={1}>
+              <ErrorOutlineIcon sx={{ color: 'var(--warning)', fontSize: 16, mt: 0.25, flexShrink: 0 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: 'var(--warning)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {alert.title}
-                </p>
-                <p className="text-[11px] text-amber-600 line-clamp-2">
+                </Typography>
+                <Typography
+                  sx={{
+                    fontSize: '0.6875rem',
+                    color: 'var(--warning)',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
                   {alert.message}
-                </p>
-              </div>
-              <button
+                </Typography>
+              </Box>
+              <IconButton
                 onClick={() => handleDismissAlert(alert.id)}
-                className="text-amber-400 hover:text-amber-600 p-1"
+                size="small"
+                sx={{ color: 'var(--warning)', p: 0.5 }}
               >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
+                <CloseIcon sx={{ fontSize: 12 }} />
+              </IconButton>
+            </Stack>
           ))}
-        </div>
+        </Box>
       )}
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ backgroundColor: '#faf1e1' }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          p: 2,
+          backgroundColor: '#faf1e1',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+        }}
+      >
         {formattedMessages.map((msg) => (
-          <div
+          <Box
             key={msg.id}
-            className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
+            sx={{
+              display: 'flex',
+              justifyContent: msg.isUser ? 'flex-end' : 'flex-start',
+            }}
           >
-            <div
-              className={`max-w-[85%] px-3 py-2 rounded-xl shadow-sm
-                ${msg.isUser
-                  ? 'text-white'
-                  : 'bg-gray-100 border border-gray-200 text-slate-700'
-                }`}
-              style={msg.isUser ? { backgroundColor: '#1976d2' } : undefined}
+            <Box
+              sx={{
+                maxWidth: '85%',
+                px: 1.5,
+                py: 1,
+                borderRadius: 3,
+                boxShadow: 1,
+                backgroundColor: msg.isUser ? 'var(--primary)' : 'var(--bg-soft)',
+                color: msg.isUser ? 'white' : 'var(--fg-muted)',
+                border: msg.isUser ? 'none' : '1px solid var(--border)',
+              }}
             >
               {/* Contenido del mensaje */}
-              <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+              <Typography
+                sx={{
+                  fontSize: '0.875rem',
+                  lineHeight: 1.5,
+                  wordBreak: 'break-word',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
                 {msg.content}
-              </p>
+              </Typography>
 
               {/* Sugerencias */}
               {msg.suggestions && msg.suggestions.length > 0 && msg.isAssistant && (
-                <div className="mt-2 space-y-1.5 pt-2 border-t border-gray-200">
+                <Stack spacing={0.75} sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'grey.300' }}>
                   {msg.suggestions.map((suggestion, idx) => (
-                    <button
+                    <Button
                       key={idx}
                       onClick={() => handleSuggestion(suggestion)}
-                      className="block w-full text-left text-xs px-2 py-1.5
-                               bg-white hover:bg-blue-50
-                               border border-gray-200
-                               rounded-lg transition-colors text-slate-600
-                               hover:text-blue-600"
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        justifyContent: 'flex-start',
+                        fontSize: '0.75rem',
+                        textTransform: 'none',
+                        px: 1,
+                        py: 0.75,
+                        borderColor: 'grey.300',
+                        color: 'var(--fg-muted)',
+                        backgroundColor: 'var(--card)',
+                        '&:hover': {
+                          backgroundColor: 'var(--primary-bg-light)',
+                          color: 'var(--primary)',
+                          borderColor: 'var(--primary)',
+                        },
+                      }}
                     >
                       {suggestion}
-                    </button>
+                    </Button>
                   ))}
-                </div>
+                </Stack>
               )}
 
               {/* Timestamp */}
-              <p className={`text-[10px] mt-1.5 ${msg.isUser ? 'text-blue-100' : 'text-slate-400'}`}>
+              <Typography
+                sx={{
+                  fontSize: '0.625rem',
+                  mt: 0.75,
+                  color: msg.isUser ? 'var(--primary-bg-light)' : 'var(--fg-subtle)',
+                }}
+              >
                 {msg.formattedTime}
-              </p>
-            </div>
-          </div>
+              </Typography>
+            </Box>
+          </Box>
         ))}
 
         {/* Indicador de Vertex pensando */}
         {isTyping && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#1976d2', animationDelay: '300ms' }} />
-              </div>
-              <span className="text-xs" style={{ color: '#1976d2' }}>Vertex esta pensando...</span>
-            </div>
-          </div>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{
+                px: 1.5,
+                py: 1,
+                backgroundColor: 'var(--primary-bg-light)',
+                border: 1,
+                borderColor: 'var(--info)',
+                borderRadius: 3,
+              }}
+            >
+              <Stack direction="row" spacing={0.5}>
+                {[0, 150, 300].map((delay) => (
+                  <Box
+                    key={delay}
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--primary)',
+                      animation: 'bounce 1s infinite',
+                      animationDelay: `${delay}ms`,
+                      '@keyframes bounce': {
+                        '0%, 100%': { transform: 'translateY(0)' },
+                        '50%': { transform: 'translateY(-4px)' },
+                      },
+                    }}
+                  />
+                ))}
+              </Stack>
+              <Typography sx={{ fontSize: '0.75rem', color: 'var(--primary)' }}>
+                Vertex esta pensando...
+              </Typography>
+            </Stack>
+          </Box>
         )}
 
         {/* Loading sin typing */}
         {isLoading && !isTyping && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm">
-              <Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1976d2' }} />
-              <span className="text-sm text-slate-600">Conectando...</span>
-            </div>
-          </div>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{
+                px: 1.5,
+                py: 1,
+                backgroundColor: 'var(--card)',
+                border: 1,
+                borderColor: 'grey.300',
+                borderRadius: 3,
+                boxShadow: 1,
+              }}
+            >
+              <CircularProgress size={16} sx={{ color: 'var(--primary)' }} />
+              <Typography sx={{ fontSize: '0.875rem', color: 'var(--fg-muted)' }}>
+                Conectando...
+              </Typography>
+            </Stack>
+          </Box>
         )}
 
         {/* Error Message */}
         {error && (
-          <div className="flex justify-start">
-            <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-              {error}
-            </div>
-          </div>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <Box
+              sx={{
+                px: 1.5,
+                py: 1,
+                backgroundColor: 'var(--danger-bg-light)',
+                border: 1,
+                borderColor: 'var(--danger)',
+                borderRadius: 3,
+              }}
+            >
+              <Typography sx={{ fontSize: '0.875rem', color: 'var(--danger)' }}>
+                {error}
+              </Typography>
+            </Box>
+          </Box>
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+      </Box>
 
       {/* Input Area */}
-      <form
+      <Box
+        component="form"
         onSubmit={handleSendMessage}
-        className="border-t border-gray-200 p-3 bg-white rounded-b-2xl"
+        sx={{
+          borderTop: 1,
+          borderColor: 'grey.200',
+          p: 1.5,
+          backgroundColor: 'var(--card)',
+          borderBottomLeftRadius: 16,
+          borderBottomRightRadius: 16,
+        }}
       >
-        <div className="flex gap-2">
+        <Stack direction="row" spacing={1}>
           {/* Microphone Button */}
           {speechSupported && !micPermissionDenied && (
-            <button
+            <IconButton
               type="button"
               onClick={toggleListening}
               disabled={isLoading}
-              className={`px-3 py-2 rounded-xl transition-colors ${isListening
-                ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                : 'bg-blue-50 hover:bg-blue-100'}`}
               title={isListening ? 'Detener' : 'Hablar'}
+              sx={{
+                backgroundColor: isListening ? 'var(--danger)' : 'var(--primary-bg-light)',
+                animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                '&:hover': {
+                  backgroundColor: isListening ? 'var(--danger)' : 'var(--info)',
+                },
+                '@keyframes pulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.7 },
+                },
+              }}
             >
-              {isListening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4" style={{ color: '#1976d2' }} />}
-            </button>
+              {isListening ? (
+                <MicOffIcon sx={{ color: 'white', fontSize: 18 }} />
+              ) : (
+                <MicIcon sx={{ color: 'var(--primary)', fontSize: 18 }} />
+              )}
+            </IconButton>
           )}
 
-          <input
-            ref={inputRef}
+          <TextField
+            inputRef={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={isListening ? 'Escuchando...' : 'Escribi o habla tu consulta...'}
             disabled={isLoading}
             autoComplete="off"
-            className={`flex-1 px-3 py-2 bg-white
-                      border rounded-xl
-                      text-sm text-slate-800
-                      placeholder-slate-400
-                      focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400
-                      disabled:bg-gray-100 disabled:cursor-not-allowed
-                      transition-all
-                      ${isListening
-                        ? 'border-red-400 ring-2 ring-red-200'
-                        : 'border-gray-300'}`}
+            size="small"
+            fullWidth
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                fontSize: '0.875rem',
+                backgroundColor: 'var(--card)',
+                '& fieldset': {
+                  borderColor: isListening ? 'var(--danger)' : 'grey.300',
+                  ...(isListening && { borderWidth: 2, boxShadow: '0 0 0 2px var(--danger-bg-light)' }),
+                },
+                '&:hover fieldset': {
+                  borderColor: isListening ? 'var(--danger)' : 'var(--primary)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: isListening ? 'var(--danger)' : 'var(--primary)',
+                },
+              },
+            }}
           />
-          <button
+          <IconButton
             type="submit"
             disabled={!inputValue.trim() || isLoading}
-            className="px-3 py-2 rounded-xl text-white shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            style={{ backgroundColor: '#1976d2' }}
+            sx={{
+              backgroundColor: 'var(--primary)',
+              color: 'white',
+              borderRadius: 3,
+              boxShadow: 2,
+              '&:hover': {
+                backgroundColor: 'var(--primary-dark)',
+                boxShadow: 4,
+              },
+              '&.Mui-disabled': {
+                backgroundColor: 'grey.300',
+                color: 'grey.500',
+              },
+            }}
           >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
+            <SendIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Stack>
 
         {/* Helper text con sugerencias rapidas */}
-        <div className="flex flex-wrap gap-1.5 mt-2">
+        <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mt: 1 }}>
           {(suggestions.length > 0 ? suggestions.slice(0, 3) : ['Ver solicitudes', 'Buscar material', 'Stock']).map((sug, idx) => (
-            <button
+            <Button
               key={idx}
               type="button"
               onClick={() => handleSuggestion(sug)}
               disabled={isLoading}
-              className="text-[10px] px-2 py-0.5 bg-blue-50
-                       rounded-full
-                       hover:bg-blue-100
-                       disabled:opacity-50 transition-colors"
-              style={{ color: '#1976d2' }}
+              size="small"
+              sx={{
+                fontSize: '0.625rem',
+                px: 1,
+                py: 0.25,
+                minHeight: 'auto',
+                backgroundColor: 'var(--primary-bg-light)',
+                color: 'var(--primary)',
+                borderRadius: 4,
+                textTransform: 'none',
+                '&:hover': {
+                  backgroundColor: 'var(--info)',
+                },
+                '&.Mui-disabled': {
+                  opacity: 0.5,
+                },
+              }}
             >
               {sug}
-            </button>
+            </Button>
           ))}
-        </div>
-      </form>
-    </div>
+        </Stack>
+      </Box>
+    </Paper>
   )
 }

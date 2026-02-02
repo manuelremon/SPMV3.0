@@ -20,6 +20,7 @@ from jwt import InvalidTokenError
 from backend.core.cache import user_cache
 from backend.core.config import settings
 from backend.core.db import get_db_connection, sql_pattern_is_numeric
+from backend.core.helpers import safe_json as _safe_json
 from backend.core.roles import format_user_response, is_admin, normalize_roles
 
 bp = Blueprint("auth", __name__)
@@ -75,7 +76,7 @@ def _get_user(username: str):
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT * FROM usuarios WHERE id_spm=? OR mail=?",
+            "SELECT * FROM usuario WHERE id_spm=? OR mail=?",
             (username, username),
         )
         row = cur.fetchone()
@@ -99,7 +100,7 @@ def _get_user_by_id(user_id: str):
     user = None
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT * FROM usuarios WHERE id_spm=?", (str(user_id),))
+        cur.execute("SELECT * FROM usuario WHERE id_spm=?", (str(user_id),))
         row = cur.fetchone()
         if row:
             # El wrapper ya retorna dict para PostgreSQL, SQLite retorna Row
@@ -173,13 +174,6 @@ def _decode_token(expected_type: str, cookie_name: str) -> Dict[str, Any] | tupl
             ),
             401,
         )
-
-
-def _safe_json():
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        return None
-    return data
 
 
 @bp.route("/login", methods=["POST"])
@@ -482,7 +476,7 @@ def register():
     # Verificar email único
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id_spm FROM usuarios WHERE mail=?", (email,))
+        cur.execute("SELECT id_spm FROM usuario WHERE mail=?", (email,))
         if cur.fetchone():
             return (
                 jsonify(
@@ -502,7 +496,7 @@ def register():
         cur = conn.cursor()
         # Obtener el próximo ID secuencial (solo considerar IDs numéricos)
         cur.execute(
-            f"SELECT MAX(CAST(id_spm AS INTEGER)) as max_id FROM usuarios WHERE {sql_pattern_is_numeric('id_spm')}"
+            f"SELECT MAX(CAST(id_spm AS INTEGER)) as max_id FROM usuario WHERE {sql_pattern_is_numeric('id_spm')}"
         )
         row = cur.fetchone()
         # Manejar resultado como dict (PostgreSQL) o tuple/Row (SQLite)
@@ -519,7 +513,7 @@ def register():
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            """INSERT INTO usuarios (id_spm, nombre, apellido, rol, contrasena, mail, estado_registro)
+            """INSERT INTO usuario (id_spm, nombre, apellido, rol, contrasena, mail, estado_registro)
                VALUES (?, ?, '', 'Solicitante', ?, ?, 'Activo')""",
             (user_id, nombre, password_hash, email),
         )
@@ -536,6 +530,7 @@ def register():
         "mail": email,
         "rol": "Solicitante",
         "roles": ["Solicitante"],
+        "is_new_user": True,
     }
 
     response = jsonify(

@@ -1,27 +1,304 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
+import { useNavigate } from "react-router-dom";
+
+// MUI Components
 import {
-  Container,
+  Box,
   Paper,
   Typography,
-  Box,
-  Button,
   TextField,
+  Button,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
   Alert,
-  CircularProgress,
-  FormControlLabel,
+  Skeleton,
+  Stack,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Drawer,
   Checkbox,
+  FormControlLabel,
+  InputAdornment,
+  Chip,
+  CircularProgress,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import DeleteIcon from "@mui/icons-material/Delete";
+import WarningIcon from "@mui/icons-material/Warning";
+import BusinessIcon from "@mui/icons-material/Business";
+import CloseIcon from "@mui/icons-material/Close";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Services
+import { exportToXLSX } from "../../services/export";
+
+// ============================================================================
+// COMPONENTES UI
+// ============================================================================
+
+function LoadingSkeleton() {
+  return (
+    <Box>
+      {[...Array(5)].map((_, i) => (
+        <Box
+          key={i}
+          sx={{
+            display: "flex",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Box sx={{ width: 100, px: 1.5, py: 2 }}>
+            <Skeleton variant="rectangular" height={16} />
+          </Box>
+          <Box sx={{ flex: 1, px: 1.5, py: 2 }}>
+            <Skeleton variant="rectangular" height={16} sx={{ width: "75%" }} />
+          </Box>
+          <Box sx={{ width: 100, px: 1.5, py: 2 }}>
+            <Skeleton variant="rectangular" height={16} sx={{ width: "50%", mx: "auto" }} />
+          </Box>
+          <Box sx={{ width: 150, px: 1.5, py: 2 }}>
+            <Skeleton variant="rectangular" height={16} sx={{ width: "66%", mx: "auto" }} />
+          </Box>
+          <Box sx={{ width: 50, px: 1.5, py: 2 }}>
+            <Skeleton variant="rectangular" height={16} />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function EmptyState({ onClear, hasFilters }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
+        color: "text.secondary",
+      }}
+    >
+      <BusinessIcon sx={{ width: 48, height: 48, mb: 1.5, color: "action.disabled" }} />
+      <Typography variant="body2" fontWeight={500}>
+        No se encontraron centros
+      </Typography>
+      {hasFilters && (
+        <Button
+          onClick={onClear}
+          size="small"
+          sx={{ mt: 1, textTransform: "none" }}
+        >
+          Limpiar búsqueda
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+/** Fila de centro */
+function CentroRow({ centro, onEdit, onDelete, isDeleting, onCancelDelete, onConfirmDelete }) {
+  const isActivo = centro.activo === 1 || centro.activo === true;
+
+  if (isDeleting) {
+    return (
+      <TableRow
+        sx={{
+          bgcolor: "error.lighter",
+          borderLeft: "4px solid",
+          borderLeftColor: "error.main",
+        }}
+      >
+        <TableCell colSpan={5} sx={{ px: 2, py: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "error.dark" }}>
+              <WarningIcon sx={{ width: 20, height: 20 }} />
+              <Typography variant="body2" fontWeight={500}>
+                ¿Eliminar el centro <strong>{centro.codigo}</strong>?
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <Button
+                onClick={onCancelDelete}
+                size="small"
+                variant="outlined"
+                sx={{
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  color: "text.secondary",
+                  borderColor: "divider",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                    borderColor: "divider",
+                  },
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={onConfirmDelete}
+                size="small"
+                variant="contained"
+                color="error"
+                sx={{
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                }}
+              >
+                Eliminar
+              </Button>
+            </Stack>
+          </Box>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow
+      onClick={onEdit}
+      sx={{
+        cursor: "pointer",
+        "&:hover": {
+          bgcolor: "action.hover",
+          "& .delete-btn": {
+            opacity: 1,
+          },
+        },
+      }}
+    >
+      <TableCell
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderRight: "1px solid",
+          borderRightColor: "divider",
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            fontSize: "13px",
+            fontFamily: "monospace",
+            color: "text.secondary",
+          }}
+        >
+          {centro.codigo}
+        </Typography>
+      </TableCell>
+      <TableCell
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderRight: "1px solid",
+          borderRightColor: "divider",
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{ fontSize: "13px", fontWeight: 500, color: "text.primary" }}
+        >
+          {centro.nombre || "—"}
+        </Typography>
+      </TableCell>
+      <TableCell
+        align="center"
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderRight: "1px solid",
+          borderRightColor: "divider",
+        }}
+      >
+        <Chip
+          size="small"
+          label={isActivo ? "Activo" : "Inactivo"}
+          sx={{
+            height: 20,
+            fontSize: "10px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            bgcolor: isActivo ? "success.lighter" : "action.disabledBackground",
+            color: isActivo ? "success.dark" : "text.secondary",
+            "& .MuiChip-label": {
+              px: 1,
+            },
+          }}
+          icon={
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: isActivo ? "success.main" : "action.disabled",
+                ml: 1,
+              }}
+            />
+          }
+        />
+      </TableCell>
+      <TableCell
+        align="center"
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderRight: "1px solid",
+          borderRightColor: "divider",
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          {centro.created_at || "—"}
+        </Typography>
+      </TableCell>
+      <TableCell align="center" sx={{ px: 1, py: 1.25 }}>
+        <IconButton
+          className="delete-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          size="small"
+          sx={{
+            opacity: 0,
+            color: "action.disabled",
+            transition: "all 0.15s",
+            "&:hover": {
+              color: "error.main",
+              bgcolor: "error.lighter",
+            },
+          }}
+          aria-label="Eliminar centro"
+        >
+          <DeleteIcon sx={{ width: 16, height: 16 }} />
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 const initialForm = {
   codigo: "",
@@ -32,16 +309,27 @@ const initialForm = {
 export default function AdminCentros() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
+  // Estado de datos
   const [centros, setCentros] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
+
+  // Filtros
+  const [search, setSearch] = useState("");
+
+  // Drawer y formulario
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
 
+  // Eliminación inline
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Cargar datos
   const loadCentros = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,104 +347,33 @@ export default function AdminCentros() {
     loadCentros();
   }, [loadCentros]);
 
-  const columns = useMemo(() => [
-    {
-      field: "codigo",
-      headerName: "Código",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "nombre",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 200,
-      headerAlign: "center",
-    },
-    {
-      field: "activo",
-      headerName: "Estado",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const isActivo = params.value === 1 || params.value === true;
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isActivo ? "#1b5e20" : "#b71c1c",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {isActivo ? "Activo" : "Inactivo"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "created_at",
-      headerName: "Creado",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, item: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  // Filtrado
+  const filteredCentros = useMemo(() => {
+    if (!search) return centros;
+    const term = search.toLowerCase();
+    return centros.filter(c =>
+      c.codigo?.toLowerCase().includes(term) ||
+      c.nombre?.toLowerCase().includes(term)
+    );
+  }, [centros, search]);
 
-  const handleEdit = useCallback((row) => {
-    setEditingId(row.codigo);
+  // Handlers
+  const handleEdit = useCallback((centro) => {
+    setEditingId(centro.codigo);
     setForm({
-      codigo: row.codigo || "",
-      nombre: row.nombre || "",
-      activo: row.activo ?? 1,
+      codigo: centro.codigo || "",
+      nombre: centro.nombre || "",
+      activo: centro.activo ?? 1,
     });
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
   }, []);
 
   const handleNew = useCallback(() => {
     setEditingId(null);
     setForm(initialForm);
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
   }, []);
 
   const handleChange = useCallback((e) => {
@@ -167,7 +384,6 @@ export default function AdminCentros() {
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!form.codigo) {
       setError(t("admin_required_fields", "Faltan campos obligatorios"));
@@ -184,7 +400,7 @@ export default function AdminCentros() {
         setSuccess(t("crud_record_created", "Centro creado correctamente"));
       }
 
-      setShowForm(false);
+      setDrawerOpen(false);
       setForm(initialForm);
       setEditingId(null);
       await loadCentros();
@@ -196,13 +412,12 @@ export default function AdminCentros() {
     }
   }, [form, editingId, loadCentros, t]);
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.item) return;
+  const handleDelete = useCallback(async (codigo) => {
     setSubmitting(true);
     try {
-      await admin.remove("centros", deleteDialog.item.codigo);
+      await admin.remove("centros", codigo);
       setSuccess(t("crud_record_deleted", "Centro eliminado correctamente"));
-      setDeleteDialog({ open: false, item: null });
+      setDeletingId(null);
       await loadCentros();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -210,92 +425,470 @@ export default function AdminCentros() {
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.item, loadCentros, t]);
+  }, [loadCentros, t]);
 
-  return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1200 }}>
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
-            </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-              {t("admin_centros", "Centros")}
-            </Typography>
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
+  
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportToXLSX(
+        filteredCentros,
+        "centros",
+        "Centros"
+      );
+      setSuccess("Centros exportados correctamente");
+    } catch (err) {
+      setError(err.message || "Error al exportar centros");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+return (
+    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      {/* Header */}
+      <Box
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          bgcolor: "background.paper",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          boxShadow: 1,
+        }}
+      >
+        <Box sx={{ maxWidth: 1600, mx: "auto", px: 2, py: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <IconButton
+                onClick={() => navigate("/admin")}
+                size="small"
+                sx={{
+                  color: "text.secondary",
+                  "&:hover": {
+                    color: "text.primary",
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <ArrowBackIcon sx={{ width: 20, height: 20 }} />
+              </IconButton>
+              <Box>
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 700,
+                    color: "text.primary",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {t("admin_centros", "Centros")}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Gestión de centros del sistema
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              onClick={handleNew}
+              variant="contained"
+              startIcon={<AddIcon sx={{ width: 16, height: 16 }} />}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              Nuevo
+            </Button>
           </Box>
-          <Button variant="contained" onClick={handleNew} sx={{ textTransform: "uppercase" }}>
-            Nuevo
-          </Button>
         </Box>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>{success}</Alert>}
+      {/* Contenido */}
+      <Box sx={{ maxWidth: 1600, mx: "auto", px: 2, py: 2 }}>
+        {/* Alertas */}
+        {error && (
+          <Alert
+            severity="error"
+            onClose={() => setError("")}
+            sx={{ mb: 2 }}
+          >
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity="success"
+            onClose={() => setSuccess("")}
+            sx={{ mb: 2 }}
+          >
+            {success}
+          </Alert>
+        )}
 
-      <Paper elevation={2} sx={{ height: 500 }}>
-        <DataGrid
-          rows={centros}
-          columns={columns}
-          getRowId={(row) => row.codigo}
-          loading={loading}
-          pageSizeOptions={[20, 50, 100]}
-          initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-          disableRowSelectionOnClick
-          rowHeight={67}
-          localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
+        {/* Panel principal */}
+        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+          {/* Barra de filtros */}
+          <Box
+            sx={{
+              px: 2,
+              py: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              bgcolor: "action.hover",
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {/* Búsqueda */}
+              <TextField
+                size="small"
+                placeholder="Buscar por código o nombre..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={{ flex: 1, maxWidth: 400 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ width: 16, height: 16, color: "action.disabled" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {/* Contador */}
+              <Chip
+                size="small"
+                label={`${filteredCentros.length} centros`}
+                sx={{
+                  height: 24,
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  bgcolor: "action.selected",
+                  color: "text.secondary",
+                }}
+                icon={
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      bgcolor: "action.disabled",
+                      ml: 1,
+                    }}
+                  />
+                }
+              />
+            </Box>
+          </Box>
+
+          {/* Tabla */}
+          {loading ? (
+            <LoadingSkeleton />
+          ) : filteredCentros.length === 0 ? (
+            <EmptyState onClear={() => setSearch("")} hasFilters={!!search} />
+          ) : (
+            <Box sx={{ overflowX: "auto" }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "action.hover" }}>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        width: 100,
+                        borderRight: "1px solid",
+                        borderRightColor: "divider",
+                        borderBottom: "2px solid",
+                        borderBottomColor: "divider",
+                      }}
+                    >
+                      Código
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        borderRight: "1px solid",
+                        borderRightColor: "divider",
+                        borderBottom: "2px solid",
+                        borderBottomColor: "divider",
+                      }}
+                    >
+                      Nombre
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        width: 100,
+                        borderRight: "1px solid",
+                        borderRightColor: "divider",
+                        borderBottom: "2px solid",
+                        borderBottomColor: "divider",
+                      }}
+                    >
+                      Estado
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        width: 150,
+                        borderRight: "1px solid",
+                        borderRightColor: "divider",
+                        borderBottom: "2px solid",
+                        borderBottomColor: "divider",
+                      }}
+                    >
+                      Creado
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        px: 1,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        width: 50,
+                        borderBottom: "2px solid",
+                        borderBottomColor: "divider",
+                      }}
+                    />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredCentros.map((centro) => (
+                    <CentroRow
+                      key={centro.codigo}
+                      centro={centro}
+                      onEdit={() => handleEdit(centro)}
+                      onDelete={() => setDeletingId(centro.codigo)}
+                      isDeleting={deletingId === centro.codigo}
+                      onCancelDelete={() => setDeletingId(null)}
+                      onConfirmDelete={() => handleDelete(centro.codigo)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+
+          {/* Footer */}
+          {!loading && filteredCentros.length > 0 && (
+            <Box
+              sx={{
+                px: 2,
+                py: 1.5,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                bgcolor: "action.hover",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                Mostrando {filteredCentros.length} de {centros.length} centros
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+      </Box>
+
+      {/* Drawer de edición/creación */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: { width: { xs: "100%", sm: 400 } },
+        }}
+      >
+        {/* Header del Drawer */}
+        <Box
           sx={{
-            border: "1px solid",
+            px: 3,
+            py: 2,
+            borderBottom: "1px solid",
             borderColor: "divider",
-            "& .MuiDataGrid-columnHeaders": { backgroundColor: "grey.100", fontWeight: 700, textTransform: "uppercase", fontSize: "12px" },
-            "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": { justifyContent: "center" },
-            "& .MuiDataGrid-columnHeader": { borderRight: "1px solid", borderColor: "divider" },
-            "& .MuiDataGrid-cell": { fontSize: "13px", borderRight: "1px solid", borderColor: "divider" },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
-        />
-      </Paper>
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {editingId ? "Editar Centro" : "Nuevo Centro"}
+            </Typography>
+            {editingId && (
+              <Typography variant="caption" color="text.secondary">
+                Código: {editingId}
+              </Typography>
+            )}
+          </Box>
+          <IconButton
+            onClick={() => setDrawerOpen(false)}
+            size="small"
+            sx={{ color: "text.secondary" }}
+          >
+            <CloseIcon sx={{ width: 20, height: 20 }} />
+          </IconButton>
+        </Box>
 
-      <Dialog open={showForm} onClose={() => setShowForm(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>{editingId ? "Editar" : "Nuevo"}</DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
-            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField fullWidth size="small" name="codigo" label="Código" value={form.codigo} onChange={handleChange} required disabled={!!editingId} slotProps={{ inputLabel: { shrink: true } }} />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField fullWidth size="small" name="nombre" label="Nombre" value={form.nombre} onChange={handleChange} slotProps={{ inputLabel: { shrink: true } }} />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={<Checkbox checked={form.activo === 1 || form.activo === true} onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked ? 1 : 0 }))} size="small" />}
-                  label="Activo"
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button variant="outlined" color="inherit" onClick={() => setShowForm(false)} disabled={submitting} sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}>Cancelar</Button>
-            <Button type="submit" variant="contained" disabled={submitting} startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null} sx={{ textTransform: "uppercase" }}>
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+        {/* Contenido del formulario */}
+        <Box
+          component="form"
+          id="centro-form"
+          onSubmit={handleSubmit}
+          sx={{ p: 3, flex: 1, overflow: "auto" }}
+        >
+          {error && (
+            <Alert severity="error" onClose={() => setError("")} sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
 
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, item: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>Eliminar</DialogTitle>
-        <DialogContent>
-          <Typography>¿Eliminar el centro <strong>{deleteDialog.item?.codigo}</strong>?</Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button variant="outlined" color="inherit" onClick={() => setDeleteDialog({ open: false, item: null })} disabled={submitting} sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}>Cancelar</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={submitting} startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null} sx={{ textTransform: "uppercase" }}>
-            {submitting ? "Eliminando..." : "Eliminar"}
+          {/* Datos básicos */}
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{
+                color: "text.disabled",
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                display: "block",
+                mb: 2,
+              }}
+            >
+              Datos del Centro
+            </Typography>
+            <Stack spacing={2.5}>
+              <TextField
+                label="Código"
+                name="codigo"
+                value={form.codigo}
+                onChange={handleChange}
+                required
+                disabled={!!editingId}
+                placeholder="Ej: C001"
+                size="small"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="Nombre"
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                placeholder="Nombre del centro"
+                size="small"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.activo === 1 || form.activo === true}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        activo: e.target.checked ? 1 : 0,
+                      }))
+                    }
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="text.secondary">
+                    Centro activo
+                  </Typography>
+                }
+              />
+            </Stack>
+          </Box>
+        </Box>
+
+        {/* Footer del Drawer */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 1.5,
+          }}
+        >
+          <Button
+            onClick={() => setDrawerOpen(false)}
+            disabled={submitting}
+            variant="outlined"
+            sx={{
+              textTransform: "none",
+              fontWeight: 500,
+              color: "text.secondary",
+              borderColor: "divider",
+              "&:hover": {
+                bgcolor: "action.hover",
+                borderColor: "divider",
+              },
+            }}
+          >
+            Cancelar
           </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+          <Button
+            type="submit"
+            form="centro-form"
+            disabled={submitting}
+            variant="contained"
+            startIcon={
+              submitting ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : null
+            }
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            {submitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }

@@ -1,28 +1,46 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
+import { useNavigate } from "react-router-dom";
+
+// MUI Components
 import {
-  Container,
+  Box,
   Paper,
   Typography,
-  Box,
-  Button,
   TextField,
-  MenuItem,
+  Button,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Alert,
-  CircularProgress,
+  Skeleton,
+  Stack,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Drawer,
+  Chip,
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
+import DescriptionIcon from "@mui/icons-material/Description";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Services
+import { exportToXLSX } from "../../services/export";
 
 const ROLES_OPTIONS = [
   { value: "solicitante", label: "Solicitante" },
@@ -37,19 +55,93 @@ const initialForm = {
   activo: 1,
 };
 
+/* ─────────────────────────────────────────────────────────────
+   Skeleton Component
+───────────────────────────────────────────────────────────── */
+function TableSkeleton({ rows = 5 }) {
+  return (
+    <Box>
+      {[...Array(rows)].map((_, i) => (
+        <Box
+          key={i}
+          sx={{
+            display: "flex",
+            borderBottom: 1,
+            borderColor: "divider",
+            py: 1.5,
+            px: 2,
+            gap: 2,
+          }}
+        >
+          <Skeleton variant="text" width={64} height={24} />
+          <Skeleton variant="text" sx={{ flex: 1 }} height={24} />
+          <Skeleton variant="text" width={80} height={24} />
+          <Skeleton variant="text" width={128} height={24} />
+          <Skeleton variant="text" width={48} height={24} />
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Empty State Component
+───────────────────────────────────────────────────────────── */
+function EmptyState({ message, onAction, actionLabel }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
+        color: "text.disabled",
+      }}
+    >
+      <DescriptionIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.5 }} />
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        {message}
+      </Typography>
+      {onAction && (
+        <Button
+          onClick={onAction}
+          size="small"
+          sx={{
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+            fontSize: "0.75rem",
+          }}
+        >
+          {actionLabel}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Main Component
+───────────────────────────────────────────────────────────── */
 export default function AdminRoles() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, role: null });
 
+  const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // ─── Load Data ────────────────────────────────────────────
   const loadRoles = useCallback(async () => {
     setLoading(true);
     try {
@@ -67,106 +159,39 @@ export default function AdminRoles() {
     loadRoles();
   }, [loadRoles]);
 
-  const columns = useMemo(() => [
-    {
-      field: "nombre",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 200,
-      headerAlign: "center"
-    },
-    {
-      field: "activo",
-      headerName: "Estado",
-      flex: 0.5,
-      minWidth: 100,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const isActivo = params.value === 1 || params.value === true;
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isActivo ? "#1b5e20" : "#b71c1c",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {isActivo ? "Activo" : "Inactivo"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "created_at",
-      headerName: "Creado",
-      flex: 0.8,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, role: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  // ─── Filtered Data ────────────────────────────────────────
+  const filteredRoles = roles.filter((r) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return r.nombre?.toLowerCase().includes(term);
+  });
 
-  const handleEdit = useCallback((row) => {
+  // ─── Handlers ─────────────────────────────────────────────
+  const handleNew = () => {
+    setEditingId(null);
+    setForm(initialForm);
+    setDrawerOpen(true);
+    setError("");
+  };
+
+  const handleEdit = (row) => {
     setEditingId(row.nombre);
     setForm({
       nombre: row.nombre || "",
       activo: row.activo ?? 1,
     });
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
-  }, []);
+  };
 
-  const handleNew = useCallback(() => {
-    setEditingId(null);
-    setForm(initialForm);
-    setShowForm(true);
-    setError("");
-    setSuccess("");
-  }, []);
-
-  const handleChange = useCallback((e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  }, []);
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
-  const handleSubmit = useCallback(async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!form.nombre) {
       setError(t("admin_required_fields", "Faltan campos obligatorios"));
@@ -182,8 +207,7 @@ export default function AdminRoles() {
         await admin.create("roles", form);
         setSuccess(t("crud_record_created", "Rol creado correctamente"));
       }
-
-      setShowForm(false);
+      setDrawerOpen(false);
       setForm(initialForm);
       setEditingId(null);
       await loadRoles();
@@ -193,15 +217,14 @@ export default function AdminRoles() {
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingId, loadRoles, t]);
+  };
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.role) return;
+  const handleDelete = async (nombre) => {
     setSubmitting(true);
     try {
-      await admin.remove("roles", deleteDialog.role.nombre);
+      await admin.remove("roles", nombre);
       setSuccess(t("crud_record_deleted", "Rol eliminado correctamente"));
-      setDeleteDialog({ open: false, role: null });
+      setDeletingId(null);
       await loadRoles();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -209,192 +232,563 @@ export default function AdminRoles() {
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.role, loadRoles, t]);
+  };
 
+  const getRoleLabel = (value) => {
+    const opt = ROLES_OPTIONS.find((o) => o.value === value);
+    return opt ? opt.label : value;
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportToXLSX(
+        filteredRoles,
+        "roles",
+        "Roles"
+      );
+      setSuccess("Roles exportados correctamente");
+    } catch (err) {
+      setError(err.message || "Error al exportar roles");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ─── Render ───────────────────────────────────────────────
   return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1200 }}>
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
+      <Box sx={{ maxWidth: 1152, mx: "auto", px: 2, py: 3 }}>
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 3,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <IconButton
+              onClick={() => navigate("/admin")}
+              size="small"
+              sx={{
+                color: "text.secondary",
+                "&:hover": {
+                  color: "text.primary",
+                  bgcolor: "grey.200",
+                },
+              }}
+            >
+              <ArrowBackIcon fontSize="small" />
             </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "text.primary",
+              }}
+            >
               {t("admin_roles", "Roles")}
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            onClick={handleNew}
-            sx={{ textTransform: "uppercase" }}
-          >
-            {t("crud_new", "Nuevo")}
-          </Button>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Tooltip title="Descargar XLSX">
+              <span>
+                <IconButton
+                  onClick={handleExport}
+                  disabled={loading || exporting || filteredRoles.length === 0}
+                  size="small"
+                  sx={{
+                    color: "var(--success)",
+                    border: "1px solid var(--success)",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    "&:hover": {
+                      backgroundColor: "var(--success)",
+                      color: "var(--card)",
+                    },
+                    "&:disabled": {
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    },
+                  }}
+                >
+                  {exporting ? (
+                    <CircularProgress size={14} sx={{ color: "var(--success)" }} />
+                  ) : (
+                    <>
+                      <FileDownloadIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                      <span style={{ fontSize: "0.75rem", fontWeight: 500 }}>XLSX</span>
+                    </>
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Button
+              variant="contained"
+              onClick={handleNew}
+              size="small"
+              sx={{
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                fontSize: "0.75rem",
+                fontWeight: 500,
+              }}
+            >
+              {t("crud_new", "Nuevo")}
+            </Button>
+          </Box>
         </Box>
+
+        {/* Alerts */}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            onClose={() => setError("")}
+          >
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity="success"
+            sx={{ mb: 2 }}
+            onClose={() => setSuccess("")}
+          >
+            {success}
+          </Alert>
+        )}
+
+        {/* Search */}
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar por nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            sx={{ width: 320 }}
+          />
+        </Box>
+
+        {/* Table */}
+        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+          {loading ? (
+            <TableSkeleton rows={5} />
+          ) : filteredRoles.length === 0 ? (
+            <EmptyState
+              message={
+                searchTerm
+                  ? "No se encontraron roles"
+                  : "No hay roles registrados"
+              }
+              onAction={!searchTerm ? handleNew : undefined}
+              actionLabel="Crear primer rol"
+            />
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "grey.50" }}>
+                  <TableCell
+                    sx={{
+                      width: 70,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: "0.6875rem",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    #
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      width: 200,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: "0.6875rem",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Codigo
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: "0.6875rem",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Descripcion
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      width: 90,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: "0.6875rem",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                      borderRight: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    Estado
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      width: 100,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      fontSize: "0.6875rem",
+                      letterSpacing: "0.05em",
+                      color: "text.secondary",
+                    }}
+                  >
+                    Acciones
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredRoles.map((row, idx) =>
+                  deletingId === row.nombre ? (
+                    <TableRow
+                      key={row.nombre}
+                      sx={{ bgcolor: "error.lighter" }}
+                    >
+                      <TableCell colSpan={5}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <Typography variant="body2" color="error.dark">
+                            Eliminar{" "}
+                            <Box component="strong" sx={{ fontWeight: 600 }}>
+                              {getRoleLabel(row.nombre)}
+                            </Box>
+                            ?
+                          </Typography>
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setDeletingId(null)}
+                              disabled={submitting}
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => handleDelete(row.nombre)}
+                              disabled={submitting}
+                              sx={{
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                fontSize: "0.75rem",
+                              }}
+                            >
+                              {submitting ? "..." : "Eliminar"}
+                            </Button>
+                          </Stack>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    <TableRow
+                      key={row.nombre}
+                      hover
+                      sx={{
+                        "&:hover": { bgcolor: "grey.50" },
+                      }}
+                    >
+                      <TableCell
+                        sx={{
+                          fontSize: "0.75rem",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {idx + 1}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "0.875rem",
+                          fontFamily: "monospace",
+                          color: "text.primary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {row.nombre}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "0.875rem",
+                          color: "text.primary",
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        {getRoleLabel(row.nombre)}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          borderRight: 1,
+                          borderColor: "grey.100",
+                        }}
+                      >
+                        <Chip
+                          label={
+                            row.activo === 1 || row.activo === true
+                              ? "Activo"
+                              : "Inactivo"
+                          }
+                          size="small"
+                          color={
+                            row.activo === 1 || row.activo === true
+                              ? "success"
+                              : "default"
+                          }
+                          sx={{
+                            fontSize: "0.625rem",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            height: 20,
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell align="center">
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="center"
+                        >
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(row)}
+                            title="Editar"
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": {
+                                color: "primary.main",
+                                bgcolor: "primary.lighter",
+                              },
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => setDeletingId(row.nombre)}
+                            title="Eliminar"
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": {
+                                color: "error.main",
+                                bgcolor: "error.lighter",
+                              },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </Paper>
+
+        {/* Footer */}
+        <Typography
+          variant="caption"
+          sx={{ display: "block", mt: 2, color: "text.disabled" }}
+        >
+          {filteredRoles.length} de {roles.length} roles
+        </Typography>
       </Box>
 
-      {/* Alertas */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-          {success}
-        </Alert>
-      )}
-
-      {/* DataGrid */}
-      <Paper elevation={2} sx={{ height: 500 }}>
-        <DataGrid
-          rows={roles}
-          columns={columns}
-          getRowId={(row) => row.nombre}
-          loading={loading}
-          pageSizeOptions={[20, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 20 } },
-          }}
-          disableRowSelectionOnClick
-          rowHeight={67}
-          localeText={{
-            MuiTablePagination: {
-              labelRowsPerPage: "Filas por página:",
-            },
-          }}
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "grey.100",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              fontSize: "12px",
-            },
-            "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": {
-              justifyContent: "center",
-            },
-            "& .MuiDataGrid-columnHeader": {
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-            "& .MuiDataGrid-cell": {
-              fontSize: "13px",
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-          }}
-        />
-      </Paper>
-
-      {/* Modal de Formulario */}
-      <Dialog
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        maxWidth="sm"
-        fullWidth
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: "100%",
+            maxWidth: 448,
+          },
+        }}
       >
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>
-          {editingId ? "Editar" : "Nuevo"}
-        </DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            py: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "grey.50",
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              color: "text.primary",
+            }}
+          >
+            {editingId ? "Editar Rol" : "Nuevo Rol"}
+          </Typography>
+          <IconButton
+            onClick={() => setDrawerOpen(false)}
+            size="small"
+            sx={{ color: "text.secondary" }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            flex: 1,
+            overflow: "auto",
+            p: 2.5,
+          }}
+        >
+          <Stack spacing={2.5}>
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+              <Alert severity="error" sx={{ py: 0.5 }}>
                 {error}
               </Alert>
             )}
 
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  name="nombre"
-                  label="Nombre"
-                  value={form.nombre}
-                  onChange={handleChange}
-                  required
-                  disabled={!!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                >
-                  {ROLES_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={form.activo === 1 || form.activo === true}
-                      onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked ? 1 : 0 }))}
-                      size="small"
-                    />
-                  }
-                  label="Activo"
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => setShowForm(false)}
-              disabled={submitting}
-              sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-              sx={{ textTransform: "uppercase" }}
-            >
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+            <FormControl size="small" fullWidth required disabled={!!editingId}>
+              <InputLabel
+                sx={{
+                  fontSize: "0.6875rem",
+                  fontWeight: 500,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Rol
+              </InputLabel>
+              <Select
+                name="nombre"
+                value={form.nombre}
+                onChange={handleChange}
+                label="Rol"
+              >
+                <MenuItem value="">
+                  <em>Seleccionar...</em>
+                </MenuItem>
+                {ROLES_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-      {/* Modal de Confirmación de Eliminación */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, role: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>
-          Eliminar
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Eliminar el rol <strong>{deleteDialog.role?.nombre}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={() => setDeleteDialog({ open: false, role: null })}
-            disabled={submitting}
-            sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-            sx={{ textTransform: "uppercase" }}
-          >
-            {submitting ? "Eliminando..." : "Eliminar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={form.activo === 1 || form.activo === true}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      activo: e.target.checked ? 1 : 0,
+                    }))
+                  }
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" color="text.primary">
+                  Activo
+                </Typography>
+              }
+            />
+
+            <Box
+              sx={{
+                display: "flex",
+                gap: 1,
+                pt: 2,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={() => setDrawerOpen(false)}
+                disabled={submitting}
+                fullWidth
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  fontSize: "0.75rem",
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={submitting}
+                fullWidth
+                sx={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  fontSize: "0.75rem",
+                }}
+              >
+                {submitting
+                  ? "Guardando..."
+                  : editingId
+                  ? "Actualizar"
+                  : "Crear"}
+              </Button>
+            </Box>
+          </Stack>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }

@@ -1,27 +1,44 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { admin } from "../../services/spm";
 import { formatCurrency, formatDate } from "../../utils/formatters";
+import { useI18n } from "../../context/i18n";
+
+// MUI Components
 import {
-  Container,
+  Box,
   Paper,
   Typography,
-  Box,
-  Button,
   TextField,
+  Button,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
   Alert,
-  CircularProgress,
+  Skeleton,
+  Stack,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Drawer,
   Tabs,
   Tab,
+  Chip,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import Tooltip from "@mui/material/Tooltip";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Services
+import { exportToXLSX } from "../../services/export";
 
 const initialForm = {
   centro: "",
@@ -30,8 +47,78 @@ const initialForm = {
   saldo_usd: "",
 };
 
+/* ─────────────────────────────────────────────────────────────
+   Skeleton
+───────────────────────────────────────────────────────────── */
+function TableSkeleton({ rows = 5 }) {
+  return (
+    <Box sx={{ p: 2 }}>
+      {[...Array(rows)].map((_, i) => (
+        <Stack
+          key={i}
+          direction="row"
+          spacing={2}
+          sx={{
+            py: 1.5,
+            px: 2,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Skeleton variant="text" width={80} height={24} />
+          <Skeleton variant="text" sx={{ flex: 1 }} height={24} />
+          <Skeleton variant="text" width={96} height={24} />
+          <Skeleton variant="text" width={96} height={24} />
+          <Skeleton variant="text" width={80} height={24} />
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Empty State
+───────────────────────────────────────────────────────────── */
+function EmptyState({ message, onAction, actionLabel }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
+        color: "text.secondary",
+      }}
+    >
+      <AccountBalanceWalletIcon sx={{ fontSize: 48, mb: 1.5, opacity: 0.5 }} />
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        {message}
+      </Typography>
+      {onAction && (
+        <Button
+          onClick={onAction}
+          size="small"
+          sx={{
+            textTransform: "uppercase",
+            fontSize: "0.75rem",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {actionLabel}
+        </Button>
+      )}
+    </Box>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Main Component
+───────────────────────────────────────────────────────────── */
 export default function AdminPresupuestos() {
   const navigate = useNavigate();
+  const { t } = useI18n();
+
   const [tab, setTab] = useState(0);
   const [presupuestos, setPresupuestos] = useState([]);
   const [historial, setHistorial] = useState([]);
@@ -41,39 +128,43 @@ export default function AdminPresupuestos() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Form state
-  const [showForm, setShowForm] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(initialForm);
 
-  // Delete dialog
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
+  const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Load presupuestos
+  // ─── Load Data ────────────────────────────────────────────
   const loadPresupuestos = useCallback(async () => {
     setLoadingPresupuestos(true);
     try {
       const res = await admin.list("presupuestos");
-      const data = (res.data || []).map(r => ({ ...r, _id: `${r.centro}|${r.sector}` }));
+      const data = (res.data || []).map((r) => ({
+        ...r,
+        _id: `${r.centro}|${r.sector}`,
+      }));
       setPresupuestos(data);
     } catch (e) {
       const err = e.response?.data?.error;
-      setError(typeof err === "object" ? (err.message || JSON.stringify(err)) : (err || e.message));
+      setError(typeof err === "object" ? err.message || JSON.stringify(err) : err || e.message);
     } finally {
       setLoadingPresupuestos(false);
     }
   }, []);
 
-  // Load historial
   const loadHistorial = useCallback(async () => {
     setLoadingHistorial(true);
     try {
       const res = await admin.historialPresupuestos({ limit: 100 });
-      const data = (res.data || []).map((r, idx) => ({ ...r, _id: r.id || idx }));
+      const data = (res.data || []).map((r, idx) => ({
+        ...r,
+        _id: r.id || idx,
+      }));
       setHistorial(data);
     } catch (e) {
       const err = e.response?.data?.error;
-      setError(typeof err === "object" ? (err.message || JSON.stringify(err)) : (err || e.message));
+      setError(typeof err === "object" ? err.message || JSON.stringify(err) : err || e.message);
     } finally {
       setLoadingHistorial(false);
     }
@@ -84,175 +175,35 @@ export default function AdminPresupuestos() {
     loadHistorial();
   }, [loadPresupuestos, loadHistorial]);
 
-  // Columns presupuestos
-  const columnsPresupuestos = useMemo(() => [
-    { field: "centro", headerName: "Centro", flex: 0.6, minWidth: 100, headerAlign: "center", align: "center" },
-    { field: "sector", headerName: "Sector", flex: 0.8, minWidth: 120, headerAlign: "center" },
-    {
-      field: "monto_usd",
-      headerName: "Monto USD",
-      flex: 0.8,
-      minWidth: 130,
-      headerAlign: "center",
-      align: "right",
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-          {formatCurrency(params.value)}
-        </Typography>
-      ),
-    },
-    {
-      field: "saldo_usd",
-      headerName: "Saldo USD",
-      flex: 0.8,
-      minWidth: 130,
-      headerAlign: "center",
-      align: "right",
-      renderCell: (params) => {
-        const saldo = params.value || 0;
-        const monto = params.row.monto_usd || 1;
-        const porcentaje = (saldo / monto) * 100;
-        return (
-          <Typography
-            variant="body2"
-            sx={{
-              fontFamily: "monospace",
-              color: porcentaje < 20 ? "#b71c1c" : porcentaje < 50 ? "#f57c00" : "#1b5e20",
-              fontWeight: 600,
-            }}
-          >
-            {formatCurrency(saldo)}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.6,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, item: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  // ─── Filtered Data ────────────────────────────────────────
+  const filteredPresupuestos = presupuestos.filter((r) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      r.centro?.toLowerCase().includes(term) ||
+      r.sector?.toLowerCase().includes(term)
+    );
+  });
 
-  // Columns historial
-  const columnsHistorial = useMemo(() => [
-    {
-      field: "tipo_cambio",
-      headerName: "Tipo",
-      flex: 0.6,
-      minWidth: 120,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const colorMap = {
-          creacion: "#1976d2",
-          aumento: "#1b5e20",
-          reduccion: "#f57c00",
-          ajuste: "#64748b",
-          eliminacion: "#b71c1c",
-        };
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: colorMap[params.value] || "#64748b",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {params.value || "-"}
-          </Typography>
-        );
-      },
-    },
-    { field: "centro", headerName: "Centro", flex: 0.5, minWidth: 80, headerAlign: "center", align: "center" },
-    { field: "sector", headerName: "Sector", flex: 0.7, minWidth: 100, headerAlign: "center" },
-    {
-      field: "diferencia_usd",
-      headerName: "Cambio",
-      flex: 0.7,
-      minWidth: 120,
-      headerAlign: "center",
-      align: "right",
-      renderCell: (params) => {
-        const diff = params.value || 0;
-        return (
-          <Typography
-            variant="body2"
-            sx={{
-              fontFamily: "monospace",
-              color: diff > 0 ? "#1b5e20" : diff < 0 ? "#b71c1c" : "#64748b",
-              fontWeight: 600,
-            }}
-          >
-            {diff > 0 ? "+" : ""}{formatCurrency(diff)}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "monto_nuevo_usd",
-      headerName: "Monto Final",
-      flex: 0.7,
-      minWidth: 120,
-      headerAlign: "center",
-      align: "right",
-      renderCell: (params) => (
-        <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
-          {formatCurrency(params.value)}
-        </Typography>
-      ),
-    },
-    {
-      field: "solicitante_nombre",
-      headerName: "Usuario",
-      flex: 0.8,
-      minWidth: 120,
-      headerAlign: "center",
-      renderCell: (params) => params.value || "-",
-    },
-    {
-      field: "created_at",
-      headerName: "Fecha",
-      flex: 0.8,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => (
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          {formatDate(params.value)}
-        </Typography>
-      ),
-    },
-  ], []);
+  const filteredHistorial = historial.filter((r) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      r.centro?.toLowerCase().includes(term) ||
+      r.sector?.toLowerCase().includes(term) ||
+      r.tipo_cambio?.toLowerCase().includes(term)
+    );
+  });
 
-  // Handlers
-  const handleEdit = useCallback((row) => {
+  // ─── Handlers ─────────────────────────────────────────────
+  const handleNew = () => {
+    setEditingId(null);
+    setForm(initialForm);
+    setDrawerOpen(true);
+    setError("");
+  };
+
+  const handleEdit = (row) => {
     setEditingId(row._id);
     setForm({
       centro: row.centro || "",
@@ -260,23 +211,13 @@ export default function AdminPresupuestos() {
       monto_usd: row.monto_usd || "",
       saldo_usd: row.saldo_usd || "",
     });
-    setShowForm(true);
+    setDrawerOpen(true);
     setError("");
-    setSuccess("");
-  }, []);
+  };
 
-  const handleNew = useCallback(() => {
-    setEditingId(null);
-    setForm(initialForm);
-    setShowForm(true);
-    setError("");
-    setSuccess("");
-  }, []);
-
-  const handleSubmit = useCallback(async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
 
     if (!form.centro || !form.sector) {
       setError("Centro y Sector son requeridos");
@@ -295,13 +236,13 @@ export default function AdminPresupuestos() {
       if (editingId) {
         const [centro, sector] = editingId.split("|");
         await admin.updatePresupuesto(centro, sector, payload);
-        setSuccess("Presupuesto actualizado correctamente");
+        setSuccess(t("crud_record_updated", "Presupuesto actualizado correctamente"));
       } else {
         await admin.create("presupuestos", payload);
-        setSuccess("Presupuesto creado correctamente");
+        setSuccess(t("crud_record_created", "Presupuesto creado correctamente"));
       }
 
-      setShowForm(false);
+      setDrawerOpen(false);
       setForm(initialForm);
       setEditingId(null);
       await loadPresupuestos();
@@ -309,245 +250,819 @@ export default function AdminPresupuestos() {
       setTimeout(() => setSuccess(""), 3000);
     } catch (e) {
       const err = e.response?.data?.error;
-      setError(typeof err === "object" ? (err.message || JSON.stringify(err)) : (err || e.message));
+      setError(typeof err === "object" ? err.message || JSON.stringify(err) : err || e.message);
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingId, loadPresupuestos, loadHistorial]);
+  };
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.item) return;
+  const handleDelete = async (id) => {
     setSubmitting(true);
     try {
-      const [centro, sector] = deleteDialog.item._id.split("|");
+      
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportToXLSX(
+        filteredPresupuestos,
+        "presupuestos",
+        "Presupuestos"
+      );
+      setSuccess("Presupuestos exportados correctamente");
+    } catch (err) {
+      setError(err.message || "Error al exportar presupuestos");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+const [centro, sector] = id.split("|");
       await admin.deletePresupuesto(centro, sector);
-      setSuccess("Presupuesto eliminado correctamente");
-      setDeleteDialog({ open: false, item: null });
+      setSuccess(t("crud_record_deleted", "Presupuesto eliminado correctamente"));
+      setDeletingId(null);
       await loadPresupuestos();
       await loadHistorial();
       setTimeout(() => setSuccess(""), 3000);
     } catch (e) {
       const err = e.response?.data?.error;
-      setError(typeof err === "object" ? (err.message || JSON.stringify(err)) : (err || e.message));
+      setError(typeof err === "object" ? err.message || JSON.stringify(err) : err || e.message);
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.item, loadPresupuestos, loadHistorial]);
-
-  const dataGridSx = {
-    border: "1px solid",
-    borderColor: "divider",
-    "& .MuiDataGrid-columnHeaders": {
-      backgroundColor: "grey.100",
-      fontWeight: 700,
-      textTransform: "uppercase",
-      fontSize: "12px",
-    },
-    "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": {
-      justifyContent: "center",
-    },
-    "& .MuiDataGrid-columnHeader": {
-      borderRight: "1px solid",
-      borderColor: "divider",
-    },
-    "& .MuiDataGrid-cell": {
-      fontSize: "13px",
-      borderRight: "1px solid",
-      borderColor: "divider",
-    },
   };
 
+  const getSaldoColor = (saldo, monto) => {
+    const porcentaje = monto > 0 ? (saldo / monto) * 100 : 0;
+    if (porcentaje < 20) return "error.dark";
+    if (porcentaje < 50) return "warning.dark";
+    return "success.dark";
+  };
+
+  const getTipoChipColor = (tipo) => {
+    const colors = {
+      creacion: "info",
+      aumento: "success",
+      reduccion: "warning",
+      ajuste: "default",
+      eliminacion: "error",
+    };
+    return colors[tipo] || "default";
+  };
+
+  // ─── Render ───────────────────────────────────────────────
   return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1400 }}>
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
+      <Box sx={{ maxWidth: 1280, mx: "auto", px: 2, py: 3 }}>
+
+        {/* Header */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 3 }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconButton
+              onClick={() => navigate("/admin")}
+              size="small"
+              sx={{
+                color: "text.secondary",
+                "&:hover": { bgcolor: "grey.200" },
+              }}
+            >
+              <ArrowBackIcon fontSize="small" />
             </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-              Presupuestos
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "text.primary",
+              }}
+            >
+              {t("admin_presupuestos", "Presupuestos")}
             </Typography>
-          </Box>
+          </Stack>
           {tab === 0 && (
             <Button
               variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
               onClick={handleNew}
-              sx={{ textTransform: "uppercase" }}
+              sx={{
+                textTransform: "uppercase",
+                fontSize: "0.75rem",
+                letterSpacing: "0.05em",
+              }}
             >
-              Nuevo
+              {t("crud_new", "Nuevo")}
             </Button>
           )}
-        </Box>
-      </Box>
+        </Stack>
 
-      {/* Alertas */}
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>{success}</Alert>}
+        {/* Alerts */}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={() => setError("")}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            }
+          >
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert
+            severity="success"
+            sx={{ mb: 2 }}
+            action={
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={() => setSuccess("")}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            }
+          >
+            {success}
+          </Alert>
+        )}
 
-      {/* Tabs */}
-      <Box sx={{ mb: 2 }}>
-        <Tabs value={tab} onChange={(e, v) => setTab(v)}>
-          <Tab label="Presupuestos" sx={{ textTransform: "uppercase", fontWeight: 600 }} />
-          <Tab label="Historial de Cambios" sx={{ textTransform: "uppercase", fontWeight: 600 }} />
+        {/* Tabs */}
+        <Tabs
+          value={tab}
+          onChange={(_, newValue) => setTab(newValue)}
+          sx={{
+            mb: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            "& .MuiTab-root": {
+              textTransform: "uppercase",
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              minHeight: 40,
+            },
+          }}
+        >
+          <Tab label="Presupuestos" />
+          <Tab label="Historial de Cambios" />
         </Tabs>
+
+        {/* Search */}
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar por centro o sector..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            autoComplete="off"
+            sx={{ width: 320 }}
+          />
+        </Box>
+
+        {/* Tab 0: Presupuestos */}
+        {tab === 0 && (
+          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            {loadingPresupuestos ? (
+              <TableSkeleton rows={5} />
+            ) : filteredPresupuestos.length === 0 ? (
+              <EmptyState
+                message={searchTerm ? "No se encontraron presupuestos" : "No hay presupuestos registrados"}
+                onAction={!searchTerm ? handleNew : undefined}
+                actionLabel="Crear primer presupuesto"
+              />
+            ) : (
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "grey.50" }}>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 100,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Centro
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          width: 180,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Sector
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          width: 140,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Monto USD
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          width: 140,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Saldo USD
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 100,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                        }}
+                      >
+                        Acciones
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredPresupuestos.map((row) =>
+                      deletingId === row._id ? (
+                        <TableRow key={row._id} sx={{ bgcolor: "error.lighter" }}>
+                          <TableCell colSpan={5} sx={{ py: 1.5 }}>
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              justifyContent="space-between"
+                            >
+                              <Typography variant="body2" sx={{ color: "error.dark" }}>
+                                Eliminar presupuesto <strong>{row.centro}</strong> - <strong>{row.sector}</strong>?
+                              </Typography>
+                              <Stack direction="row" spacing={1}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => setDeletingId(null)}
+                                  disabled={submitting}
+                                  sx={{
+                                    textTransform: "uppercase",
+                                    fontSize: "0.75rem",
+                                    letterSpacing: "0.05em",
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  color="error"
+                                  onClick={() => handleDelete(row._id)}
+                                  disabled={submitting}
+                                  sx={{
+                                    textTransform: "uppercase",
+                                    fontSize: "0.75rem",
+                                    letterSpacing: "0.05em",
+                                  }}
+                                >
+                                  {submitting ? "..." : "Eliminar"}
+                                </Button>
+                              </Stack>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <TableRow
+                          key={row._id}
+                          hover
+                          sx={{ "&:hover": { bgcolor: "grey.50" } }}
+                        >
+                          <TableCell
+                            align="center"
+                            sx={{
+                              fontFamily: "monospace",
+                              fontSize: "0.875rem",
+                              color: "text.primary",
+                              borderRight: 1,
+                              borderColor: "grey.100",
+                            }}
+                          >
+                            {row.centro}
+                          </TableCell>
+                          <TableCell
+                            sx={{
+                              fontSize: "0.875rem",
+                              color: "text.primary",
+                              borderRight: 1,
+                              borderColor: "grey.100",
+                            }}
+                          >
+                            {row.sector}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontFamily: "monospace",
+                              fontSize: "0.875rem",
+                              color: "text.primary",
+                              borderRight: 1,
+                              borderColor: "grey.100",
+                            }}
+                          >
+                            {formatCurrency(row.monto_usd)}
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              fontFamily: "monospace",
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              color: getSaldoColor(row.saldo_usd, row.monto_usd),
+                              borderRight: 1,
+                              borderColor: "grey.100",
+                            }}
+                          >
+                            {formatCurrency(row.saldo_usd)}
+                          </TableCell>
+                          <TableCell align="center">
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              justifyContent="center"
+                            >
+                              <IconButton
+                                size="small"
+                                onClick={() => handleEdit(row)}
+                                title="Editar"
+                                sx={{
+                                  color: "text.secondary",
+                                  "&:hover": {
+                                    color: "primary.main",
+                                    bgcolor: "primary.lighter",
+                                  },
+                                }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => setDeletingId(row._id)}
+                                title="Eliminar"
+                                sx={{
+                                  color: "text.secondary",
+                                  "&:hover": {
+                                    color: "error.main",
+                                    bgcolor: "error.lighter",
+                                  },
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    )}
+                  </TableBody>
+                </Table>
+              </Box>
+            )}
+          </Paper>
+        )}
+
+        {/* Tab 1: Historial */}
+        {tab === 1 && (
+          <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+            {loadingHistorial ? (
+              <TableSkeleton rows={5} />
+            ) : filteredHistorial.length === 0 ? (
+              <EmptyState message="No hay historial de cambios" />
+            ) : (
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "grey.50" }}>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 100,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Tipo
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 80,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Centro
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          width: 150,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Sector
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          width: 120,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Cambio
+                      </TableCell>
+                      <TableCell
+                        align="right"
+                        sx={{
+                          width: 120,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Monto Final
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                          borderRight: 1,
+                          borderColor: "divider",
+                        }}
+                      >
+                        Usuario
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          width: 140,
+                          fontSize: "0.6875rem",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          color: "text.secondary",
+                        }}
+                      >
+                        Fecha
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredHistorial.map((row) => (
+                      <TableRow
+                        key={row._id}
+                        hover
+                        sx={{ "&:hover": { bgcolor: "grey.50" } }}
+                      >
+                        <TableCell
+                          align="center"
+                          sx={{
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          <Chip
+                            label={row.tipo_cambio || "-"}
+                            color={getTipoChipColor(row.tipo_cambio)}
+                            size="small"
+                            sx={{
+                              fontSize: "0.625rem",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
+                              height: 20,
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            fontFamily: "monospace",
+                            fontSize: "0.875rem",
+                            color: "text.primary",
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          {row.centro}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontSize: "0.875rem",
+                            color: "text.primary",
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          {row.sector}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            fontFamily: "monospace",
+                            fontSize: "0.875rem",
+                            fontWeight: 600,
+                            color:
+                              row.diferencia_usd > 0
+                                ? "success.dark"
+                                : row.diferencia_usd < 0
+                                ? "error.dark"
+                                : "text.secondary",
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          {row.diferencia_usd > 0 ? "+" : ""}
+                          {formatCurrency(row.diferencia_usd || 0)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            fontFamily: "monospace",
+                            fontSize: "0.875rem",
+                            color: "text.primary",
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          {formatCurrency(row.monto_nuevo_usd)}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            fontSize: "0.875rem",
+                            color: "text.primary",
+                            borderRight: 1,
+                            borderColor: "grey.100",
+                          }}
+                        >
+                          {row.solicitante_nombre || "-"}
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            fontSize: "0.75rem",
+                            color: "text.secondary",
+                          }}
+                        >
+                          {formatDate(row.created_at)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+            )}
+          </Paper>
+        )}
+
+        {/* Footer */}
+        <Typography
+          variant="caption"
+          sx={{ display: "block", mt: 2, color: "text.disabled" }}
+        >
+          {tab === 0
+            ? `${filteredPresupuestos.length} de ${presupuestos.length} presupuestos`
+            : `${filteredHistorial.length} de ${historial.length} registros`}
+        </Typography>
       </Box>
 
-      {/* DataGrid Presupuestos */}
-      {tab === 0 && (
-        <Paper elevation={2} sx={{ height: 600 }}>
-          <DataGrid
-            rows={presupuestos}
-            columns={columnsPresupuestos}
-            getRowId={(row) => row._id}
-            loading={loadingPresupuestos}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
-            rowHeight={67}
-            localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
-            sx={dataGridSx}
-          />
-        </Paper>
-      )}
-
-      {/* DataGrid Historial */}
-      {tab === 1 && (
-        <Paper elevation={2} sx={{ height: 600 }}>
-          <DataGrid
-            rows={historial}
-            columns={columnsHistorial}
-            getRowId={(row) => row._id}
-            loading={loadingHistorial}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
-            rowHeight={67}
-            localeText={{ MuiTablePagination: { labelRowsPerPage: "Filas por página:" } }}
-            sx={dataGridSx}
-          />
-        </Paper>
-      )}
-
-      {/* Modal Formulario */}
-      <Dialog open={showForm} onClose={() => setShowForm(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>
-          {editingId ? "Editar Presupuesto" : "Nuevo Presupuesto"}
-        </DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
-            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="centro"
-                  label="Centro"
-                  value={form.centro}
-                  onChange={(e) => setForm(prev => ({ ...prev, centro: e.target.value }))}
-                  required
-                  disabled={!!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="sector"
-                  label="Sector"
-                  value={form.sector}
-                  onChange={(e) => setForm(prev => ({ ...prev, sector: e.target.value }))}
-                  required
-                  disabled={!!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="monto_usd"
-                  label="Monto USD"
-                  type="number"
-                  value={form.monto_usd}
-                  onChange={(e) => setForm(prev => ({ ...prev, monto_usd: e.target.value }))}
-                  required
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="saldo_usd"
-                  label="Saldo USD"
-                  type="number"
-                  value={form.saldo_usd}
-                  onChange={(e) => setForm(prev => ({ ...prev, saldo_usd: e.target.value }))}
-                  required
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => setShowForm(false)}
-              disabled={submitting}
-              sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-              sx={{ textTransform: "uppercase" }}
-            >
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      {/* Modal Eliminar */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, item: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>
-          Eliminar
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Eliminar el presupuesto de <strong>{deleteDialog.item?.centro}</strong> - <strong>{deleteDialog.item?.sector}</strong>?
+      {/* Drawer */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: "100%",
+            maxWidth: 400,
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2.5,
+            py: 2,
+            borderBottom: 1,
+            borderColor: "divider",
+            bgcolor: "grey.50",
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            sx={{
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              fontWeight: 600,
+              color: "text.primary",
+            }}
+          >
+            {editingId ? "Editar Presupuesto" : "Nuevo Presupuesto"}
           </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={() => setDeleteDialog({ open: false, item: null })}
-            disabled={submitting}
-            sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
+          <IconButton
+            size="small"
+            onClick={() => setDrawerOpen(false)}
+            sx={{ color: "text.secondary" }}
           >
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-            sx={{ textTransform: "uppercase" }}
-          >
-            {submitting ? "Eliminando..." : "Eliminar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{ flex: 1, overflowY: "auto", p: 2.5 }}
+        >
+          <Stack spacing={2.5}>
+            {error && (
+              <Alert severity="error" sx={{ fontSize: "0.875rem" }}>
+                {error}
+              </Alert>
+            )}
+
+            <TextField
+              label="Centro"
+              name="centro"
+              size="small"
+              value={form.centro}
+              onChange={(e) => setForm((prev) => ({ ...prev, centro: e.target.value }))}
+              required
+              disabled={!!editingId}
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <TextField
+              label="Sector"
+              name="sector"
+              size="small"
+              value={form.sector}
+              onChange={(e) => setForm((prev) => ({ ...prev, sector: e.target.value }))}
+              required
+              disabled={!!editingId}
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <TextField
+              label="Monto USD"
+              name="monto_usd"
+              type="number"
+              size="small"
+              value={form.monto_usd}
+              onChange={(e) => setForm((prev) => ({ ...prev, monto_usd: e.target.value }))}
+              required
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <TextField
+              label="Saldo USD"
+              name="saldo_usd"
+              type="number"
+              size="small"
+              value={form.saldo_usd}
+              onChange={(e) => setForm((prev) => ({ ...prev, saldo_usd: e.target.value }))}
+              required
+              fullWidth
+              autoComplete="off"
+              InputLabelProps={{
+                sx: {
+                  fontSize: "0.6875rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                },
+              }}
+            />
+
+            <Stack
+              direction="row"
+              spacing={1.5}
+              sx={{ pt: 2, borderTop: 1, borderColor: "divider" }}
+            >
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => setDrawerOpen(false)}
+                disabled={submitting}
+                sx={{
+                  textTransform: "uppercase",
+                  fontSize: "0.75rem",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={submitting}
+                sx={{
+                  textTransform: "uppercase",
+                  fontSize: "0.75rem",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }
