@@ -1,37 +1,65 @@
+/**
+ * AdminUsuarios - Administracion de usuarios del sistema
+ * Full MUI Migration
+ */
+
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { admin } from "../../services/spm";
 import { useI18n } from "../../context/i18n";
-import {
-  Container,
-  Paper,
-  Typography,
-  Box,
-  Button,
-  TextField,
-  MenuItem,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  Divider,
-  Alert,
-  CircularProgress,
-  FormGroup,
-  FormControlLabel,
-  Checkbox,
-} from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import { ArrowBack } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { exportUsuarios } from "../../services/export";
+
+// MUI Components
+import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import Alert from "@mui/material/Alert";
+import Skeleton from "@mui/material/Skeleton";
+import Stack from "@mui/material/Stack";
+import Chip from "@mui/material/Chip";
+import Table from "@mui/material/Table";
+import TableHead from "@mui/material/TableHead";
+import TableBody from "@mui/material/TableBody";
+import TableRow from "@mui/material/TableRow";
+import TableCell from "@mui/material/TableCell";
+import Drawer from "@mui/material/Drawer";
+import InputAdornment from "@mui/material/InputAdornment";
+import Divider from "@mui/material/Divider";
+import CircularProgress from "@mui/material/CircularProgress";
+import FormHelperText from "@mui/material/FormHelperText";
+import Tooltip from "@mui/material/Tooltip";
+
+// MUI Icons
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
+import PeopleIcon from "@mui/icons-material/People";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import WarningIcon from "@mui/icons-material/Warning";
+import InboxIcon from "@mui/icons-material/Inbox";
+import CloseIcon from "@mui/icons-material/Close";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+
+// ============================================================================
+// CONSTANTES
+// ============================================================================
 
 const ROLES_OPTIONS = [
-  { value: "solicitante", label: "Solicitante", description: "Puede crear y gestionar solicitudes de materiales" },
-  { value: "aprobador_solicitudes", label: "Aprobador Solicitudes", description: "Puede aprobar o rechazar solicitudes" },
-  { value: "aprobador_presupuestos", label: "Aprobador Presupuestos", description: "Puede aprobar incorporaciones de presupuesto" },
-  { value: "planificador", label: "Planificador", description: "Puede planificar y gestionar el despacho" },
-  { value: "administrador", label: "Administrador", description: "Acceso completo al sistema" },
+  { value: "solicitante", label: "Solicitante" },
+  { value: "aprobador_solicitudes", label: "Aprobador Sol." },
+  { value: "aprobador_presupuestos", label: "Aprobador Pres." },
+  { value: "planificador", label: "Planificador" },
+  { value: "administrador", label: "Administrador" },
 ];
 
 const PUESTOS_OPTIONS = [
@@ -49,10 +77,10 @@ const SECTORES_OPTIONS = [
   { value: "1", label: "Almacenes" },
   { value: "2", label: "Compras" },
   { value: "3", label: "Mantenimiento" },
-  { value: "4", label: "Planificación" },
+  { value: "4", label: "Planificacion" },
   { value: "5", label: "Operaciones" },
-  { value: "6", label: "Logística" },
-  { value: "7", label: "Producción" },
+  { value: "6", label: "Logistica" },
+  { value: "7", label: "Produccion" },
   { value: "8", label: "Calidad" },
 ];
 
@@ -82,19 +110,411 @@ const initialForm = {
   contrasena: "spm123",
 };
 
+// ============================================================================
+// UTILIDADES
+// ============================================================================
+
+function parseRoles(roles) {
+  if (Array.isArray(roles)) return roles;
+  if (typeof roles === "string") {
+    try {
+      const parsed = JSON.parse(roles);
+      return Array.isArray(parsed) ? parsed : [roles];
+    } catch {
+      return roles ? [roles] : [];
+    }
+  }
+  return [];
+}
+
+function getRoleColor(role) {
+  const colors = {
+    administrador: { bgcolor: "error.100", color: "error.800" },
+    admin: { bgcolor: "error.100", color: "error.800" },
+    aprobador_presupuestos: { bgcolor: "success.100", color: "success.800" },
+    aprobador_solicitudes: { bgcolor: "warning.100", color: "warning.800" },
+    planificador: { bgcolor: "secondary.100", color: "secondary.800" },
+    solicitante: { bgcolor: "info.100", color: "info.800" },
+  };
+  return colors[role?.toLowerCase()] || { bgcolor: "grey.100", color: "grey.700" };
+}
+
+function getRoleAbbr(role) {
+  const abbrs = {
+    administrador: "Admin",
+    admin: "Admin",
+    aprobador_presupuestos: "Aprob. Pres.",
+    aprobador_solicitudes: "Aprob. Sol.",
+    planificador: "Planif.",
+    solicitante: "Solicit.",
+  };
+  return abbrs[role?.toLowerCase()] || role;
+}
+
+// ============================================================================
+// COMPONENTES UI
+// ============================================================================
+
+/** Badge de rol - estilo sutil */
+function RoleBadge({ role }) {
+  const colors = getRoleColor(role);
+  return (
+    <Chip
+      label={getRoleAbbr(role)}
+      size="small"
+      sx={{
+        height: 20,
+        fontSize: "10px",
+        fontWeight: 600,
+        bgcolor: colors.bgcolor,
+        color: colors.color,
+        borderRadius: 0,
+        border: 1,
+        borderColor: "grey.900",
+        "& .MuiChip-label": {
+          px: 1,
+        },
+      }}
+    />
+  );
+}
+
+/** Chips toggleables para roles */
+function RoleChips({ value = [], onChange }) {
+  const toggleRole = (roleValue) => {
+    const newRoles = value.includes(roleValue)
+      ? value.filter((r) => r !== roleValue)
+      : [...value, roleValue];
+    onChange(newRoles);
+  };
+
+  return (
+    <Stack direction="row" flexWrap="wrap" gap={1}>
+      {ROLES_OPTIONS.map((role) => {
+        const isActive = value.includes(role.value);
+        return (
+          <Chip
+            key={role.value}
+            label={role.label}
+            onClick={() => toggleRole(role.value)}
+            size="small"
+            sx={{
+              borderRadius: 0,
+              fontWeight: 600,
+              fontSize: "12px",
+              cursor: "pointer",
+              bgcolor: isActive ? "primary.main" : "grey.50",
+              color: isActive ? "common.white" : "text.secondary",
+              border: 1,
+              borderColor: isActive ? "primary.main" : "grey.200",
+              "&:hover": {
+                bgcolor: isActive ? "primary.dark" : "grey.100",
+                borderColor: isActive ? "primary.dark" : "grey.300",
+              },
+            }}
+          />
+        );
+      })}
+    </Stack>
+  );
+}
+
+/** Seccion del formulario */
+function FormSection({ title, children }) {
+  return (
+    <Box sx={{ px: 3, py: 2.5 }}>
+      <Typography
+        variant="overline"
+        sx={{
+          fontSize: "11px",
+          fontWeight: 600,
+          color: "text.secondary",
+          letterSpacing: 1,
+          display: "block",
+          mb: 2,
+          pb: 1,
+          borderBottom: 1,
+          borderColor: "grey.100",
+        }}
+      >
+        {title}
+      </Typography>
+      <Stack spacing={2}>{children}</Stack>
+    </Box>
+  );
+}
+
+/** Fila con confirmacion de eliminacion inline */
+function UserRow({ user, onEdit, onDelete, isDeleting, onCancelDelete, onConfirmDelete }) {
+  const roles = parseRoles(user.roles || user.rol);
+  const isActive = user.estado_registro?.toLowerCase() === "activo";
+
+  if (isDeleting) {
+    return (
+      <TableRow
+        sx={{
+          bgcolor: "error.50",
+          borderLeft: 4,
+          borderLeftColor: "error.400",
+        }}
+      >
+        <TableCell colSpan={6} sx={{ py: 1.5, px: 2 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ color: "error.800" }}>
+              <WarningIcon sx={{ fontSize: 18 }} />
+              <Typography variant="body2" fontWeight={500}>
+                Eliminar a{" "}
+                <Box component="strong">
+                  {user.nombre} {user.apellido}
+                </Box>
+                ?
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={onCancelDelete}
+                sx={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  borderRadius: 0,
+                  color: "text.secondary",
+                  borderColor: "grey.200",
+                  "&:hover": { bgcolor: "grey.50" },
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="error"
+                onClick={onConfirmDelete}
+                sx={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  borderRadius: 0,
+                }}
+              >
+                Eliminar
+              </Button>
+            </Stack>
+          </Stack>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow
+      onClick={onEdit}
+      sx={{
+        cursor: "pointer",
+        "&:hover": { bgcolor: "grey.50" },
+        "&:hover .delete-btn": { opacity: 1 },
+        borderBottom: 1,
+        borderColor: "grey.100",
+      }}
+    >
+      <TableCell sx={{ px: 1.5, py: 1.5, borderRight: 1, borderColor: "grey.100" }}>
+        <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.secondary", fontSize: "13px" }}>
+          {user.id_spm}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ px: 1.5, py: 1.5, borderRight: 1, borderColor: "grey.100" }}>
+        <Typography
+          variant="body2"
+          fontWeight={500}
+          noWrap
+          sx={{ maxWidth: 160, fontSize: "13px" }}
+        >
+          {user.nombre} {user.apellido}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ px: 1.5, py: 1.5, borderRight: 1, borderColor: "grey.100" }}>
+        <Stack direction="row" flexWrap="wrap" gap={0.5}>
+          {roles.length > 0 ? (
+            roles.map((rol, idx) => <RoleBadge key={idx} role={rol} />)
+          ) : (
+            <Typography color="text.disabled">-</Typography>
+          )}
+        </Stack>
+      </TableCell>
+      <TableCell sx={{ px: 1.5, py: 1.5, borderRight: 1, borderColor: "grey.100" }}>
+        <Typography variant="body2" noWrap title={user.mail} sx={{ color: "text.secondary", fontSize: "13px" }}>
+          {user.mail || "-"}
+        </Typography>
+      </TableCell>
+      <TableCell align="center" sx={{ px: 1.5, py: 1.5, borderRight: 1, borderColor: "grey.100" }}>
+        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+          <Box
+            sx={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              bgcolor: isActive ? "success.main" : "grey.400",
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: "10px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              color: isActive ? "success.700" : "text.disabled",
+            }}
+          >
+            {isActive ? "Activo" : "Inactivo"}
+          </Typography>
+        </Stack>
+      </TableCell>
+      <TableCell align="center" sx={{ px: 1, py: 1.5 }}>
+        <IconButton
+          className="delete-btn"
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          sx={{
+            opacity: 0,
+            color: "grey.400",
+            transition: "all 0.15s",
+            "&:hover": { color: "error.main", bgcolor: "error.50" },
+          }}
+          aria-label="Eliminar usuario"
+        >
+          <DeleteIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/** Estado vacio */
+function EmptyState({ type = "no-data", onClearFilters }) {
+  if (type === "no-results") {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          py: 8,
+          textAlign: "center",
+        }}
+      >
+        <SearchIcon sx={{ fontSize: 24, color: "grey.300", mb: 2 }} />
+        <Typography variant="body2" fontWeight={600} color="text.primary" gutterBottom>
+          No se encontraron usuarios
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Prueba ajustando los filtros de busqueda
+        </Typography>
+        <Button
+          size="small"
+          onClick={onClearFilters}
+          sx={{
+            fontSize: "11px",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            borderRadius: 0,
+            color: "primary.main",
+            bgcolor: "primary.50",
+            "&:hover": { bgcolor: "primary.100" },
+          }}
+        >
+          Limpiar filtros
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 8,
+        textAlign: "center",
+      }}
+    >
+      <InboxIcon sx={{ fontSize: 48, color: "grey.300", mb: 2 }} />
+      <Typography variant="body2" fontWeight={600} color="text.primary" gutterBottom>
+        Sin usuarios
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        No hay usuarios registrados en el sistema
+      </Typography>
+    </Box>
+  );
+}
+
+/** Skeleton de carga */
+function LoadingSkeleton() {
+  return (
+    <Box>
+      {[...Array(5)].map((_, i) => (
+        <Stack
+          key={i}
+          direction="row"
+          alignItems="center"
+          spacing={2}
+          sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "grey.100" }}
+        >
+          <Skeleton variant="rectangular" width={64} height={16} />
+          <Skeleton variant="rectangular" width={128} height={16} />
+          <Skeleton variant="rectangular" width={96} height={16} />
+          <Skeleton variant="rectangular" width={160} height={16} />
+          <Skeleton variant="rectangular" width={64} height={16} />
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
 export default function AdminUsuarios() {
   const navigate = useNavigate();
   const { t } = useI18n();
+
+  // Estado principal
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(initialForm);
-  const [submitting, setSubmitting] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
 
+  // Filtros
+  const [search, setSearch] = useState("");
+  const [filterEstado, setFilterEstado] = useState("");
+  const [filterRol, setFilterRol] = useState("");
+
+  // Drawer y formulario
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [form, setForm] = useState(initialForm);
+  const [formErrors, setFormErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // Password visibility
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Eliminacion inline
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Exportacion
+  const [exporting, setExporting] = useState(false);
+
+  // Cargar usuarios
   const loadUsuarios = useCallback(async () => {
     setLoading(true);
     try {
@@ -112,226 +532,163 @@ export default function AdminUsuarios() {
     loadUsuarios();
   }, [loadUsuarios]);
 
-  // Opciones de jefes/gerentes filtradas por posición
-  const jefesOptions = useMemo(() =>
-    usuarios.filter(u => u.posicion?.toLowerCase() === "jefe").map(u => ({
-      value: u.id_spm,
-      label: `${u.nombre} ${u.apellido} (${u.id_spm})`,
-    })), [usuarios]);
-
-  const gerentes1Options = useMemo(() =>
-    usuarios.filter(u => u.posicion?.toLowerCase() === "gerente1").map(u => ({
-      value: u.id_spm,
-      label: `${u.nombre} ${u.apellido} (${u.id_spm})`,
-    })), [usuarios]);
-
-  const gerentes2Options = useMemo(() =>
-    usuarios.filter(u => u.posicion?.toLowerCase() === "gerente2").map(u => ({
-      value: u.id_spm,
-      label: `${u.nombre} ${u.apellido} (${u.id_spm})`,
-    })), [usuarios]);
-
-  const parseRoles = (roles) => {
-    if (Array.isArray(roles)) return roles;
-    if (typeof roles === "string") {
-      try {
-        const parsed = JSON.parse(roles);
-        return Array.isArray(parsed) ? parsed : [roles];
-      } catch {
-        return [roles];
+  // Usuarios filtrados
+  const filteredUsuarios = useMemo(() => {
+    return usuarios.filter((user) => {
+      // Busqueda
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const matchName = `${user.nombre} ${user.apellido}`.toLowerCase().includes(searchLower);
+        const matchEmail = (user.mail || "").toLowerCase().includes(searchLower);
+        const matchId = (user.id_spm || "").toLowerCase().includes(searchLower);
+        if (!matchName && !matchEmail && !matchId) return false;
       }
-    }
-    return [];
+
+      // Filtro estado
+      if (filterEstado && user.estado_registro !== filterEstado) {
+        return false;
+      }
+
+      // Filtro rol
+      if (filterRol) {
+        const roles = parseRoles(user.roles || user.rol);
+        if (!roles.includes(filterRol)) return false;
+      }
+
+      return true;
+    });
+  }, [usuarios, search, filterEstado, filterRol]);
+
+  // Opciones de jerarquia
+  const jefesOptions = useMemo(
+    () =>
+      usuarios
+        .filter((u) => u.posicion?.toLowerCase() === "jefe")
+        .map((u) => ({
+          value: u.id_spm,
+          label: `${u.nombre} ${u.apellido}`,
+        })),
+    [usuarios]
+  );
+
+  const gerentes1Options = useMemo(
+    () =>
+      usuarios
+        .filter((u) => u.posicion?.toLowerCase() === "gerente1")
+        .map((u) => ({
+          value: u.id_spm,
+          label: `${u.nombre} ${u.apellido}`,
+        })),
+    [usuarios]
+  );
+
+  const gerentes2Options = useMemo(
+    () =>
+      usuarios
+        .filter((u) => u.posicion?.toLowerCase() === "gerente2")
+        .map((u) => ({
+          value: u.id_spm,
+          label: `${u.nombre} ${u.apellido}`,
+        })),
+    [usuarios]
+  );
+
+  // Handlers
+  const handleNew = () => {
+    setEditingUser(null);
+    setForm(initialForm);
+    setFormErrors({});
+    setDrawerOpen(true);
   };
 
-  const columns = useMemo(() => [
-    { field: "id_spm", headerName: "ID SPM", flex: 0.5, minWidth: 80, headerAlign: "center", align: "center" },
-    {
-      field: "nombre_completo",
-      headerName: "Nombre",
-      flex: 1,
-      minWidth: 150,
-      headerAlign: "center",
-      valueGetter: (value, row) => `${row.nombre || ""} ${row.apellido || ""}`.trim() || "-",
-    },
-    {
-      field: "roles",
-      headerName: "Roles",
-      width: 310,
-      headerAlign: "center",
-      renderCell: (params) => {
-        const roles = parseRoles(params.row.roles || params.row.rol);
-        const colorMap = {
-          admin: "#b71c1c",
-          administrador: "#b71c1c",
-          aprobador_presupuestos: "#1b5e20",
-          aprobador_solicitudes: "#ff6f00",
-          planificador: "#880e4f",
-          jefe: "#0d47a1",
-          gerente1: "#212121",
-          gerente2: "#3e2723",
-          solicitante: "#00897b",
-        };
-        return (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap", height: "100%" }}>
-            {roles.length > 0 ? roles.map((rol, idx) => (
-              <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                {idx > 0 && (
-                  <Typography variant="caption" sx={{ color: "text.disabled" }}>|</Typography>
-                )}
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: colorMap[rol?.toLowerCase()] || "text.secondary",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    fontSize: "11px",
-                  }}
-                >
-                  {rol}
-                </Typography>
-              </Box>
-            )) : (
-              <Typography variant="caption" color="text.secondary">-</Typography>
-            )}
-          </Box>
-        );
-      },
-    },
-    { field: "mail", headerName: "Email", flex: 1, minWidth: 180, headerAlign: "center" },
-    { field: "posicion", headerName: "Puesto", flex: 0.8, minWidth: 100, headerAlign: "center" },
-    {
-      field: "sector",
-      headerName: "Sector",
-      flex: 0.6,
-      minWidth: 100,
-      headerAlign: "center",
-      valueGetter: (value) => {
-        const sector = SECTORES_OPTIONS.find(s => s.value === value);
-        return sector?.label || value || "-";
-      },
-    },
-    {
-      field: "estado_registro",
-      headerName: "Estado",
-      flex: 0.5,
-      minWidth: 80,
-      headerAlign: "center",
-      align: "center",
-      renderCell: (params) => {
-        const estado = params.value?.toLowerCase();
-        const isActivo = estado === "activo";
-        return (
-          <Typography
-            variant="caption"
-            sx={{
-              color: isActivo ? "#1b5e20" : "#b71c1c",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              fontSize: "11px",
-            }}
-          >
-            {params.value || "Inactivo"}
-          </Typography>
-        );
-      },
-    },
-    {
-      field: "acciones",
-      headerName: "Acciones",
-      flex: 0.8,
-      minWidth: 150,
-      headerAlign: "center",
-      align: "center",
-      sortable: false,
-      renderCell: (params) => (
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "center", height: "100%", width: "100%" }}>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => handleEdit(params.row)}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Editar
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            color="error"
-            onClick={() => setDeleteDialog({ open: true, user: params.row })}
-            sx={{ minWidth: 60, textTransform: "uppercase", fontSize: "11px" }}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      ),
-    },
-  ], []);
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    setError("");
+    try {
+      // Obtener filtros actuales
+      const estado = filterEstado && filterEstado !== "" ? filterEstado : undefined;
+      const rol = filterRol && filterRol !== "" ? filterRol : undefined;
 
-  const handleEdit = useCallback((row) => {
-    setEditingId(row.id_spm);
+      await exportUsuarios({
+        formato: "xlsx",
+        estado,
+        rol,
+      });
+
+      setSuccess("Usuarios exportados correctamente");
+    } catch (err) {
+      setError(err.response?.data?.error?.message || "Error al exportar usuarios");
+    } finally {
+      setExporting(false);
+    }
+  }, [filterEstado, filterRol]);
+
+  const handleEdit = (user) => {
+    setEditingUser(user);
     setForm({
       ...initialForm,
-      ...row,
-      roles: parseRoles(row.roles || row.rol),
+      ...user,
+      roles: parseRoles(user.roles || user.rol),
       contrasena: "",
     });
-    setShowForm(true);
-    setError("");
-    setSuccess("");
-  }, []);
+    setFormErrors({});
+    setDrawerOpen(true);
+  };
 
-  const handleNew = useCallback(() => {
-    setEditingId(null);
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    setEditingUser(null);
     setForm(initialForm);
-    setShowForm(true);
-    setError("");
-    setSuccess("");
-  }, []);
+    setFormErrors({});
+    setShowPassword(false);
+  };
 
-  const handleChange = useCallback((e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  }, []);
-
-  const handleRoleToggle = useCallback((roleValue) => {
-    setForm(prev => {
-      const currentRoles = prev.roles || [];
-      const newRoles = currentRoles.includes(roleValue)
-        ? currentRoles.filter(r => r !== roleValue)
-        : [...currentRoles, roleValue];
-      return { ...prev, roles: newRoles };
-    });
-  }, []);
-
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (!form.id_spm || !form.nombre || !form.apellido || !form.mail) {
-      setError(t("admin_required_fields", "Faltan campos obligatorios"));
-      return;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    // Limpiar error del campo
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  const handleRolesChange = (newRoles) => {
+    setForm((prev) => ({ ...prev, roles: newRoles }));
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!form.id_spm) errors.id_spm = "Requerido";
+    if (!form.nombre) errors.nombre = "Requerido";
+    if (!form.apellido) errors.apellido = "Requerido";
+    if (!form.mail) errors.mail = "Requerido";
+    if (!editingUser && !form.contrasena) errors.contrasena = "Requerida para nuevos usuarios";
+    if (form.roles.length === 0) errors.roles = "Selecciona al menos un rol";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
     setSubmitting(true);
+    setError("");
     try {
       const payload = {
         ...form,
         roles: JSON.stringify(form.roles),
       };
 
-      if (editingId) {
-        await admin.update("usuarios", editingId, payload);
+      if (editingUser) {
+        await admin.update("usuarios", editingUser.id_spm, payload);
         setSuccess(t("crud_record_updated", "Usuario actualizado correctamente"));
       } else {
         await admin.create("usuarios", payload);
         setSuccess(t("crud_record_created", "Usuario creado correctamente"));
       }
 
-      setShowForm(false);
-      setForm(initialForm);
-      setEditingId(null);
+      handleCloseDrawer();
       await loadUsuarios();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -339,15 +696,14 @@ export default function AdminUsuarios() {
     } finally {
       setSubmitting(false);
     }
-  }, [form, editingId, loadUsuarios, t]);
+  };
 
-  const handleDelete = useCallback(async () => {
-    if (!deleteDialog.user) return;
+  const handleDelete = async (userId) => {
     setSubmitting(true);
     try {
-      await admin.remove("usuarios", deleteDialog.user.id_spm);
+      await admin.remove("usuarios", userId);
       setSuccess(t("crud_record_deleted", "Usuario eliminado correctamente"));
-      setDeleteDialog({ open: false, user: null });
+      setDeletingId(null);
       await loadUsuarios();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -355,398 +711,718 @@ export default function AdminUsuarios() {
     } finally {
       setSubmitting(false);
     }
-  }, [deleteDialog.user, loadUsuarios, t]);
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setFilterEstado("");
+    setFilterRol("");
+  };
+
+  const hasActiveFilters = search || filterEstado || filterRol;
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
-    <Container maxWidth={false} sx={{ py: 2, maxWidth: 1600 }}>
-      {/* Header */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <IconButton onClick={() => navigate("/admin")} size="small" sx={{ color: "text.secondary" }}>
-              <ArrowBack />
-            </IconButton>
-            <Typography variant="h5" component="h1" fontWeight={700} sx={{ textTransform: "uppercase" }}>
-              {t("admin_usuarios", "Administración de Usuarios")}
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            onClick={handleNew}
-            sx={{ textTransform: "uppercase" }}
-          >
-            {t("crud_new", "Nuevo")}
-          </Button>
+    <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
+      {/* HEADER */}
+      <Box
+        component="header"
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          bgcolor: "background.paper",
+          borderBottom: 1,
+          borderColor: "grey.200",
+          boxShadow: 1,
+        }}
+      >
+        <Box sx={{ maxWidth: 1600, mx: "auto", px: 3 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ height: 56 }}>
+            {/* Left */}
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <IconButton
+                onClick={() => navigate("/admin")}
+                sx={{ ml: -1, color: "grey.400", "&:hover": { color: "grey.600", bgcolor: "grey.100" } }}
+                aria-label="Volver"
+              >
+                <ArrowBackIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Box
+                  sx={{
+                    p: 1,
+                    bgcolor: "primary.main",
+                    color: "common.white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <PeopleIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 600, color: "text.primary", textTransform: "uppercase", letterSpacing: 0.5 }}
+                  >
+                    {t("admin_usuarios", "Usuarios")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Administracion de usuarios del sistema
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+
+            {/* Right */}
+            <Stack direction="row" spacing={1}>
+              {/* Botón de exportación */}
+              <Tooltip title="Descargar XLSX">
+                <IconButton
+                  onClick={handleExport}
+                  disabled={loading || exporting || filteredUsuarios.length === 0}
+                  size="small"
+                  sx={{
+                    color: "var(--success)",
+                    border: "1px solid var(--success)",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    "&:hover": {
+                      backgroundColor: "var(--success)",
+                      color: "var(--card)",
+                    },
+                    "&:disabled": {
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    },
+                  }}
+                >
+                  {exporting ? (
+                    <CircularProgress size={14} sx={{ color: "var(--success)" }} />
+                  ) : (
+                    <>
+                      <FileDownloadIcon sx={{ fontSize: "1rem", mr: 0.5 }} />
+                      <span style={{ fontSize: "0.75rem", fontWeight: 500 }}>XLSX</span>
+                    </>
+                  )}
+                </IconButton>
+              </Tooltip>
+
+              {/* Botón "Nuevo" */}
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={handleNew}
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "11px",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  borderRadius: 0,
+                  px: 2,
+                  height: 36,
+                }}
+              >
+                Nuevo
+              </Button>
+            </Stack>
+          </Stack>
         </Box>
       </Box>
 
-      {/* Alertas */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-          {success}
-        </Alert>
-      )}
+      {/* MAIN */}
+      <Box component="main" sx={{ maxWidth: 1600, mx: "auto", px: 3, py: 3 }}>
+        {/* Alerts */}
+        {error && (
+          <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
 
-      {/* DataGrid */}
-      <Paper elevation={2} sx={{ height: 600 }}>
-        <DataGrid
-          rows={usuarios}
-          columns={columns}
-          getRowId={(row) => row.id_spm}
-          loading={loading}
-          pageSizeOptions={[20, 50, 100]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 20 } },
-          }}
-          disableRowSelectionOnClick
-          rowHeight={67}
-          localeText={{
-            MuiTablePagination: {
-              labelRowsPerPage: "Filas por página:",
-            },
-          }}
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "grey.100",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              fontSize: "12px",
-            },
-            "& .MuiDataGrid-columnHeader--alignCenter .MuiDataGrid-columnHeaderTitleContainer": {
-              justifyContent: "center",
-            },
-            "& .MuiDataGrid-columnHeader": {
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-            "& .MuiDataGrid-cell": {
-              fontSize: "13px",
-              borderRight: "1px solid",
-              borderColor: "divider",
-            },
-          }}
-        />
-      </Paper>
+        {/* FILTROS */}
+        <Paper elevation={0} sx={{ border: 1, borderColor: "grey.200", mb: 3 }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "grey.100", bgcolor: "grey.50" }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <FilterListIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+              <Typography
+                variant="overline"
+                sx={{ fontSize: "11px", fontWeight: 600, color: "text.secondary", letterSpacing: 1 }}
+              >
+                Filtros
+              </Typography>
+            </Stack>
+          </Box>
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" flexWrap="wrap" alignItems="center" gap={2}>
+              {/* Busqueda */}
+              <TextField
+                size="small"
+                placeholder="Buscar por nombre, email o ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={{ flex: 1, minWidth: 250, maxWidth: 400 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon sx={{ fontSize: 18, color: "grey.400" }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
 
-      {/* Modal de Formulario */}
-      <Dialog
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: { maxHeight: "90vh" } }}
+              {/* Filtro Estado */}
+              <FormControl size="small" sx={{ minWidth: 170 }}>
+                <InputLabel>Estado</InputLabel>
+                <Select
+                  value={filterEstado}
+                  onChange={(e) => setFilterEstado(e.target.value)}
+                  label="Estado"
+                >
+                  <MenuItem value="">Todos los estados</MenuItem>
+                  {ESTADOS_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Filtro Rol */}
+              <FormControl size="small" sx={{ minWidth: 170 }}>
+                <InputLabel>Rol</InputLabel>
+                <Select
+                  value={filterRol}
+                  onChange={(e) => setFilterRol(e.target.value)}
+                  label="Rol"
+                >
+                  <MenuItem value="">Todos los roles</MenuItem>
+                  {ROLES_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Contador */}
+              <Chip
+                icon={
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      bgcolor: "grey.400",
+                      ml: 1,
+                    }}
+                  />
+                }
+                label={`${filteredUsuarios.length} usuarios`}
+                size="small"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: "11px",
+                  bgcolor: "grey.100",
+                  color: "text.secondary",
+                  borderRadius: 0,
+                  "& .MuiChip-icon": { mr: 0.5 },
+                }}
+              />
+            </Stack>
+          </Box>
+        </Paper>
+
+        {/* TABLA */}
+        <Paper elevation={0} sx={{ border: 1, borderColor: "grey.200" }}>
+          <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "grey.200", bgcolor: "grey.50" }}>
+            <Typography
+              variant="overline"
+              sx={{ fontSize: "11px", fontWeight: 600, color: "text.primary", letterSpacing: 1 }}
+            >
+              Lista de Usuarios
+            </Typography>
+          </Box>
+
+          {loading ? (
+            <LoadingSkeleton />
+          ) : filteredUsuarios.length === 0 ? (
+            <EmptyState type={hasActiveFilters ? "no-results" : "no-data"} onClearFilters={clearFilters} />
+          ) : (
+            <Box sx={{ overflowX: "auto", border: 1, borderColor: "grey.200" }}>
+              <Table sx={{ minWidth: 650 }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "grey.50", borderBottom: 2, borderColor: "grey.200" }}>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        width: 70,
+                        borderRight: 1,
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      ID
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        width: 180,
+                        borderRight: 1,
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      Nombre
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        borderRight: 1,
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      Roles
+                    </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        width: 200,
+                        borderRight: 1,
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      Email
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        px: 1.5,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        width: 90,
+                        borderRight: 1,
+                        borderColor: "grey.200",
+                      }}
+                    >
+                      Estado
+                    </TableCell>
+                    <TableCell
+                      align="center"
+                      sx={{
+                        px: 1,
+                        py: 1.5,
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "text.secondary",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        width: 50,
+                      }}
+                    />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUsuarios.map((user) => (
+                    <UserRow
+                      key={user.id_spm}
+                      user={user}
+                      onEdit={() => handleEdit(user)}
+                      onDelete={() => setDeletingId(user.id_spm)}
+                      isDeleting={deletingId === user.id_spm}
+                      onCancelDelete={() => setDeletingId(null)}
+                      onConfirmDelete={() => handleDelete(user.id_spm)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          )}
+
+          {/* Footer */}
+          {!loading && filteredUsuarios.length > 0 && (
+            <Box sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: "grey.200", bgcolor: "grey.50" }}>
+              <Typography variant="caption" color="text.secondary">
+                Mostrando {filteredUsuarios.length} de {usuarios.length} usuarios
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+      </Box>
+
+      {/* DRAWER */}
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
+        PaperProps={{
+          sx: { width: { xs: "100%", sm: 480 } },
+        }}
       >
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700 }}>
-          {editingId ? "Editar" : "Nuevo"}
-        </DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-                {error}
-              </Alert>
+        {/* Drawer Header */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderBottom: 1,
+            borderColor: "grey.200",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {editingUser ? "Editar Usuario" : "Nuevo Usuario"}
+            </Typography>
+            {editingUser && (
+              <Typography variant="caption" color="text.secondary">
+                {editingUser.id_spm} - {editingUser.nombre} {editingUser.apellido}
+              </Typography>
             )}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, md: 4 }}>
+          </Box>
+          <IconButton onClick={handleCloseDrawer} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* Drawer Content */}
+        <Box sx={{ flex: 1, overflow: "auto" }}>
+          <Box component="form" id="user-form" onSubmit={handleSubmit}>
+            {/* Datos Basicos */}
+            <FormSection title="Datos Basicos">
+              <Stack direction="row" spacing={2}>
                 <TextField
                   fullWidth
                   size="small"
-                  name="id_spm"
                   label="ID SPM"
+                  name="id_spm"
                   value={form.id_spm}
                   onChange={handleChange}
                   required
-                  disabled={!!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  disabled={!!editingUser}
+                  error={!!formErrors.id_spm}
+                  helperText={formErrors.id_spm}
                 />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   fullWidth
                   size="small"
-                  name="nombre"
+                  label="ID YPF"
+                  name="id_ypf"
+                  value={form.id_ypf}
+                  onChange={handleChange}
+                />
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  fullWidth
+                  size="small"
                   label="Nombre"
+                  name="nombre"
                   value={form.nombre}
                   onChange={handleChange}
                   required
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  error={!!formErrors.nombre}
+                  helperText={formErrors.nombre}
                 />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   fullWidth
                   size="small"
-                  name="apellido"
                   label="Apellido"
+                  name="apellido"
                   value={form.apellido}
                   onChange={handleChange}
                   required
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  error={!!formErrors.apellido}
+                  helperText={formErrors.apellido}
                 />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="mail"
-                  label="Email"
-                  type="email"
-                  value={form.mail}
-                  onChange={handleChange}
-                  required
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="telefono"
-                  label="Teléfono"
-                  value={form.telefono}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
+              </Stack>
+              <TextField
+                fullWidth
+                size="small"
+                label="Email"
+                name="mail"
+                type="email"
+                value={form.mail}
+                onChange={handleChange}
+                required
+                error={!!formErrors.mail}
+                helperText={formErrors.mail}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Telefono"
+                name="telefono"
+                value={form.telefono}
+                onChange={handleChange}
+              />
+            </FormSection>
 
-            <Divider sx={{ my: 3 }} />
+            <Divider />
 
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  name="posicion"
-                  label="Puesto"
-                  value={form.posicion}
-                  onChange={handleChange}
-                  required
-                  slotProps={{ inputLabel: { shrink: true } }}
-                >
-                  {PUESTOS_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  name="sector"
-                  label="Sector"
-                  value={form.sector}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                >
-                  <MenuItem value="">Selecciona...</MenuItem>
-                  {SECTORES_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                  Roles *
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <FormGroup row>
-                    {ROLES_OPTIONS.map(role => (
-                      <FormControlLabel
-                        key={role.value}
-                        control={
-                          <Checkbox
-                            checked={form.roles?.includes(role.value) || false}
-                            onChange={() => handleRoleToggle(role.value)}
-                            size="small"
-                          />
-                        }
-                        label={<Typography variant="body2">{role.label}</Typography>}
-                        sx={{ minWidth: 200, mb: 0.5 }}
-                      />
+            {/* Puesto y Roles */}
+            <FormSection title="Puesto y Roles">
+              <Stack direction="row" spacing={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Puesto</InputLabel>
+                  <Select
+                    name="posicion"
+                    value={form.posicion}
+                    onChange={handleChange}
+                    label="Puesto"
+                  >
+                    {PUESTOS_OPTIONS.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
                     ))}
-                  </FormGroup>
-                </Paper>
-              </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 3 }} />
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="centros"
-                  label="Centros"
-                  value={form.centros}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="almacenes"
-                  label="Almacenes"
-                  value={form.almacenes}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  name="jefe"
-                  label="Jefe"
-                  value={form.jefe}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Sector</InputLabel>
+                  <Select
+                    name="sector"
+                    value={form.sector}
+                    onChange={handleChange}
+                    label="Sector"
+                  >
+                    <MenuItem value="">Seleccionar...</MenuItem>
+                    {SECTORES_OPTIONS.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mb: 1,
+                    fontWeight: 500,
+                    color: "text.secondary",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
                 >
-                  <MenuItem value="">-</MenuItem>
-                  {jefesOptions.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
-                  name="gerente1"
-                  label="Gerente 1"
-                  value={form.gerente1}
-                  onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                >
-                  <MenuItem value="">-</MenuItem>
-                  {gerentes1Options.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12, md: 4 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
+                  Roles <Box component="span" sx={{ color: "error.main" }}>*</Box>
+                </Typography>
+                <RoleChips value={form.roles} onChange={handleRolesChange} />
+                {formErrors.roles && (
+                  <FormHelperText error sx={{ mt: 0.5 }}>
+                    {formErrors.roles}
+                  </FormHelperText>
+                )}
+              </Box>
+            </FormSection>
+
+            <Divider />
+
+            {/* Jerarquia */}
+            <FormSection title="Jerarquia">
+              <TextField
+                fullWidth
+                size="small"
+                label="Centros"
+                name="centros"
+                value={form.centros}
+                onChange={handleChange}
+                placeholder="Ej: 1000, 2000, 3000"
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Almacenes"
+                name="almacenes"
+                value={form.almacenes}
+                onChange={handleChange}
+                placeholder="Ej: ALM01, ALM02"
+              />
+              <Stack direction="row" spacing={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Jefe</InputLabel>
+                  <Select
+                    name="jefe"
+                    value={form.jefe}
+                    onChange={handleChange}
+                    label="Jefe"
+                  >
+                    <MenuItem value="">-</MenuItem>
+                    {jefesOptions.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Gerente N1</InputLabel>
+                  <Select
+                    name="gerente1"
+                    value={form.gerente1}
+                    onChange={handleChange}
+                    label="Gerente N1"
+                  >
+                    <MenuItem value="">-</MenuItem>
+                    {gerentes1Options.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+              <FormControl fullWidth size="small">
+                <InputLabel>Gerente N2</InputLabel>
+                <Select
                   name="gerente2"
-                  label="Gerente 2"
                   value={form.gerente2}
                   onChange={handleChange}
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  label="Gerente N2"
                 >
                   <MenuItem value="">-</MenuItem>
-                  {gerentes2Options.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  {gerentes2Options.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
                   ))}
-                </TextField>
-              </Grid>
-            </Grid>
+                </Select>
+              </FormControl>
+            </FormSection>
 
-            <Divider sx={{ my: 3 }} />
+            <Divider />
 
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  fullWidth
-                  size="small"
+            {/* Estado y Acceso */}
+            <FormSection title="Estado y Acceso">
+              <FormControl fullWidth size="small">
+                <InputLabel>Estado</InputLabel>
+                <Select
                   name="estado_registro"
-                  label="Estado"
                   value={form.estado_registro}
                   onChange={handleChange}
-                  required
-                  slotProps={{ inputLabel: { shrink: true } }}
+                  label="Estado"
                 >
-                  {ESTADOS_OPTIONS.map(opt => (
-                    <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                  {ESTADOS_OPTIONS.map((opt) => (
+                    <MenuItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
                   ))}
-                </TextField>
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  name="contrasena"
-                  label="Contraseña"
-                  type="password"
-                  value={form.contrasena}
-                  onChange={handleChange}
-                  required={!editingId}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1 }}>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={() => setShowForm(false)}
-              disabled={submitting}
-              sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={submitting}
-              startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-              sx={{ textTransform: "uppercase" }}
-            >
-              {submitting ? "Guardando..." : editingId ? "Actualizar" : "Crear"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                size="small"
+                label="Contrasena"
+                name="contrasena"
+                type={showPassword ? "text" : "password"}
+                value={form.contrasena}
+                onChange={handleChange}
+                required={!editingUser}
+                error={!!formErrors.contrasena}
+                helperText={
+                  formErrors.contrasena || (editingUser ? "Dejar vacio para no cambiar" : "")
+                }
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? (
+                          <VisibilityOffIcon sx={{ fontSize: 18 }} />
+                        ) : (
+                          <VisibilityIcon sx={{ fontSize: 18 }} />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </FormSection>
+          </Box>
+        </Box>
 
-      {/* Modal de Confirmación de Eliminación */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, user: null })}>
-        <DialogTitle sx={{ textTransform: "uppercase", fontWeight: 700, color: "error.main" }}>
-          Eliminar
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Eliminar a <strong>{deleteDialog.user?.nombre} {deleteDialog.user?.apellido}</strong>?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        {/* Drawer Footer */}
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderTop: 1,
+            borderColor: "grey.200",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 1.5,
+          }}
+        >
           <Button
             variant="outlined"
-            color="inherit"
-            onClick={() => setDeleteDialog({ open: false, user: null })}
+            onClick={handleCloseDrawer}
             disabled={submitting}
-            sx={{ textTransform: "uppercase", color: "text.secondary", borderColor: "divider" }}
+            sx={{
+              fontWeight: 600,
+              fontSize: "11px",
+              textTransform: "uppercase",
+              borderRadius: 0,
+            }}
           >
             Cancelar
           </Button>
           <Button
+            type="submit"
+            form="user-form"
             variant="contained"
-            color="error"
-            onClick={handleDelete}
             disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-            sx={{ textTransform: "uppercase" }}
+            startIcon={submitting ? <CircularProgress size={14} color="inherit" /> : null}
+            sx={{
+              fontWeight: 600,
+              fontSize: "11px",
+              textTransform: "uppercase",
+              borderRadius: 0,
+            }}
           >
-            {submitting ? "Eliminando..." : "Eliminar"}
+            {submitting ? "Guardando..." : "Guardar"}
           </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+        </Box>
+      </Drawer>
+    </Box>
   );
 }

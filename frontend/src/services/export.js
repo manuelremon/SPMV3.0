@@ -147,6 +147,26 @@ export const exportKPIs = async ({
 }
 
 /**
+ * Exportar usuarios
+ * @param {Object} params
+ * @param {string} params.formato - xlsx, csv, pdf
+ * @param {string} params.estado - Filtrar por estado
+ * @param {string} params.rol - Filtrar por rol
+ * @returns {Promise<void>}
+ */
+export const exportUsuarios = async ({
+  formato = 'xlsx',
+  estado,
+  rol
+} = {}) => {
+  const params = { formato }
+  if (estado) params.estado = estado
+  if (rol) params.rol = rol
+
+  await downloadFile('/export/usuarios', params, `usuarios_${new Date().toISOString().split('T')[0]}`)
+}
+
+/**
  * Obtener formatos disponibles
  * @returns {Promise<Object>} Lista de formatos y default
  */
@@ -165,6 +185,7 @@ export default {
   exportInventario,
   exportAlertasMRP,
   exportKPIs,
+  exportUsuarios,
   getFormatos,
   FORMATOS
 }
