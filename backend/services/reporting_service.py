@@ -481,7 +481,7 @@ class ReportingService:
                 query = """
                     SELECT id_spm, nombre, apellido, rol, mail, posicion, sector,
                            jefe, gerente1, gerente2, telefono, estado_registro,
-                           id_ypf, mail_respaldo, almacenes, created_at
+                           id_ypf, mail_respaldo, almacenes
                     FROM usuario
                     WHERE 1=1
                 """
@@ -501,19 +501,31 @@ class ReportingService:
                 cursor.execute(query, params)
                 usuarios = []
                 for row in cursor.fetchall():
-                    row_dict = dict(row)
-                    # Normalizar roles para que sean mas legibles
-                    rol_csv = row_dict.get("rol", "")
-                    row_dict["roles"] = normalize_roles(rol_csv)
-                    usuarios.append(row_dict)
+                    try:
+                        row_dict = dict(row)
+                        # Normalizar roles para que sean mas legibles
+                        rol_csv = row_dict.get("rol", "")
+                        if rol_csv:
+                            row_dict["roles"] = normalize_roles(rol_csv)
+                        usuarios.append(row_dict)
+                    except Exception as row_error:
+                        logger.warning(f"Error procesando fila de usuario: {row_error}")
+                        continue
 
-            return self.export_usuarios(
+            # Exportar usuarios recuperados
+            result = self.export_usuarios(
                 usuarios=usuarios, formato=formato
             )
 
+            # Si el resultado tiene éxito, retornarlo, sino loguear y retornar error
+            if not result.get("success"):
+                logger.error(f"Error en export_usuarios: {result.get('error')}")
+
+            return result
+
         except Exception as e:
-            logger.error(f"Error exportando usuarios desde BD: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error exportando usuarios desde BD: {e}", exc_info=True)
+            return {"success": False, "error": f"Error al exportar usuarios: {str(e)}"}
 
     # ========================================================================
     # REPORTE DE KPIs

@@ -1403,3 +1403,230 @@ def resolver_alerta_mrp_endpoint(alerta_id):
 
     except Exception as e:
         return jsonify({"ok": False, "error": {"code": "server_error", "message": str(e)}}), 500
+
+
+# =============================================================================
+# PARAMETRIZACION MRP AVANZADA - Sprint 25 (Nueva Página)
+# =============================================================================
+
+from backend.services.mrp_service import (
+    calcular_parametros_mrp_completo,
+    obtener_configuracion_global,
+    guardar_parametros_mrp_bd,
+)
+
+
+@bp.route("/parametros/calcular", methods=["POST"])
+@require_auth
+@require_role(["admin", "planificador"])
+def calcular_parametros_materiales():
+    """
+    Calcula parámetros MRP para múltiples materiales.
+
+    Body:
+        {
+            "materiales": [
+                {
+                    "material_codigo": "10000123",
+                    "centro": "1000",
+                    "almacen": "0001",
+                    "demanda_anual": 1200,
+                    "lead_time_dias": 30,  # opcional
+                    "nivel_servicio": 0.95,  # opcional
+                    ... (otros parámetros opcionales)
+                },
+                ...
+            ],
+            "configuracion_global": {  # opcional, override defaults
+                "costo_por_pedido": 150,
+                "tasa_mantenimiento": 0.20,
+                "dias_laborables_año": 300
+            }
+        }
+
+    Returns:
+        {
+            "ok": true,
+            "resultados": [...],
+            "errores": [],
+            "total_procesados": 10,
+            "total_exitosos": 9,
+            "total_errores": 1
+        }
+    """
+    try:
+        data = request.json
+        materiales = data.get("materiales", [])
+        config_global = data.get("configuracion_global", {})
+
+        if not materiales:
+            return (
+                jsonify({
+                    "ok": False,
+                    "error": {
+                        "code": "invalid_input",
+                        "message": "Lista de materiales vacía"
+                    }
+                }),
+                400,
+            )
+
+        # Obtener configuración global de BD
+        defaults = obtener_configuracion_global()
+        defaults.update(config_global)  # Override con lo enviado
+
+        resultados = []
+        errores = []
+
+        for mat in materiales:
+            try:
+                # Mapear nombres de configuración a parámetros de función
+                params = {
+                    "material_codigo": mat.get("material_codigo"),
+                    "centro": mat.get("centro"),
+                    "almacen": mat.get("almacen"),
+                    "demanda_anual": mat.get("demanda_anual", 0),
+                    "lead_time_dias": mat.get("lead_time_dias", defaults.get("lead_time_default", 30)),
+                    "desv_std_demanda_diaria": mat.get("desv_std_demanda_diaria", defaults.get("desv_std_demanda_default", 0)),
+                    "desv_std_lead_time": mat.get("desv_std_lead_time", defaults.get("desv_std_leadtime_default", 0)),
+                    "costo_unitario": mat.get("costo_unitario", 0),
+                    "costo_por_pedido": mat.get("costo_por_pedido", defaults.get("costo_orden_default", 100)),
+                    "tasa_mantenimiento": mat.get("tasa_mantenimiento", defaults.get("tasa_mantenimiento_default", 0.20)),
+                    "nivel_servicio": mat.get("nivel_servicio", defaults.get("nivel_servicio_default", 0.95)),
+                    "dias_laborables_año": mat.get("dias_laborables_año", defaults.get("dias_laborables_default", 300)),
+                    "cantidad_minima_pedido": mat.get("cantidad_minima_pedido", defaults.get("cantidad_minima_default", 10)),
+                    "cantidad_maxima_pedido": mat.get("cantidad_maxima_pedido"),
+                    "multiplo_pedido": mat.get("multiplo_pedido", defaults.get("multiplo_default", 1)),
+                    "categoria_abc": mat.get("categoria_abc"),
+                    "critico": mat.get("critico", False),
+                }
+
+                # Validar campos requeridos
+                if not all(params[k] for k in ["material_codigo", "centro", "almacen", "demanda_anual"]):
+                    raise ValueError("Faltan campos requeridos: material_codigo, centro, almacen, demanda_anual")
+
+                # Calcular
+                resultado = calcular_parametros_mrp_completo(**params)
+                resultados.append(resultado)
+
+            except Exception as e:
+                errores.append({
+                    "material_codigo": mat.get("material_codigo"),
+                    "error": str(e)
+                })
+
+        return jsonify({
+            "ok": True,
+            "resultados": resultados,
+            "errores": errores,
+            "total_procesados": len(materiales),
+            "total_exitosos": len(resultados),
+            "total_errores": len(errores)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error calculando parámetros: {e}", exc_info=True)
+        return jsonify({
+            "ok": False,
+            "error": {"code": "calculation_error", "message": str(e)}
+        }), 500
+
+
+@bp.route("/parametros/guardar", methods=["POST"])
+@require_auth
+@require_role(["admin", "planificador"])
+def guardar_parametros_materiales():
+    """
+    Guarda parámetros MRP calculados en BD.
+
+    Body:
+        {
+            "parametros": [
+                {
+                    "material_codigo": "10000123",
+                    "centro": "1000",
+                    "almacen": "0001",
+                    "stock_seguridad": 36,
+                    "punto_pedido": 156,
+                    ... (todos los campos calculados)
+                },
+                ...
+            ]
+        }
+
+    Returns:
+        {
+            "ok": true,
+            "guardados": 9,
+            "errores": [...]
+        }
+    """
+    try:
+        data = request.json
+        parametros_list = data.get("parametros", [])
+        usuario = _get_user_id()
+
+        guardados = 0
+        errores = []
+
+        for params in parametros_list:
+            try:
+                resultado = guardar_parametros_mrp_bd(params, usuario)
+                if resultado["success"]:
+                    guardados += 1
+                else:
+                    errores.append({
+                        "material_codigo": params.get("material_codigo"),
+                        "error": resultado.get("error")
+                    })
+            except Exception as e:
+                errores.append({
+                    "material_codigo": params.get("material_codigo"),
+                    "error": str(e)
+                })
+
+        return jsonify({
+            "ok": True,
+            "guardados": guardados,
+            "errores": errores
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error guardando parámetros: {e}", exc_info=True)
+        return jsonify({
+            "ok": False,
+            "error": {"code": "save_error", "message": str(e)}
+        }), 500
+
+
+@bp.route("/configuracion", methods=["GET"])
+@require_auth
+@require_role(["admin", "planificador"])
+def obtener_configuracion():
+    """
+    Obtiene configuración global MRP.
+
+    Returns:
+        {
+            "ok": true,
+            "configuracion": {
+                "lead_time_default": 30,
+                "costo_orden_default": 100,
+                ...
+            }
+        }
+    """
+    try:
+        config = obtener_configuracion_global()
+
+        return jsonify({
+            "ok": True,
+            "configuracion": config
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error obteniendo configuración: {e}", exc_info=True)
+        return jsonify({
+            "ok": False,
+            "error": {"code": "config_error", "message": str(e)}
+        }), 500

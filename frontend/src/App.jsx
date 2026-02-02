@@ -41,6 +41,7 @@ const TodasLasSolicitudes = lazy(() => import('./pages/TodasLasSolicitudes'))
 const MRPTableroAlertas = lazy(() => import('./pages/MRPTableroAlertas'))
 const MRPKPIs = lazy(() => import('./pages/MRPKPIs'))
 const MRPPortfolio = lazy(() => import('./pages/MRPPortfolio'))
+const MRPParametrizar = lazy(() => import('./pages/MRPParametrizar'))
 
 // SLA Dashboard removed - merged into AIAnalytics
 
@@ -128,6 +129,7 @@ function App() {
             <Route path="/planificador/mrp/alertas" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPTableroAlertas /></ProtectedRoute>} />
             <Route path="/planificador/mrp/kpis" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPKPIs /></ProtectedRoute>} />
             <Route path="/mrp/portfolio" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPPortfolio /></ProtectedRoute>} />
+            <Route path="/mrp/parametrizar" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPParametrizar /></ProtectedRoute>} />
             <Route path="/mrp/alertas" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPTableroAlertas /></ProtectedRoute>} />
             <Route path="/mrp/kpis" element={<ProtectedRoute roles={['administrador', 'admin', 'planificador']}><MRPKPIs /></ProtectedRoute>} />
             <Route path="/planificador/sla" element={<Navigate to="/planificador/ai" replace />} />

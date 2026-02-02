@@ -307,7 +307,7 @@ def export_usuarios():
 
     Nota: Solo accesible para usuarios con rol admin
     """
-    formato = request.args.get("formato", "xlsx")
+    formato = request.args.get("formato", "xlsx").lower()
     filtros = {}
 
     if request.args.get("estado"):
@@ -316,15 +316,30 @@ def export_usuarios():
         filtros["rol"] = request.args.get("rol")
 
     try:
+        # Validar formato
+        if formato not in ["xlsx", "csv", "pdf"]:
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "invalid_format",
+                        "message": f"Formato no válido: {formato}. Use: xlsx, csv, pdf",
+                    },
+                }
+            ), 400
+
         service = get_reporting_service()
         result = service.export_usuarios_from_db(
             formato=formato, filtros=filtros if filtros else None
         )
 
+        if not result.get("success"):
+            logger.error(f"Error en export_usuarios_from_db: {result.get('error')}")
+
         return _make_download_response(result)
 
     except Exception as e:
-        logger.error(f"Error exportando usuarios: {e}")
+        logger.error(f"Error exportando usuarios: {e}", exc_info=True)
         return jsonify(
             {
                 "ok": False,

@@ -833,6 +833,39 @@ const translations = {
   forecast_placeholder_error_consumption: { es: "Ingresa un consumo promedio válido mayor a 0", en: "Enter a valid average consumption greater than 0" },
   forecast_placeholder_error_leadtime: { es: "Ingresa un lead time válido mayor a 0 días", en: "Enter a valid lead time greater than 0 days" },
   forecast_placeholder_error_buffer: { es: "El factor de incertidumbre debe estar entre 0 y 1", en: "The uncertainty factor must be between 0 and 1" },
+
+  // MRP - Navigation
+  nav_mrp: { es: "MRP", en: "MRP" },
+  nav_mrp_portfolio: { es: "Portfolio MRP", en: "MRP Portfolio" },
+  nav_mrp_parametrizar: { es: "Parametrizar", en: "Configure" },
+  nav_mrp_alertas: { es: "Alertas", en: "Alerts" },
+  nav_mrp_kpis: { es: "KPIs", en: "KPIs" },
+
+  // MRP - Parametrización
+  mrp_param_titulo: { es: "Parametrizar MRP", en: "Configure MRP" },
+  mrp_param_paso1: { es: "Paso 1: Importar Materiales desde Excel", en: "Step 1: Import Materials from Excel" },
+  mrp_param_paso2: { es: "Paso 2: Calcular Parámetros MRP", en: "Step 2: Calculate MRP Parameters" },
+  mrp_param_paso3: { es: "Paso 3: Revisar y Guardar Parámetros", en: "Step 3: Review and Save Parameters" },
+  mrp_param_descargar_plantilla: { es: "Descargar Plantilla Excel", en: "Download Excel Template" },
+  mrp_param_subir_archivo: { es: "Subir Archivo Excel", en: "Upload Excel File" },
+  mrp_param_importados: { es: "materiales importados correctamente", en: "materials imported successfully" },
+  mrp_param_calcular: { es: "Calcular Parámetros", en: "Calculate Parameters" },
+  mrp_param_calculando: { es: "Calculando...", en: "Calculating..." },
+  mrp_param_guardar: { es: "Guardar Parámetros", en: "Save Parameters" },
+  mrp_param_guardando: { es: "Guardando...", en: "Saving..." },
+  mrp_param_volver: { es: "Volver", en: "Back" },
+  mrp_param_siguiente: { es: "Siguiente", en: "Next" },
+  mrp_param_error_excel_vacio: { es: "El archivo Excel está vacío", en: "The Excel file is empty" },
+  mrp_param_error_columnas: { es: "Faltan columnas requeridas", en: "Missing required columns" },
+  mrp_param_error_lectura: { es: "Error leyendo archivo", en: "Error reading file" },
+  mrp_param_alerta_importacion: { es: "materiales importados. Revisa los datos y presiona Siguiente para calcular parámetros.", en: "materials imported. Review the data and press Next to calculate parameters." },
+  mrp_param_alerta_calculo: { es: "Se calcularán automáticamente: Stock Seguridad, Punto Pedido, EOQ, Stock Máximo, Coberturas y Costos.", en: "Will automatically calculate: Safety Stock, Reorder Point, EOQ, Max Stock, Coverage and Costs." },
+  mrp_param_alerta_guardado: { es: "Los parámetros se guardarán en la base de datos y sobrescribirán los valores actuales.", en: "Parameters will be saved to the database and overwrite current values." },
+  mrp_param_exito_calculo: { es: "parámetros calculados correctamente", en: "parameters calculated successfully" },
+  mrp_param_exito_guardado: { es: "materiales guardados correctamente", en: "materials saved successfully" },
+
+  // Forecast
+  nav_forecast: { es: "Forecast", en: "Forecast" },
 };
 
 export function I18nProvider({ children }) {

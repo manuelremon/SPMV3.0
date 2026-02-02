@@ -339,6 +339,14 @@ function HeaderNav() {
             </MenuItem>
             <MenuItem
               component={NavLink}
+              to="/mrp/parametrizar"
+              onClick={() => setMrpAnchor(null)}
+              sx={isPathActive("/mrp/parametrizar") ? activeMenuItemSx : menuItemSx}
+            >
+              {t("nav_mrp_parametrizar", "Parametrizar")}
+            </MenuItem>
+            <MenuItem
+              component={NavLink}
               to="/mrp/alertas"
               onClick={() => setMrpAnchor(null)}
               sx={isPathActive("/mrp/alertas") ? activeMenuItemSx : menuItemSx}
@@ -544,15 +552,6 @@ function HeaderNav() {
         </div>
       )}
 
-      {/* CREAR SOLICITUD */}
-      <button
-        type="button"
-        onClick={() => navigate("/solicitudes/nueva")}
-        className="flex items-center px-4 h-[43px] text-sm font-bold hover:opacity-80 transition-opacity border-r border-[var(--header-border,#424242)]"
-        style={{ color: 'var(--primary)' }}
-      >
-        + CREAR SOLICITUD
-      </button>
     </nav>
   );
 }

@@ -132,6 +132,7 @@ const plannerNavItems = [
     iconName: "Layers",
     children: [
       { trKey: "nav_mrp_portfolio", label: "Portfolio MRP", to: "/mrp/portfolio", icon: Boxes, iconName: "Boxes" },
+      { trKey: "nav_mrp_parametrizar", label: "Parametrizar", to: "/mrp/parametrizar", icon: BarChart2, iconName: "BarChart2" },
       { trKey: "nav_mrp_alertas", label: "Alertas", to: "/planificador/mrp/alertas", icon: AlertTriangle, iconName: "AlertTriangle" },
       { trKey: "nav_mrp_kpis", label: "KPIs", to: "/planificador/mrp/kpis", icon: TrendingUp, iconName: "TrendingUp" },
     ],
