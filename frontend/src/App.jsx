@@ -35,6 +35,7 @@ const NuevoUsuario = lazy(() => import('./pages/NuevoUsuario'))
 const CatalogoMateriales = lazy(() => import('./pages/CatalogoMateriales'))
 const CatalogoEquivalencias = lazy(() => import('./pages/CatalogoEquivalencias'))
 const Stock = lazy(() => import('./pages/Stock'))
+const StockIndividual = lazy(() => import('./pages/StockIndividual'))
 const TodasLasSolicitudes = lazy(() => import('./pages/TodasLasSolicitudes'))
 
 // MRP pages (lazy-loaded)
@@ -147,6 +148,7 @@ function App() {
             <Route path="/materiales/catalogo" element={<ProtectedRoute><CatalogoMateriales /></ProtectedRoute>} />
             <Route path="/materiales/equivalencias" element={<ProtectedRoute><CatalogoEquivalencias /></ProtectedRoute>} />
             <Route path="/materiales/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+            <Route path="/materiales/stock-individual" element={<ProtectedRoute><StockIndividual /></ProtectedRoute>} />
             <Route path="/mensajes" element={<ProtectedRoute><Mensajes /></ProtectedRoute>} />
             <Route path="/notificaciones" element={<ProtectedRoute><Notificaciones /></ProtectedRoute>} />
             <Route path="/centro-interaccion" element={<ProtectedRoute><CentroInteraccion /></ProtectedRoute>} />

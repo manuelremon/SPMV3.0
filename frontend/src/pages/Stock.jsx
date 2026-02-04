@@ -1,5 +1,5 @@
 /**
- * Stock - Stock management page
+ * Stock Masivo - Visualización masiva de stock
  * Shows current stock with inmovilizado and MRP indicators
  *
  * Migrated to AG-Grid (2026-02)
@@ -381,7 +381,7 @@ export default function Stock() {
               component="h1"
               sx={{ fontWeight: 700, color: "text.primary", textTransform: "uppercase", letterSpacing: "0.5px" }}
             >
-              {t("stock_titulo", "Stock")}
+              {t("stock_masivo_titulo", "Stock Masivo")}
             </Typography>
           </Box>
         </Box>
