@@ -47,7 +47,7 @@ def get_stock():
     descripcion = request.args.get("descripcion", "").strip()
     inmovilizado_filter = request.args.get("inmovilizado", "").strip().lower()
     mrp_filter = request.args.get("mrp", "").strip().lower()
-    limit = min(int(request.args.get("limit", 500)), 2000)
+    limit = min(int(request.args.get("limit", 500)), 15000)
     offset = int(request.args.get("offset", 0))
 
     try:

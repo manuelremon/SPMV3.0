@@ -302,7 +302,7 @@ export default function Stock() {
 
     try {
       const params = {
-        limit: 5000, // Load more for AG-Grid virtualization
+        limit: 15000, // Load all stock data for AG-Grid virtualization
         offset: 0,
       };
 
