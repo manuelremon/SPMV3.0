@@ -32,8 +32,6 @@ import {
 // MUI Icons
 import SearchIcon from "@mui/icons-material/Search";
 import FilterListIcon from "@mui/icons-material/FilterList";
-import InventoryIcon from "@mui/icons-material/Inventory";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -383,26 +381,6 @@ export default function Stock() {
             </Typography>
           </Box>
         </Box>
-        <Button
-          variant="contained"
-          size="small"
-          onClick={loadStock}
-          disabled={loading}
-          startIcon={
-            <RefreshIcon
-              sx={{
-                animation: loading ? "spin 1s linear infinite" : "none",
-                "@keyframes spin": {
-                  "0%": { transform: "rotate(0deg)" },
-                  "100%": { transform: "rotate(360deg)" },
-                },
-              }}
-            />
-          }
-          sx={{ textTransform: "none" }}
-        >
-          Actualizar
-        </Button>
       </Box>
 
       {/* Error Alert */}
