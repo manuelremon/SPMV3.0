@@ -266,6 +266,7 @@ export default function Stock() {
       field: "inmovilizado",
       width: 120,
       cellRenderer: BooleanCellRenderer,
+      cellStyle: { textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' },
       filter: "agSetColumnFilter",
       filterParams: {
         values: [true, false],
@@ -277,6 +278,7 @@ export default function Stock() {
       field: "mrp",
       width: 100,
       cellRenderer: BooleanCellRenderer,
+      cellStyle: { textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'center' },
       filter: "agSetColumnFilter",
       filterParams: {
         values: [true, false],
