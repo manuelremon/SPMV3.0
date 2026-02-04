@@ -29,6 +29,7 @@ import {
   Divider,
   Backdrop,
   CircularProgress,
+  LinearProgress,
 } from "@mui/material";
 
 // MUI Icons
@@ -209,6 +210,7 @@ export default function Stock() {
   const [filtros, setFiltros] = useState({ centros: [], almacenes: [] });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [error, setError] = useState("");
 
   // Filter state
@@ -300,7 +302,16 @@ export default function Stock() {
   // Load stock data - load all at once for AG-Grid virtualization
   const loadStock = useCallback(async () => {
     setLoading(true);
+    setLoadingProgress(0);
     setError("");
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 90) return prev;
+        return prev + Math.random() * 30;
+      });
+    }, 200);
 
     try {
       const params = {
@@ -340,6 +351,8 @@ export default function Stock() {
       console.error("Error loading stock:", err);
       setError("Error de conexión");
     } finally {
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
       setLoading(false);
     }
   }, [centro, almacen, search, inmovilizado, mrp]);
@@ -600,11 +613,28 @@ export default function Stock() {
             flexDirection: "column",
             alignItems: "center",
             gap: 2,
+            width: "300px",
           }}
         >
-          <CircularProgress color="inherit" size={60} />
           <Typography variant="body1" sx={{ fontWeight: 600 }}>
             Cargando stock...
+          </Typography>
+          <Box sx={{ width: "100%" }}>
+            <LinearProgress
+              variant="determinate"
+              value={Math.min(loadingProgress, 100)}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                "& .MuiLinearProgress-bar": {
+                  borderRadius: 4,
+                },
+              }}
+            />
+          </Box>
+          <Typography variant="caption" sx={{ fontWeight: 600, opacity: 0.9 }}>
+            {Math.min(Math.round(loadingProgress), 100)}%
           </Typography>
         </Box>
       </Backdrop>
