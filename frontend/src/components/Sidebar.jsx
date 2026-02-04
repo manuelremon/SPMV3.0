@@ -94,7 +94,8 @@ const getMainNavItems = (canApprove) => [
     children: [
       { trKey: "nav_catalogo_materiales", label: "Catalogo", to: "/materiales/catalogo", icon: Search, iconName: "Search" },
       { trKey: "nav_equivalencias", label: "Alternativos", to: "/materiales/equivalencias", icon: GitCompare, iconName: "GitCompare" },
-      { trKey: "nav_stock", label: "Stock", to: "/materiales/stock", icon: Boxes, iconName: "Boxes" },
+      { trKey: "nav_stock_masivo", label: "Stock Masivo", to: "/materiales/stock", icon: Boxes, iconName: "Boxes" },
+      { trKey: "nav_stock_individual", label: "Stock Individual", to: "/materiales/stock-individual", icon: Package, iconName: "Package" },
     ],
   },
 ];
