@@ -532,16 +532,19 @@ export default function Stock() {
               </Select>
             </FormControl>
 
-            {/* Clear filters */}
-            {(search || centro || almacen || inmovilizado || mrp) && (
-              <Button
-                size="small"
-                onClick={clearFilters}
-                sx={{ textTransform: "none", color: "error.main" }}
-              >
-                Limpiar filtros
-              </Button>
-            )}
+            {/* Clear filters - always visible */}
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={clearFilters}
+              disabled={!search && !centro && !almacen && !inmovilizado && !mrp}
+              sx={{ textTransform: "none" }}
+            >
+              Limpiar filtros
+            </Button>
+
+            {/* Spacer */}
+            <Box sx={{ flex: 1 }} />
 
             {/* Counter */}
             <Chip
