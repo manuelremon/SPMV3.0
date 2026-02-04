@@ -27,6 +27,8 @@ import {
   Chip,
   InputAdornment,
   Divider,
+  Backdrop,
+  CircularProgress,
 } from "@mui/material";
 
 // MUI Icons
@@ -581,6 +583,31 @@ export default function Stock() {
           }}
         />
       </Paper>
+
+      {/* Loading Overlay */}
+      <Backdrop
+        sx={{
+          color: "#fff",
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backdropFilter: "blur(4px)",
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+        }}
+        open={loading}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <CircularProgress color="inherit" size={60} />
+          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+            Cargando stock...
+          </Typography>
+        </Box>
+      </Backdrop>
     </Box>
   );
 }
