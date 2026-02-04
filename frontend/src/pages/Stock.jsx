@@ -260,7 +260,7 @@ export default function Stock() {
       width: 130,
       type: "numericColumn",
       valueFormatter: ({ value }) => formatCurrency(value),
-      cellStyle: { fontVariantNumeric: "tabular-nums" },
+      cellStyle: { textAlign: 'right', paddingRight: '16px', fontVariantNumeric: "tabular-nums" },
     },
     {
       headerName: "Inmovilizado",
@@ -314,8 +314,8 @@ export default function Stock() {
           params.descripcion = search;
         }
       }
-      if (inmovilizado) params.inmovilizado = inmovilizado;
-      if (mrp) params.mrp = mrp;
+      if (inmovilizado !== "") params.inmovilizado = inmovilizado;
+      if (mrp !== "") params.mrp = mrp;
 
       const [stockRes, resumenRes] = await Promise.all([
         api.get("/stock", { params }),
