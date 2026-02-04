@@ -561,6 +561,71 @@ def _is_db_empty(db_path: Path) -> bool:
         return True
 
 
+def _sync_materiales_bbdd():
+    """
+    Sincroniza materiales_bbdd en sap_data desde materiales_mrp en master_materiales.
+
+    Esta función se ejecuta en cada startup de la aplicación para asegurar
+    que stock.py tiene acceso a los parámetros MRP necesarios.
+
+    En producción, consideraría migrar stock.py para leer directamente
+    desde master_materiales.db.
+    """
+    try:
+        # Obtener datos desde master_materiales (materiales_mrp)
+        with get_db_connection("master_materiales") as conn_src:
+            cur_src = conn_src.cursor()
+            cur_src.execute("SELECT * FROM materiales_mrp")
+            rows = cur_src.fetchall()
+
+        if not rows:
+            return  # No hay datos que sincronizar
+
+        # Copiar a sap_data (materiales_bbdd)
+        with get_db_connection("sap_data") as conn_dst:
+            cur_dst = conn_dst.cursor()
+
+            # Recrear la tabla (más simple que hacer UPDATE/INSERT selectivo)
+            cur_dst.execute("DROP TABLE IF EXISTS materiales_bbdd")
+            cur_dst.execute("""
+                CREATE TABLE materiales_bbdd (
+                    id INTEGER PRIMARY KEY,
+                    sector TEXT,
+                    almacen TEXT,
+                    centro TEXT,
+                    codigo_material TEXT,
+                    descripcion TEXT,
+                    stock_de_seguridad INTEGER,
+                    punto_de_pedido INTEGER,
+                    stock_maximo INTEGER,
+                    demanda_estimada_anual REAL,
+                    consumo_promedio_anual INTEGER,
+                    rotacion REAL
+                )
+            """)
+
+            # Insertar datos
+            for row in rows:
+                cur_dst.execute("""
+                    INSERT INTO materiales_bbdd
+                    (id, sector, almacen, centro, codigo_material, descripcion,
+                     stock_de_seguridad, punto_de_pedido, stock_maximo,
+                     demanda_estimada_anual, consumo_promedio_anual, rotacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    row["id"], row["sector"], row["almacen"], row["centro"],
+                    row["codigo_material"], row["descripcion"],
+                    row["stock_de_seguridad"], row["punto_de_pedido"], row["stock_maximo"],
+                    row["demanda_estimada_anual"], row["consumo_promedio_anual"], row["rotacion"]
+                ))
+
+            conn_dst.commit()
+    except Exception as e:
+        # No fallar el startup si hay error de sincronización
+        import logging
+        logging.warning(f"Error syncing materiales_bbdd: {e}")
+
+
 def init_db():
     """
     Inicializa la base de datos.
@@ -611,3 +676,9 @@ def init_db():
             raise
     else:
         current_app.logger.info("Database already initialized")
+
+    # Sincronizar materiales_bbdd desde materiales_mrp (siempre se ejecuta)
+    try:
+        _sync_materiales_bbdd()
+    except Exception as e:
+        current_app.logger.warning(f"Error syncing materiales_bbdd: {e}")
