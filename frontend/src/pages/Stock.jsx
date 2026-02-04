@@ -26,6 +26,7 @@ import {
   Stack,
   Chip,
   InputAdornment,
+  Divider,
 } from "@mui/material";
 
 // MUI Icons
@@ -356,47 +357,34 @@ export default function Stock() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <IconButton
             onClick={() => navigate(-1)}
-            size="small"
-            sx={{ color: "text.secondary" }}
-            aria-label="Volver"
+            sx={{
+              color: "text.disabled",
+              "&:hover": {
+                color: "text.secondary",
+                bgcolor: "background.paper",
+                border: 1,
+                borderColor: "divider",
+              },
+            }}
           >
-            <ArrowBackIcon fontSize="small" />
+            <ArrowBackIcon />
           </IconButton>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Box
-              sx={{
-                p: 1,
-                bgcolor: "primary.main",
-                borderRadius: 1,
-                color: "common.white",
-                display: "flex",
-              }}
+          <Box>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ fontWeight: 700, color: "text.primary", textTransform: "uppercase", letterSpacing: "0.5px" }}
             >
-              <InventoryIcon fontSize="small" />
-            </Box>
-            <Box>
-              <Typography variant="h6" fontWeight={600} color="text.primary">
-                {t("stock_titulo", "Stock")}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t("stock_subtitulo", "Consulta de stock actual por centro y almacén")}
-              </Typography>
-            </Box>
+              {t("stock_titulo", "Stock")}
+            </Typography>
           </Box>
         </Box>
-
         <Button
-          variant="outlined"
+          variant="contained"
           size="small"
           onClick={loadStock}
           disabled={loading}
@@ -419,7 +407,7 @@ export default function Stock() {
 
       {/* Error Alert */}
       {error && (
-        <Alert severity="error" onClose={() => setError("")}>
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
@@ -469,17 +457,10 @@ export default function Stock() {
         </Box>
       )}
 
-      {/* Filters */}
-      <Paper variant="outlined" sx={{ borderRadius: 2 }}>
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "action.hover",
-          }}
-        >
+      {/* Main Card with Filters and Table */}
+      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+        {/* Filter Header */}
+        <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: "divider", bgcolor: "grey.50" }}>
           <Stack direction="row" alignItems="center" spacing={1}>
             <FilterListIcon sx={{ fontSize: 16, color: "text.secondary" }} />
             <Typography
@@ -495,7 +476,9 @@ export default function Stock() {
             </Typography>
           </Stack>
         </Box>
-        <Box sx={{ p: 2 }}>
+
+        {/* Filters Section */}
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", bgcolor: "background.paper" }}>
           <Stack direction="row" flexWrap="wrap" alignItems="center" spacing={2} useFlexGap>
             {/* Search */}
             <TextField
@@ -595,32 +578,8 @@ export default function Stock() {
             />
           </Stack>
         </Box>
-      </Paper>
 
-      {/* AG-Grid Data Table */}
-      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "action.hover",
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              color: "text.secondary",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {t("stock_lista", "Lista de Stock")}
-          </Typography>
-        </Box>
-
+        {/* AG-Grid Data Table */}
         <SPMAgGrid
           rowData={data}
           columnDefs={columnDefs}
