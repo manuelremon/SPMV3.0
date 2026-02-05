@@ -22,7 +22,7 @@
 | 5 | Planificación | CRÍTICA | ✅ 100% | 0.75h |
 | 6 | MRP | MEDIA | ✅ 100% | 0.5h |
 | 7 | Forecast y AI | MEDIA | ✅ 100% | 0.25h |
-| 8 | Presupuestos | ALTA | ⏳ | 5h |
+| 8 | Presupuestos | ALTA | ✅ 89% | 0.2h |
 | 9 | Procurement | BAJA | ⏳ | 4h |
 | 10 | Materiales | MEDIA | ⏳ | 5h |
 | 11 | Comunicación | BAJA | ⏳ | 4h |
@@ -129,12 +129,13 @@ solicitante_test / password123  # usuario
 
 4. ✅ **FASE 7: Forecast y AI** - COMPLETADA
 
-5. **FASE 8: Presupuestos** (5 horas) ⏳ SIGUIENTE
-   - BUR (Budget Update Requests)
-   - Ledger de presupuesto
-   - Aprobación por niveles
+5. ✅ **FASE 8: Presupuestos** - COMPLETADA (89% - bug menor en revertir)
 
-6. Continuar con FASES 9-16...
+6. **FASE 9: Procurement** (4 horas) ⏳ SIGUIENTE
+   - Datos de proveedores
+   - Precios SAP
+
+7. Continuar con FASES 10-16...
 
 ---
 
