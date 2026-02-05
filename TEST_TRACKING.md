@@ -23,7 +23,7 @@
 | 6 | MRP | MEDIA | ✅ 100% | 0.5h |
 | 7 | Forecast y AI | MEDIA | ✅ 100% | 0.25h |
 | 8 | Presupuestos | ALTA | ✅ 89% | 0.2h |
-| 9 | Procurement | BAJA | ⏳ | 4h |
+| 9 | Procurement | BAJA | ⚠️ 20% | 0.2h |
 | 10 | Materiales | MEDIA | ⏳ | 5h |
 | 11 | Comunicación | BAJA | ⏳ | 4h |
 | 12 | Usuario | MEDIA | ⏳ | 3h |
@@ -131,11 +131,13 @@ solicitante_test / password123  # usuario
 
 5. ✅ **FASE 8: Presupuestos** - COMPLETADA (89% - bug menor en revertir)
 
-6. **FASE 9: Procurement** (4 horas) ⏳ SIGUIENTE
-   - Datos de proveedores
-   - Precios SAP
+6. ⚠️ **FASE 9: Procurement** - PARCIAL (requiere datos SAP)
 
-7. Continuar con FASES 10-16...
+7. **FASE 10: Materiales** (5 horas) ⏳ SIGUIENTE
+   - Catálogo de materiales
+   - Búsqueda y equivalencias
+
+8. Continuar con FASES 11-16...
 
 ---
 
