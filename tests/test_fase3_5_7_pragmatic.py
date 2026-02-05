@@ -127,7 +127,9 @@ def reenviar_solicitud(solicitud_id, access_token):
 def get_approver_token_for_solicitud(solicitud_id, solicitante_token):
     """
     Obtener token del aprobador asignado a la solicitud.
-    Esta es la clave: usamos el aprobador que el sistema asignó automáticamente
+
+    Nota: Para simplificar, intentamos con aprobadores conocidos.
+    El sistema asigna automáticamente, así que probamos con usuarios test.
     """
     solicitud = get_solicitud(solicitud_id, solicitante_token)
     if not solicitud:
@@ -137,19 +139,25 @@ def get_approver_token_for_solicitud(solicitud_id, solicitante_token):
     if not aprobador_id:
         return None
 
-    # Obtener datos del aprobador desde la BD
-    from backend.core.db import get_db_connection
-    with get_db_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT mail FROM usuario WHERE id_spm = ?", (str(aprobador_id),))
-        row = cur.fetchone()
-        if row:
-            email = row["mail"] if isinstance(row, dict) else row[0]
-            # Intentar login como aprobador
-            token, _ = login(email)
-            if token:
+    # Intentar login con aprobadores conocidos
+    # El sistema asignará uno de estos típicamente
+    aprobadores_prueba = [
+        ("aprobador1@test.local", 100),
+        ("aprobador2@test.local", 101),
+        ("coordinador@test.local", 102),
+        ("sofia.rubio29@demo.local", 29),  # Usuario que frecuentemente es asignado
+        ("jefe1@demo.local", 4),
+        ("jefe2@demo.local", 5),
+    ]
+
+    for email, user_id in aprobadores_prueba:
+        token, _ = login(email)
+        if token:
+            # Validar que este sea el aprobador correcto para esta solicitud
+            if str(user_id) == str(aprobador_id):
                 return token, aprobador_id, email
 
+    # Si no encontramos el aprobador correcto, retornar None
     return None
 
 # ============ TESTS ============
