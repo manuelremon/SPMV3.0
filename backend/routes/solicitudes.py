@@ -971,13 +971,17 @@ def aprobar_solicitud(solicitud_id):
             },
         )
 
-        # Registrar en auditoria
-        auditar_aprobacion(
-            solicitud_id=solicitud_id,
-            actor_id=aprobador_id,
-            actor_rol=aprobador_rol,
-            ip_address=request.remote_addr,
-        )
+        # Registrar en auditoria (tolerante a fallos - tabla audit_trail puede no existir)
+        try:
+            auditar_aprobacion(
+                solicitud_id=solicitud_id,
+                actor_id=aprobador_id,
+                actor_rol=aprobador_rol,
+                ip_address=request.remote_addr,
+            )
+        except Exception as e:
+            # Auditoría es informativa, no debe bloquear el flujo principal
+            logger.warning(f"[AUDIT] Error registrando aprobación en audit_trail: {e}")
 
         # NOTA: Notificación al solicitante ya se crea automáticamente en FSM
         # (cambiar_estado -> _disparar_notificaciones) - NO duplicar aquí
@@ -1162,13 +1166,18 @@ def rechazar_solicitud(solicitud_id):
         )
 
         # Registrar en auditoria
-        auditar_rechazo(
-            solicitud_id=solicitud_id,
-            actor_id=actor_id,
-            motivo=motivo,
-            actor_rol=actor_rol,
-            ip_address=request.remote_addr,
-        )
+        # Registrar en auditoria (tolerante a fallos - tabla audit_trail puede no existir)
+        try:
+            auditar_rechazo(
+                solicitud_id=solicitud_id,
+                actor_id=actor_id,
+                motivo=motivo,
+                actor_rol=actor_rol,
+                ip_address=request.remote_addr,
+            )
+        except Exception as e:
+            # Auditoría es informativa, no debe bloquear el flujo principal
+            logger.warning(f"[AUDIT] Error registrando rechazo en audit_trail: {e}")
 
     except TransicionInvalidaError as e:
         return (
@@ -1822,7 +1831,7 @@ def _revertir_presupuesto_aprobacion_fallida(
                 monto_cents=monto_cents,
                 solicitud_id=solicitud_id,
                 ctx=ctx,
-                razon=razon,
+                motivo=razon,
             )
             if result.success:
                 logger.info(
