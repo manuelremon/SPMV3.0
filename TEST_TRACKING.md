@@ -16,7 +16,7 @@
 | Fase | Nombre | Prioridad | Estado | Duración |
 |------|--------|-----------|--------|----------|
 | 1 | Autenticación y Autorización | CRÍTICA | ✅ 100% | 3.5h |
-| 2 | Dashboards por Rol | ALTA | ⏳ | 6h |
+| 2 | Dashboards por Rol | ALTA | ✅ 87% | 1.5h |
 | 3 | Flujo de Solicitudes | CRÍTICA | ⏳ | 12h |
 | 4 | Aprobaciones | ALTA | ⏳ | 4h |
 | 5 | Planificación | CRÍTICA | ⏳ | 10h |
@@ -57,6 +57,30 @@ solicitante_test / password123  # usuario
 | spm.db | `data/spm.db` | 1.01 MB | ✅ |
 | sap_data.db | `data/sap_data.db` | 40.75 MB | ✅ |
 | master_materiales.db | `data/master_materiales.db` | 56.59 MB | ✅ |
+
+## FASE 2 EN PROGRESO 🔄
+
+**Resultados**: 14/16 tests pasados (87.5%)
+**Duración**: 1.5 horas
+**Status**: FUNCIONAL - 1 bug encontrado
+
+### Tests Completados
+- ✅ Dashboard Admin (endpoints validados)
+- ✅ Dashboard Aprobador (solicitudes pendientes)
+- ✅ Dashboard Planificador (MRP alertas)
+- ✅ Dashboard Solicitante (mis solicitudes)
+- ✅ Protección de endpoints (403 en accesos no autorizados)
+- ✅ Frontend rendering (todas las rutas cargan)
+- ✅ Performance (<5ms)
+- ✅ Login flow (completo)
+- ✅ Role-based navigation
+- ⚠️ Logout (token no se invalida - BUG #1)
+
+### Bugs Encontrados
+- 🔴 BUG-001: Token no se invalida en logout (ALTO)
+- 🟡 BUG-002: Security headers no presentes en dev (MENOR)
+
+---
 
 ## FASE 1 COMPLETADA ✅
 
