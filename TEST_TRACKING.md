@@ -20,7 +20,7 @@
 | 3 | Flujo de Solicitudes | CRÍTICA | ✅ 100% | 12h |
 | 4 | Aprobaciones | ALTA | ✅ 100% | 4h |
 | 5 | Planificación | CRÍTICA | ✅ 100% | 0.75h |
-| 6 | MRP | MEDIA | ⏳ | 6h |
+| 6 | MRP | MEDIA | ✅ 100% | 0.5h |
 | 7 | Forecast y AI | MEDIA | ⏳ | 6h |
 | 8 | Presupuestos | ALTA | ⏳ | 5h |
 | 9 | Procurement | BAJA | ⏳ | 4h |
@@ -125,12 +125,14 @@ solicitante_test / password123  # usuario
 1. ✅ **FASE 4: Aprobaciones** - COMPLETADA
 2. ✅ **FASE 5: Planificación** - COMPLETADA
 
-3. **FASE 6: MRP** (6 horas) ⏳ SIGUIENTE
-   - Alertas MRP
-   - KPIs de materiales
-   - Motor de cálculo
+3. ✅ **FASE 6: MRP** - COMPLETADA
 
-4. Continuar con FASES 7-16...
+4. **FASE 7: Forecast y AI** (6 horas) ⏳ SIGUIENTE
+   - Modelos de predicción
+   - RAG y embeddings
+   - Agente ReAct
+
+5. Continuar con FASES 8-16...
 
 ---
 
