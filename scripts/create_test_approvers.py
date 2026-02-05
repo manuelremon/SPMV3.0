@@ -51,8 +51,8 @@ try:
         try:
             cur.execute("""
                 INSERT OR REPLACE INTO usuario
-                (id_spm, nombre, apellido, mail, contrasena, rol, estado_registro)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id_spm, nombre, apellido, mail, contrasena, rol, estado_registro, posicion, centros)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 approver["id_spm"],
                 approver["nombre"],
@@ -60,7 +60,9 @@ try:
                 approver["email"],
                 password_hash,
                 approver["rol"],
-                "Activo"
+                "Activo",
+                "jefe",  # Posición necesaria para ser seleccionado como aprobador
+                "AA101,AA102,AA103,AA104,AA105,AA106"  # Centros disponibles
             ))
             print(f"✓ {approver['nombre']} creado")
             print(f"  ID: {approver['id_spm']}")
