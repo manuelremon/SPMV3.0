@@ -248,6 +248,12 @@ def get_solicitud(solicitud_id):
     except json.JSONDecodeError:
         extra = {}
     d["items"] = extra.get("items", [])
+
+    # FIX: Si monto_total es None o 0, recalcularlo desde los items
+    # (bug: monto_total no se guardó correctamente en la BD)
+    if not d.get("monto_total") and d["items"]:
+        d["monto_total"] = _calcular_total(d["items"])
+
     return jsonify({"ok": True, "solicitud": d}), 200
 
 
