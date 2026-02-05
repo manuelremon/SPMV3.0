@@ -214,36 +214,41 @@ function PlanificadoresTable({
         filter: false,
         cellRenderer: (params) => (
           <Stack direction="row" spacing={0.5} justifyContent="center">
-            <IconButton
+            <Button
               size="small"
+              variant="text"
               onClick={() => onEdit && onEdit(params.data)}
-              title="Editar"
               disabled={!!deletingId}
               sx={{
-                color: "text.secondary",
-                "&:hover": {
-                  color: "primary.main",
-                  bgcolor: "primary.lighter",
-                },
+                textTransform: "none",
+                fontWeight: 600,
+                color: "primary.main",
+                fontSize: "0.75rem",
+                minWidth: "auto",
+                px: 1,
+                "&:hover": { bgcolor: "primary.lighter" },
               }}
             >
-              <EditIcon fontSize="small" />
-            </IconButton>
-            <IconButton
+              Editar
+            </Button>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Button
               size="small"
+              variant="text"
               onClick={() => onDelete && onDelete(params.data.usuario_id)}
-              title="Eliminar"
               disabled={!!deletingId}
               sx={{
-                color: "text.secondary",
-                "&:hover": {
-                  color: "error.main",
-                  bgcolor: "error.lighter",
-                },
+                textTransform: "none",
+                fontWeight: 600,
+                color: "error.main",
+                fontSize: "0.75rem",
+                minWidth: "auto",
+                px: 1,
+                "&:hover": { bgcolor: "error.lighter" },
               }}
             >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
+              Eliminar
+            </Button>
           </Stack>
         ),
       },

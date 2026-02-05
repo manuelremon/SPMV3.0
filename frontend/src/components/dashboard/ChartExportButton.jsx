@@ -1,10 +1,9 @@
 /**
- * ChartExportButton - Exportar graficos como PNG
+ * ChartExportButton - Exportar gráficos como PNG
  *
  * Features:
- * - Captura el contenedor del grafico
- * - Descarga como PNG con fecha en nombre
- * - Fallback si html2canvas no esta disponible
+ * - Captura toda la card completa
+ * - Usa html2canvas para captura confiable
  */
 
 import React, { useState, useCallback } from 'react'
@@ -14,83 +13,76 @@ import CircularProgress from '@mui/material/CircularProgress'
 import DownloadIcon from '@mui/icons-material/Download'
 
 /**
- * Captura un elemento DOM y lo convierte a PNG usando Canvas nativo
- * (Alternativa ligera a html2canvas)
+ * Carga html2canvas desde CDN
  */
-async function captureToCanvas(element) {
-  // Crear canvas
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  const rect = element.getBoundingClientRect()
-  const dpr = window.devicePixelRatio || 1
-
-  canvas.width = rect.width * dpr
-  canvas.height = rect.height * dpr
-  ctx.scale(dpr, dpr)
-
-  // Fondo blanco
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, rect.width, rect.height)
-
-  // Intentar usar html2canvas si esta disponible
+async function loadHtml2Canvas() {
   if (window.html2canvas) {
-    const html2canvas = window.html2canvas
-    return html2canvas(element, {
-      backgroundColor: '#ffffff',
-      scale: dpr,
-      useCORS: true,
-      logging: false,
-    })
+    return window.html2canvas
   }
 
-  // Fallback: Buscar canvas internos y SVGs
-  const svgs = element.querySelectorAll('svg')
-  const canvases = element.querySelectorAll('canvas')
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+    script.async = true
 
-  // Procesar SVGs
-  for (const svg of svgs) {
-    try {
-      const svgRect = svg.getBoundingClientRect()
-      const x = svgRect.left - rect.left
-      const y = svgRect.top - rect.top
-
-      // Serializar SVG
-      const svgData = new XMLSerializer().serializeToString(svg)
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
-      const url = URL.createObjectURL(svgBlob)
-
-      // Crear imagen desde SVG
-      const img = new Image()
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-        img.src = url
-      })
-
-      ctx.drawImage(img, x, y, svgRect.width, svgRect.height)
-      URL.revokeObjectURL(url)
-    } catch {
-      // Si falla un SVG, continuar con el siguiente
+    script.onload = () => {
+      if (window.html2canvas) {
+        resolve(window.html2canvas)
+      } else {
+        reject(new Error('html2canvas no se cargó'))
+      }
     }
-  }
 
-  // Procesar canvas existentes
-  for (const existingCanvas of canvases) {
-    try {
-      const canvasRect = existingCanvas.getBoundingClientRect()
-      const x = canvasRect.left - rect.left
-      const y = canvasRect.top - rect.top
-      ctx.drawImage(existingCanvas, x, y, canvasRect.width, canvasRect.height)
-    } catch {
-      // Si falla un canvas, continuar
+    script.onerror = () => {
+      reject(new Error('Error al cargar html2canvas desde CDN'))
     }
-  }
 
-  return canvas
+    document.head.appendChild(script)
+  })
 }
 
 /**
- * Componente principal ChartExportButton
+ * Exportar card como PNG
+ */
+async function exportCard(element, filename) {
+  try {
+    // Cargar html2canvas
+    const html2canvas = await loadHtml2Canvas()
+
+    // Capturar elemento
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      scale: 2, // Mejor calidad
+      useCORS: true,
+      logging: false,
+      allowTaint: true,
+      imageTimeout: 0,
+      canvasWidth: element.offsetWidth,
+      canvasHeight: element.offsetHeight,
+    })
+
+    // Descargar directamente desde dataURL
+    const image = canvas.toDataURL('image/png')
+    const link = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+
+    link.href = image
+    link.download = `${filename}-${date}.png`
+    link.style.display = 'none'
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    return true
+  } catch (error) {
+    console.error('Error al exportar:', error)
+    throw error
+  }
+}
+
+/**
+ * Componente ChartExportButton
  */
 export function ChartExportButton({
   chartRef,
@@ -107,26 +99,10 @@ export function ChartExportButton({
     setExporting(true)
 
     try {
-      const element = chartRef.current
-      const canvas = await captureToCanvas(element)
-
-      // Crear link de descarga
-      const link = document.createElement('a')
-      const date = new Date().toISOString().slice(0, 10)
-      link.download = `${filename}-${date}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
+      await exportCard(chartRef.current, filename)
     } catch (error) {
-      console.error('Error al exportar grafico:', error)
-      // Fallback: Intentar screenshot con API nativa si esta disponible
-      try {
-        if (navigator.clipboard && 'write' in navigator.clipboard) {
-          // Notificar al usuario que copie manualmente
-          alert('No se pudo exportar automaticamente. Por favor, use captura de pantalla.')
-        }
-      } catch {
-        // Silenciar error secundario
-      }
+      console.error('Error:', error)
+      alert(`Error al exportar: ${error.message}\n\nVerifica la consola para más detalles.`)
     } finally {
       setExporting(false)
     }

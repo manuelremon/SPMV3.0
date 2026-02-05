@@ -24,164 +24,245 @@ import {
 export const estadoConfig = {
   // Estados de Solicitudes
   "Borrador": {
-    color: "#f57c00",
+    color: "#6b7280",
     icon: FileText,
     label: "Borrador"
   },
   "Draft": {
-    color: "#f57c00",
+    color: "#6b7280",
     icon: FileText,
     label: "Borrador"
   },
   "Enviada": {
-    color: "#757575",
+    color: "#06b6d4",
     icon: Send,
     label: "Enviada"
   },
   "Submitted": {
-    color: "#757575",
+    color: "#06b6d4",
     icon: Send,
     label: "Enviada"
   },
   "Pendiente": {
-    color: "#757575",
+    color: "#1e40af",
     icon: Clock,
     label: "Pendiente"
   },
   "Pending": {
-    color: "#757575",
+    color: "#1e40af",
     icon: Clock,
     label: "Pendiente"
   },
   "Pendiente_de_Aprobacion": {
-    color: "#757575",
+    color: "#1e40af",
     icon: Clock,
     label: "Pendiente"
   },
   "En Proceso": {
-    color: "#c2185b",
+    color: "#ea580c",
     icon: Play,
     label: "En Proceso"
   },
   "Processing": {
-    color: "#c2185b",
+    color: "#ea580c",
     icon: Play,
     label: "En Proceso"
   },
   "En Progreso": {
-    color: "#c2185b",
+    color: "#ea580c",
     icon: Play,
     label: "En Proceso"
   },
   "Aprobada": {
-    color: "#689f38",
+    color: "#059669",
     icon: CheckCircle,
     label: "Aprobada"
   },
   "Approved": {
-    color: "#689f38",
+    color: "#059669",
     icon: CheckCircle,
     label: "Aprobada"
   },
   "Completada": {
-    color: "#689f38",
+    color: "#16a34a",
     icon: CheckCircle,
     label: "Completada"
   },
   "Completed": {
-    color: "#689f38",
+    color: "#16a34a",
     icon: CheckCircle,
     label: "Completada"
   },
   "Rechazada": {
-    color: "#d32f2f",
+    color: "#dc2626",
     icon: XCircle,
     label: "Rechazada"
   },
   "Rejected": {
-    color: "#d32f2f",
+    color: "#dc2626",
     icon: XCircle,
     label: "Rechazada"
   },
   "En Despacho": {
-    color: "#c2185b",
+    color: "#f59e0b",
     icon: Package,
     label: "En Despacho"
   },
   "Dispatching": {
-    color: "#c2185b",
+    color: "#f59e0b",
     icon: Package,
     label: "En Despacho"
   },
   "Despachada": {
-    color: "#689f38",
+    color: "#0891b2",
     icon: Truck,
     label: "Despachada"
   },
   "Dispatched": {
-    color: "#689f38",
+    color: "#0891b2",
     icon: Truck,
     label: "Despachada"
   },
   "Cerrada": {
-    color: "#689f38",
+    color: "#166534",
     icon: Archive,
     label: "Cerrada"
   },
   "Closed": {
-    color: "#689f38",
+    color: "#166534",
     icon: Archive,
     label: "Cerrada"
   },
   "Cancelada": {
-    color: "#d32f2f",
+    color: "#991b1b",
     icon: XCircle,
     label: "Cancelada"
   },
   "Cancelled": {
-    color: "#d32f2f",
+    color: "#991b1b",
     icon: XCircle,
     label: "Cancelada"
   },
   "En Pausa": {
-    color: "#757575",
+    color: "#9ca3af",
     icon: Pause,
     label: "En Pausa"
   },
+  "En Tratamiento": {
+    color: "#7c3aed",
+    icon: Package,
+    label: "En tratamiento"
+  },
+  "Tratado": {
+    color: "#10b981",
+    icon: CheckCircle,
+    label: "Tratado"
+  },
+  "Treated": {
+    color: "#10b981",
+    icon: CheckCircle,
+    label: "Tratado"
+  },
+  // Estados en minúsculas (desde BD)
+  "draft": {
+    color: "#6b7280",
+    icon: FileText,
+    label: "Borrador"
+  },
+  "submitted": {
+    color: "#06b6d4",
+    icon: Send,
+    label: "Enviada"
+  },
+  "pending": {
+    color: "#1e40af",
+    icon: Clock,
+    label: "Pendiente"
+  },
+  "processing": {
+    color: "#ea580c",
+    icon: Play,
+    label: "En Proceso"
+  },
+  "in_planning": {
+    color: "#ea580c",
+    icon: Play,
+    label: "En Progreso"
+  },
+  "in_treatment": {
+    color: "#7c3aed",
+    icon: Package,
+    label: "En tratamiento"
+  },
+  "treated": {
+    color: "#10b981",
+    icon: Package,
+    label: "Tratado"
+  },
+  "approved": {
+    color: "#059669",
+    icon: CheckCircle,
+    label: "Aprobada"
+  },
+  "completed": {
+    color: "#16a34a",
+    icon: CheckCircle,
+    label: "Completada"
+  },
+  "closed": {
+    color: "#166534",
+    icon: Archive,
+    label: "Cerrada"
+  },
+  "rejected": {
+    color: "#dc2626",
+    icon: XCircle,
+    label: "Rechazada"
+  },
+  "dispatched": {
+    color: "#0891b2",
+    icon: Truck,
+    label: "Despachada"
+  },
+  "cancelled": {
+    color: "#991b1b",
+    icon: XCircle,
+    label: "Cancelada"
+  },
   "On Hold": {
-    color: "#757575",
+    color: "#9ca3af",
     icon: Pause,
     label: "En Pausa"
   },
 
   // Estados genéricos
   "Activo": {
-    color: "#689f38",
+    color: "#059669",
     icon: CheckCircle,
     label: "Activo"
   },
   "Active": {
-    color: "#689f38",
+    color: "#059669",
     icon: CheckCircle,
     label: "Activo"
   },
   "Inactivo": {
-    color: "#757575",
+    color: "#9ca3af",
     icon: Pause,
     label: "Inactivo"
   },
   "Inactive": {
-    color: "#757575",
+    color: "#9ca3af",
     icon: Pause,
     label: "Inactivo"
   },
   "Suspendido": {
-    color: "#d32f2f",
+    color: "#991b1b",
     icon: XCircle,
     label: "Suspendido"
   },
   "Suspended": {
-    color: "#d32f2f",
+    color: "#991b1b",
     icon: XCircle,
     label: "Suspendido"
   },

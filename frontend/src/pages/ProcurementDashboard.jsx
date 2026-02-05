@@ -164,6 +164,7 @@ function TopProveedoresTable({ data }) {
       flex: 0.4,
       minWidth: 120,
       type: 'numericColumn',
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) =>
         `$${(params.value || 0).toLocaleString('es-AR', { minimumFractionDigits: 0 })}`,
     },

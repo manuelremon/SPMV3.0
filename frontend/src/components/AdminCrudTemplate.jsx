@@ -231,22 +231,41 @@ export default function AdminCrudTemplate({
       filter: false,
       cellRenderer: (params) => (
         <Stack direction="row" spacing={0.5} justifyContent="center" role="group" aria-label={`${t("common_acciones", "Acciones")} ${params.data[idKey]}`}>
-          <IconButton
+          <Button
             size="small"
+            variant="text"
             onClick={() => handleEdit(params.data)}
             aria-label={`${t("crud_edit", "Editar")} ${title} ${params.data[idKey]}`}
-            sx={{ color: "info.main" }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "info.main",
+              fontSize: "0.75rem",
+              minWidth: "auto",
+              px: 1,
+              "&:hover": { bgcolor: "info.lighter" },
+            }}
           >
-            <EditIcon fontSize="small" />
-          </IconButton>
-          <IconButton
+            {t("crud_edit", "Editar")}
+          </Button>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+          <Button
             size="small"
+            variant="text"
             onClick={() => handleDelete(params.data)}
             aria-label={`${t("common_eliminar", "Eliminar")} ${title} ${params.data[idKey]}`}
-            sx={{ color: "error.main" }}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "error.main",
+              fontSize: "0.75rem",
+              minWidth: "auto",
+              px: 1,
+              "&:hover": { bgcolor: "error.lighter" },
+            }}
           >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+            {t("common_eliminar", "Eliminar")}
+          </Button>
         </Stack>
       ),
     },

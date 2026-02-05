@@ -32,14 +32,7 @@ import {
 
 // MUI Icons
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DownloadIcon from "@mui/icons-material/Download";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import AddIcon from "@mui/icons-material/Add";
-import HistoryIcon from "@mui/icons-material/History";
-import DescriptionIcon from "@mui/icons-material/Description";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
@@ -110,73 +103,6 @@ const getTipoColor = (tipo) => {
   }
   return "default";
 };
-
-/* ─────────────────────────────────────────────────────────────
-   Summary Card Component
-───────────────────────────────────────────────────────────── */
-const SummaryCard = ({ icon, label, value, subvalue, color }) => {
-  const colorMap = {
-    amber: { bg: 'warning.lighter', iconBg: 'warning.main' },
-    emerald: { bg: 'success.lighter', iconBg: 'success.main' },
-    red: { bg: 'error.lighter', iconBg: 'error.main' },
-    blue: { bg: 'info.lighter', iconBg: 'info.main' },
-    warning: { bg: 'warning.lighter', iconBg: 'warning.main' },
-    success: { bg: 'success.lighter', iconBg: 'success.main' },
-    error: { bg: 'error.lighter', iconBg: 'error.main' },
-    info: { bg: 'info.lighter', iconBg: 'info.main' },
-  };
-  const colors = colorMap[color] || colorMap.info;
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 2.5,
-        border: 1,
-        borderColor: 'grey.200',
-        borderRadius: 2,
-      }}
-    >
-      <Stack direction="row" spacing={2} alignItems="flex-start">
-        <Box
-          sx={{
-            p: 1.5,
-            borderRadius: 1,
-            bgcolor: colors.bg,
-            color: colors.iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: 'text.secondary',
-              mb: 0.5,
-            }}
-          >
-            {label}
-          </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
-            {value}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {subvalue}
-          </Typography>
-        </Box>
-      </Stack>
-    </Paper>
-  );
-};
-
 
 /* ─────────────────────────────────────────────────────────────
    Main Component
@@ -267,29 +193,6 @@ export default function BudgetRequests() {
   const filteredBur = useMemo(() => {
     return items;
   }, [items]);
-
-  // Summary stats
-  const stats = useMemo(() => {
-    const pendientes = items.filter(i => ["pendiente", "aprobado_l1", "aprobado_l2"].includes(i.estado));
-    const totalPendiente = pendientes.reduce((sum, i) => sum + (i.monto_solicitado_usd || 0), 0);
-
-    const incorporaciones = ledgerEntries.filter(e =>
-      (e.tipo_movimiento || "").includes("incorporacion") ||
-      (e.tipo_movimiento || "").includes("ajuste_positivo")
-    );
-    const totalIncorporado = incorporaciones.reduce((sum, e) => sum + Math.abs((e.monto_cents || 0) / 100), 0);
-
-    const consumos = ledgerEntries.filter(e => (e.tipo_movimiento || "").includes("consumo"));
-    const totalConsumido = consumos.reduce((sum, e) => sum + Math.abs((e.monto_cents || 0) / 100), 0);
-
-    return {
-      pendientesCount: pendientes.length,
-      totalPendiente,
-      totalIncorporado,
-      totalConsumido,
-      movimientos: ledgerEntries.length,
-    };
-  }, [items, ledgerEntries]);
 
   // Approve action
   const confirmAprobar = useCallback(async () => {
@@ -419,6 +322,7 @@ export default function BudgetRequests() {
               fontFamily: 'monospace',
               fontWeight: 700,
               color: isNegative ? 'error.main' : 'success.main',
+              textAlign: 'right',
             }}
           >
             {isNegative ? "" : "+"}{formatCurrency(monto)}
@@ -434,7 +338,7 @@ export default function BudgetRequests() {
       cellRenderer: (params) => (
         <Typography
           variant="body2"
-          sx={{ fontFamily: 'monospace', fontWeight: 600 }}
+          sx={{ fontFamily: 'monospace', fontWeight: 600, textAlign: 'right' }}
         >
           {formatCurrency((params.value || 0) / 100)}
         </Typography>
@@ -517,6 +421,7 @@ export default function BudgetRequests() {
             fontFamily: 'monospace',
             fontWeight: 700,
             color: 'success.main',
+            textAlign: 'right',
           }}
         >
           +{formatCurrency(params.value || 0)}
@@ -614,11 +519,9 @@ export default function BudgetRequests() {
   }, [items, approveDrawer.id]);
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.100' }}>
-      <Box sx={{ maxWidth: 1600, mx: 'auto', px: 3, py: 3 }}>
-
-        {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <IconButton
               onClick={() => navigate(-1)}
@@ -645,83 +548,8 @@ export default function BudgetRequests() {
               >
                 {t("bur_title", "Gestión de Presupuestos")}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {t("bur_subtitle", "Control de movimientos e incorporaciones de saldo")}
-              </Typography>
             </Box>
           </Box>
-          <Stack direction="row" spacing={1}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadIcon />}
-              onClick={handleExport}
-              disabled={loading || ledgerLoading}
-              sx={{
-                color: 'text.secondary',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                '&:hover': { bgcolor: 'grey.100', borderColor: 'grey.400' },
-              }}
-            >
-              {t("common_exportar", "Exportar CSV")}
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshIcon sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />}
-              onClick={handleRefresh}
-              disabled={refreshing || loading || ledgerLoading}
-              sx={{
-                color: 'text.secondary',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                '&:hover': { bgcolor: 'grey.100', borderColor: 'grey.400' },
-              }}
-            >
-              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>{t("common_actualizar", "Actualizar")}</Box>
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={() => navigate("/presupuestos/nueva")}
-            >
-              {t("bur_crear", "Incorporar Saldo")}
-            </Button>
-          </Stack>
-        </Box>
-
-        {/* Summary Cards */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
-          <SummaryCard
-            icon={<AccessTimeIcon />}
-            label="Solicitudes Pendientes"
-            value={stats.pendientesCount}
-            subvalue={`${formatCurrency(stats.totalPendiente)} en espera`}
-            color="amber"
-          />
-          <SummaryCard
-            icon={<TrendingUpIcon />}
-            label="Total Incorporado"
-            value={formatCurrency(stats.totalIncorporado)}
-            subvalue="Saldo agregado"
-            color="emerald"
-          />
-          <SummaryCard
-            icon={<TrendingDownIcon />}
-            label="Total Consumido"
-            value={formatCurrency(stats.totalConsumido)}
-            subvalue="Saldo utilizado"
-            color="red"
-          />
-          <SummaryCard
-            icon={<HistoryIcon />}
-            label="Movimientos"
-            value={stats.movimientos}
-            subvalue="En el historial"
-            color="blue"
-          />
         </Box>
 
         {/* Alerts */}
@@ -739,64 +567,67 @@ export default function BudgetRequests() {
         {/* Main Card with Tabs */}
         <Paper elevation={0} sx={{ border: 1, borderColor: 'grey.200', overflow: 'hidden', borderRadius: 2 }}>
           {/* Main Tabs */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50', px: 1 }}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Tabs
               value={mainTab}
               onChange={(_, v) => setMainTab(v)}
+              variant="scrollable"
+              scrollButtons="auto"
               sx={{
+                minHeight: 48,
                 '& .MuiTab-root': {
+                  minHeight: 48,
                   textTransform: 'none',
                   fontWeight: 600,
                   fontSize: '0.875rem',
-                  minHeight: 48,
-                },
-                '& .MuiTabs-indicator': {
-                  height: 3,
-                  borderRadius: '3px 3px 0 0',
                 },
               }}
             >
               <Tab
-                icon={<HistoryIcon sx={{ fontSize: 18 }} />}
-                iconPosition="start"
                 label={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <span>{t("bur_main_historial", "Historial")}</span>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {t("bur_main_historial", "Historial")}
                     <Chip
                       label={ledgerEntries.length}
                       size="small"
                       sx={{
                         height: 20,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        bgcolor: mainTab === 0 ? 'primary.main' : 'grey.200',
-                        color: mainTab === 0 ? 'white' : 'text.secondary',
+                        fontSize: '0.625rem',
+                        fontWeight: 700,
+                        bgcolor: mainTab === 0 ? 'primary.light' : 'grey.200',
+                        color: mainTab === 0 ? 'primary.dark' : 'text.secondary',
                       }}
                     />
-                  </Stack>
+                  </Box>
                 }
               />
               <Tab
-                icon={<DescriptionIcon sx={{ fontSize: 18 }} />}
-                iconPosition="start"
                 label={
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <span>{t("bur_main_solicitudes", "Incorporaciones")}</span>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {t("bur_main_solicitudes", "Incorporaciones")}
                     <Chip
                       label={items.length}
                       size="small"
                       sx={{
                         height: 20,
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        bgcolor: mainTab === 1 ? 'primary.main' : 'grey.200',
-                        color: mainTab === 1 ? 'white' : 'text.secondary',
+                        fontSize: '0.625rem',
+                        fontWeight: 700,
+                        bgcolor: mainTab === 1 ? 'primary.light' : 'grey.200',
+                        color: mainTab === 1 ? 'primary.dark' : 'text.secondary',
                       }}
                     />
-                  </Stack>
+                  </Box>
                 }
               />
             </Tabs>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => navigate("/presupuestos/nueva")}
+            >
+              {t("bur_crear", "Incorporar Saldo")}
+            </Button>
           </Box>
 
           {/* Historial Tab Content */}
@@ -1035,9 +866,7 @@ export default function BudgetRequests() {
               </Button>
             </Stack>
           </Box>
-        </Drawer>
-
-      </Box>
+      </Drawer>
     </Box>
   );
 }

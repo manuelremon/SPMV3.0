@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { WeeklyRequestsKpiCard } from "../components/dashboard/WeeklyRequestsKpiCard";
 import StatusBadge from "../components/ui/StatusBadge";
 import { getCriticidadConfig } from "../utils/styleConfig";
+import { SPM_COLORS } from "../utils/chartTheme";
 
 // MUI Components
 import {
@@ -301,6 +302,7 @@ export default function DashboardAprobador() {
       width: 120,
       flex: 0,
       type: "numericColumn",
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.value || 0),
       cellRenderer: (params) => (
         <span style={{
@@ -309,7 +311,6 @@ export default function DashboardAprobador() {
           fontVariantNumeric: "tabular-nums",
           fontWeight: 500,
           display: "block",
-          textAlign: "right",
           whiteSpace: "nowrap",
         }}>
           {formatCurrency(params.data?.total_monto || 0)}
@@ -727,7 +728,7 @@ export default function DashboardAprobador() {
                 <Box sx={{ px: 3, pb: 2.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <DonutChart
                     data={[kpiData.solicitudes.aprobadas, kpiData.solicitudes.rechazadas, kpiData.solicitudes.pendientes]}
-                    colors={["var(--success)", "var(--danger)", "var(--warning)"]}
+                    colors={[SPM_COLORS.success, SPM_COLORS.error, SPM_COLORS.warning]}
                     labels={["Aprobadas", "Rechazadas", "Pendientes"]}
                   />
                 </Box>
@@ -808,7 +809,7 @@ export default function DashboardAprobador() {
                               <Box
                                 sx={{
                                   height: "100%",
-                                  background: "linear-gradient(90deg, var(--primary), var(--primary))",
+                                  background: `linear-gradient(90deg, ${SPM_COLORS.primary}, ${SPM_COLORS.primaryLight})`,
                                   borderRadius: 1,
                                   transition: "all 0.5s ease",
                                   width: `${(m.cantidad / maxC) * 100}%`,
@@ -875,7 +876,7 @@ export default function DashboardAprobador() {
                               <Box
                                 sx={{
                                   height: "100%",
-                                  background: "linear-gradient(90deg, var(--success), var(--success))",
+                                  background: `linear-gradient(90deg, ${SPM_COLORS.success}, ${SPM_COLORS.successLight})`,
                                   borderRadius: 1,
                                   transition: "all 0.5s ease",
                                   width: `${(c.valor / maxV) * 100}%`,

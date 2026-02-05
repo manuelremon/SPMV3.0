@@ -117,19 +117,17 @@ def get_stock_inmovilizado():
             where_sql = " AND ".join(where_clauses)
 
             # Query filtrada para items
+            # IMPORTANTE: Agrupar SOLO por material para obtener valor TOTAL consolidado
+            # (suma de todos los centros, almacenes y lotes)
             query = f"""
                 SELECT
                     material as codigo,
                     material_descripcion as descripcion,
                     SUM(stock) as stock_total,
-                    SUM(stock_valorizado) as valor_total,
-                    centro,
-                    centro_descripcion,
-                    almacen,
-                    lote
+                    SUM(stock_valorizado) as valor_total
                 FROM stock
                 WHERE {where_sql}
-                GROUP BY material, material_descripcion, centro, centro_descripcion, almacen, lote
+                GROUP BY material, material_descripcion
                 ORDER BY valor_total DESC
                 LIMIT {limit}
             """
@@ -143,10 +141,6 @@ def get_stock_inmovilizado():
                     "descripcion": row[1],
                     "stock_total": row[2],
                     "valor_total": row[3],
-                    "centro": row[4],
-                    "centro_descripcion": row[5],
-                    "almacen": row[6],
-                    "lote": row[7],
                 }
                 # Descripcion corta (max 40 chars)
                 desc = row_dict.get("descripcion") or row_dict.get("codigo") or ""
@@ -156,10 +150,6 @@ def get_stock_inmovilizado():
                     "descripcion": desc_corta,
                     "stock": float(row_dict.get("stock_total") or 0),
                     "valor": float(row_dict.get("valor_total") or 0),
-                    "centro": row_dict.get("centro", ""),
-                    "centroNombre": row_dict.get("centro_descripcion", ""),
-                    "almacen": row_dict.get("almacen", ""),
-                    "lote": row_dict.get("lote", ""),
                 })
 
             # Total filtrado

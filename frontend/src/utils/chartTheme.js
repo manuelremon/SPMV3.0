@@ -94,25 +94,25 @@ export const CHART_PALETTE = [
   '#14b8a6', // Teal
 ];
 
-// Colores unificados para estados de solicitudes - Consistent with CSS --status-* variables
+// Paleta unificada para estados de solicitudes - Bien diferenciada
 export const STATUS_COLORS = {
-  // Estados de solicitudes (matching CSS Design System)
-  borrador: '#94a3b8',      // --status-borrador - Slate
-  enviadas: '#3b82f6',      // --status-enviada - Blue (changed from amber)
+  // Estados principales de solicitudes
+  borrador: '#94a3b8',      // Gris - No iniciado
+  enviadas: '#3b82f6',      // Azul - Pendiente de aprobación
   enviada: '#3b82f6',       // Alias
-  pendiente: '#f59e0b',     // --status-revision - Amber
-  revision: '#f59e0b',      // Alias
-  aprobadas: '#10b981',     // --status-aprobada - Emerald
+  pendiente: '#3b82f6',     // Alias (pendiente = enviada)
+  revision: '#3b82f6',      // Alias
+  aprobadas: '#10b981',     // Verde - Aprobado
   aprobado: '#10b981',      // Alias
-  enProceso: '#8b5cf6',     // --status-planificacion - Purple
-  en_proceso: '#8b5cf6',    // Alias
-  planificacion: '#8b5cf6', // Alias
-  rechazadas: '#ef4444',    // --status-rechazada - Red
+  enProceso: '#f97316',     // Naranja - En progreso/Compra
+  en_proceso: '#f97316',    // Alias
+  planificacion: '#f97316', // Alias (planificación = en proceso)
+  rechazadas: '#ef4444',    // Rojo - Rechazado
   rechazado: '#ef4444',     // Alias
-  despachada: '#06b6d4',    // --status-despachada - Cyan
-  cerradas: '#6b7280',      // --status-cerrada - Gray
-  completado: '#6b7280',    // Alias
-  cancelado: '#6b7280',     // Gray - cancelado
+  despachada: '#06b6d4',    // Cyan - Despachada (específico)
+  cerradas: '#6366f1',      // Índigo - Cerrado/Completado
+  completado: '#6366f1',    // Alias
+  cancelado: '#8b5cf6',     // Púrpura - Cancelado
 };
 
 // Colores para fases de gestión (Tiempos) - Using CSS Design System colors

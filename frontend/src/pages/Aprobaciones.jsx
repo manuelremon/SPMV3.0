@@ -29,6 +29,7 @@ import {
   DialogActions,
   TextField,
   Chip,
+  Divider,
   Table,
   TableBody,
   TableCell,
@@ -53,7 +54,6 @@ import WarehouseIcon from "@mui/icons-material/Warehouse";
 import TagIcon from "@mui/icons-material/Tag";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import RefreshIcon from "@mui/icons-material/Refresh";
 
 const DEBOUNCE_MS = 300;
 
@@ -457,7 +457,6 @@ export default function Aprobaciones() {
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [q, setQ] = useState("");
   const debouncedQ = useDebounced(q, DEBOUNCE_MS);
-  const [refreshing, setRefreshing] = useState(false);
 
   const [activeTab, setActiveTab] = useState(0);
   const [detalleModal, setDetalleModal] = useState({ open: false, solicitud: null });
@@ -540,18 +539,13 @@ export default function Aprobaciones() {
   // Auto-refresh cada 30 segundos
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (!loading && !refreshing) {
+      if (!loading) {
         await loadPendientes();
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [loadPendientes, loading, refreshing]);
+  }, [loadPendientes, loading]);
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([loadPendientes(), loadHistorial()]);
-    setRefreshing(false);
-  }, [loadPendientes, loadHistorial]);
 
   // Filtrado pendientes
   const filtered = useMemo(() => {
@@ -701,6 +695,7 @@ export default function Aprobaciones() {
         headerName: "Monto",
         flex: 0.7,
         minWidth: 100,
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => (
           <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.primary" }}>
             {formatCurrency(params.value || 0)}
@@ -723,30 +718,56 @@ export default function Aprobaciones() {
         filter: false,
         cellRenderer: (params) => (
           <Stack direction="row" spacing={0.5}>
-            <IconButton
+            <Button
               onClick={() => setDetalleModal({ open: true, solicitud: params.data })}
               size="small"
-              sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.lighter" } }}
-              title="Ver detalle"
+              variant="text"
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                color: "primary.main",
+                fontSize: "0.75rem",
+                minWidth: "auto",
+                px: 1,
+                "&:hover": { bgcolor: "primary.lighter" },
+              }}
             >
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-            <IconButton
+              Ver
+            </Button>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Button
               onClick={() => aprobar(params.data.id)}
               size="small"
-              sx={{ color: "success.main", "&:hover": { bgcolor: "success.lighter" } }}
-              title="Aprobar"
+              variant="text"
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                color: "success.main",
+                fontSize: "0.75rem",
+                minWidth: "auto",
+                px: 1,
+                "&:hover": { bgcolor: "success.lighter" },
+              }}
             >
-              <CheckCircleIcon fontSize="small" />
-            </IconButton>
-            <IconButton
+              Aprobar
+            </Button>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+            <Button
               onClick={() => setRejectModal({ open: true, id: params.data.id })}
               size="small"
-              sx={{ color: "error.main", "&:hover": { bgcolor: "error.lighter" } }}
-              title="Rechazar"
+              variant="text"
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                color: "error.main",
+                fontSize: "0.75rem",
+                minWidth: "auto",
+                px: 1,
+                "&:hover": { bgcolor: "error.lighter" },
+              }}
             >
-              <CancelIcon fontSize="small" />
-            </IconButton>
+              Rechazar
+            </Button>
           </Stack>
         ),
       },
@@ -809,6 +830,7 @@ export default function Aprobaciones() {
         headerName: "Monto",
         flex: 0.7,
         minWidth: 100,
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => (
           <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.primary" }}>
             {formatCurrency(params.value || 0)}
@@ -842,14 +864,22 @@ export default function Aprobaciones() {
         sortable: false,
         filter: false,
         cellRenderer: (params) => (
-          <IconButton
+          <Button
             onClick={() => setDetalleModal({ open: true, solicitud: params.data })}
             size="small"
-            sx={{ color: "primary.main", "&:hover": { bgcolor: "primary.lighter" } }}
-            title="Ver detalle"
+            variant="text"
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              color: "primary.main",
+              fontSize: "0.75rem",
+              minWidth: "auto",
+              px: 1,
+              "&:hover": { bgcolor: "primary.lighter" },
+            }}
           >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
+            Ver
+          </Button>
         ),
       },
     ],
@@ -860,10 +890,9 @@ export default function Aprobaciones() {
   const rowsHistorial = useMemo(() => filteredHistorial.map((item) => ({ ...item, id: item.id })), [filteredHistorial]);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
-      <Box sx={{ maxWidth: 1600, mx: "auto", px: 3, py: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <IconButton
               onClick={() => navigate(-1)}
@@ -880,48 +909,15 @@ export default function Aprobaciones() {
             </IconButton>
             <Box>
               <Typography
-                variant="h6"
+                variant="h5"
                 fontWeight={700}
                 color="text.primary"
-                sx={{ textTransform: "uppercase", letterSpacing: "0.05em" }}
+                sx={{ textTransform: "uppercase", letterSpacing: "0.5px" }}
               >
                 {t("aprov_page_title", "Aprobaciones")}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("aprov_page_subtitle", "Gestiona las aprobaciones de solicitudes pendientes")}
-              </Typography>
             </Box>
           </Box>
-          <Button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            variant="outlined"
-            size="small"
-            startIcon={
-              <RefreshIcon
-                sx={{
-                  animation: refreshing ? "spin 1s linear infinite" : "none",
-                  "@keyframes spin": {
-                    "0%": { transform: "rotate(0deg)" },
-                    "100%": { transform: "rotate(360deg)" },
-                  },
-                }}
-              />
-            }
-            sx={{
-              color: "text.secondary",
-              borderColor: "divider",
-              bgcolor: "background.paper",
-              "&:hover": {
-                bgcolor: "grey.100",
-                borderColor: "grey.400",
-              },
-            }}
-          >
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-              {t("common_actualizar", "Actualizar")}
-            </Box>
-          </Button>
         </Box>
 
         {/* Alertas */}
@@ -973,10 +969,10 @@ export default function Aprobaciones() {
                       size="small"
                       sx={{
                         height: 20,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        bgcolor: activeTab === 0 ? "primary.main" : "grey.200",
-                        color: activeTab === 0 ? "white" : "text.secondary",
+                        fontSize: "0.625rem",
+                        fontWeight: 700,
+                        bgcolor: activeTab === 0 ? "primary.light" : "grey.200",
+                        color: activeTab === 0 ? "primary.dark" : "text.secondary",
                       }}
                     />
                   </Box>
@@ -991,10 +987,10 @@ export default function Aprobaciones() {
                       size="small"
                       sx={{
                         height: 20,
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        bgcolor: activeTab === 1 ? "primary.main" : "grey.200",
-                        color: activeTab === 1 ? "white" : "text.secondary",
+                        fontSize: "0.625rem",
+                        fontWeight: 700,
+                        bgcolor: activeTab === 1 ? "primary.light" : "grey.200",
+                        color: activeTab === 1 ? "primary.dark" : "text.secondary",
                       }}
                     />
                   </Box>
@@ -1063,7 +1059,6 @@ export default function Aprobaciones() {
           onRechazar={handleRechazar}
           t={t}
         />
-      </Box>
     </Box>
   );
 }

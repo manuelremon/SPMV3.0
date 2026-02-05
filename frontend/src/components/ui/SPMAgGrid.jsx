@@ -252,7 +252,7 @@ export function SPMAgGrid({
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-end',
             alignItems: 'center',
             p: 1,
             borderBottom: '1px solid var(--border)',

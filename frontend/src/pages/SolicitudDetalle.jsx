@@ -103,6 +103,7 @@ function ItemsTable({ items, totalMonto }) {
       flex: 0.3,
       minWidth: 100,
       type: 'numericColumn',
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.data?.precio_unitario || 0),
     },
     {
@@ -111,6 +112,7 @@ function ItemsTable({ items, totalMonto }) {
       flex: 0.3,
       minWidth: 100,
       type: 'numericColumn',
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.data?.subtotal || 0),
     },
   ], [t]);

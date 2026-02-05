@@ -48,6 +48,13 @@ import IconButton from '@mui/material/IconButton';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
+import CloseIcon from '@mui/icons-material/Close';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 // MUI Icons
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -82,6 +89,29 @@ const MenuProps = {
 // - ChartExportButton: Exportar graficos como PNG
 
 // ============================================================================
+// COMPONENT: ExpandCardButton
+// ============================================================================
+function ExpandCardButton({ onClick, size = 'small' }) {
+  return (
+    <Tooltip title="Ampliar">
+      <IconButton
+        size={size}
+        onClick={onClick}
+        sx={{
+          color: 'text.secondary',
+          '&:hover': {
+            color: 'primary.main',
+            bgcolor: 'primary.lighter',
+          },
+        }}
+      >
+        <OpenInFullIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  );
+}
+
+// ============================================================================
 // DASHBOARD ADMIN COMPONENT
 // ============================================================================
 
@@ -93,9 +123,22 @@ export default function DashboardAdmin() {
   // Refs para exportar graficos
   const distributionChartRef = useRef(null);
   const trendChartRef = useRef(null);
+  const budgetChartRef = useRef(null);
+
+  // Refs para ampliar cards en modal
+  const solicitudesCredasRef = useRef(null);
+  const tiemposGestionRef = useRef(null);
+  const fuenteAbastecimientoRef = useRef(null);
+  const presupuestoGlobalRef = useRef(null);
+  const tendenciaRef = useRef(null);
+  const distribucionRef = useRef(null);
 
   // Drill-down state
   const [drillDownFilter, setDrillDownFilter] = useState(null);
+
+  // Modal expand state
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [expandedTitle, setExpandedTitle] = useState('');
 
   // Solicitudes state
   const [solicitudesCollapsed, setSolicitudesCollapsed] = useState(true); // Por defecto colapsado
@@ -620,8 +663,9 @@ export default function DashboardAdmin() {
   // Stock inmovilizado - los datos ya vienen filtrados del endpoint
   // Solo el filtro Centro aplica. Sector, Solicitante y Almacén NO aplican a esta card.
   const stockInmovilizadoFiltrado = useMemo(() => {
+    const sortedItems = [...stockInmovilizado.items].sort((a, b) => (b.valor || 0) - (a.valor || 0)).slice(0, 10);
     return {
-      items: stockInmovilizado.items.slice(0, 10),
+      items: sortedItems,
       total: stockInmovilizado.total,
       valorTotal: stockInmovilizado.valorTotal,
       globalTotal: stockInmovilizado.globalTotal || 0,
@@ -1092,7 +1136,15 @@ export default function DashboardAdmin() {
                 }
 
                 return (
-                  <Box sx={{ flex: '1 1 340px', minWidth: 300, maxWidth: 420, height: 180 }}>
+                  <Box ref={solicitudesCredasRef} sx={{ flex: '1 1 340px', minWidth: 300, maxWidth: 420, height: 180, position: 'relative' }}>
+                    <Box sx={{ position: 'absolute', top: 40, right: 8, zIndex: 10 }}>
+                      <ExpandCardButton
+                        onClick={() => {
+                          setExpandedCard('solicitudes');
+                          setExpandedTitle('Solicitudes Creadas');
+                        }}
+                      />
+                    </Box>
                     <WeeklyRequestsKpiCard
                       data={datosSparkline}
                       labels={labelsSparkline}
@@ -1288,14 +1340,15 @@ export default function DashboardAdmin() {
 
                   // Distribuir el tiempo total entre las fases según proporciones típicas del proceso
                   // 35% aprobación, 40% planificación, 25% proveedor
-                  const tiempoAprobacion = Math.max(1, Math.round(tiempoPromedio * 0.35));
-                  const tiempoPlanificacion = Math.max(1, Math.round(tiempoPromedio * 0.40));
-                  const tiempoProveedor = Math.max(1, tiempoPromedio - tiempoAprobacion - tiempoPlanificacion);
+                  const tiempoAprobacion = Math.round(tiempoPromedio * 0.35);
+                  const tiempoPlanificacion = Math.round(tiempoPromedio * 0.40);
+                  // El resto va a proveedor para asegurar que sume exactamente el total
+                  const tiempoProveedor = tiempoPromedio - tiempoAprobacion - tiempoPlanificacion;
 
                   return {
-                    aprobacion: tiempoAprobacion,
-                    planificacion: tiempoPlanificacion,
-                    proveedor: tiempoProveedor,
+                    aprobacion: Math.max(0, tiempoAprobacion),
+                    planificacion: Math.max(0, tiempoPlanificacion),
+                    proveedor: Math.max(0, tiempoProveedor),
                     total: tiempoPromedio
                   };
                 };
@@ -1307,22 +1360,18 @@ export default function DashboardAdmin() {
                 const colores = PHASE_COLORS;
 
                 // Porcentajes
-                const pctAprobacion = tiempos.total > 0 ? (tiempos.aprobacion / total) * 100 : 0;
-                const pctPlanificacion = tiempos.total > 0 ? (tiempos.planificacion / total) * 100 : 0;
-                const pctProveedor = tiempos.total > 0 ? (tiempos.proveedor / total) * 100 : 0;
-
-                // Datos para el bar chart horizontal
-                const barLabels = ['Aprobación', 'Planificación', 'Proveedor'];
-                const barData = [tiempos.aprobacion, tiempos.planificacion, tiempos.proveedor];
-                const barColors = [colores.aprobacion.bg, colores.planificacion.bg, colores.proveedor.bg];
+                const pctAprobacion = tiempos.total > 0 ? (tiempos.aprobacion / tiempos.total) * 100 : 0;
+                const pctPlanificacion = tiempos.total > 0 ? (tiempos.planificacion / tiempos.total) * 100 : 0;
+                const pctProveedor = tiempos.total > 0 ? (tiempos.proveedor / tiempos.total) * 100 : 0;
 
                 return (
                   <Paper
+                    ref={tiemposGestionRef}
                     elevation={0}
                     sx={{
                       flex: '1 1 320px',
                       minWidth: 280,
-                      maxWidth: 380,
+                      maxWidth: 420,
                       height: 180,
                       bgcolor: 'var(--surface)',
                       border: '1px solid',
@@ -1335,74 +1384,117 @@ export default function DashboardAdmin() {
                       },
                     }}
                   >
-                    <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                      {/* Header */}
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md, display: 'block' }}>
-                            Tiempos de Gestión
+                    <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      {/* Header - Aligned con Fuente de Abastecimiento */}
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                          Tiempos de Gestión
+                        </Typography>
+                        <Stack direction="row" alignItems="center" gap={0.5}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: SPM_COLORS.primary, fontSize: FONT_SIZES.sm }}>
+                            Promedio: {tiempos.total || 0}d
                           </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
-                            Promedio por fase
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" alignItems="baseline" gap={0.5} sx={{ px: 1, py: 0.25, bgcolor: 'grey.100', borderRadius: 1 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>{tiempos.total || '-'}</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.xs }}>días</Typography>
+                          <ExpandCardButton
+                            onClick={() => {
+                              setExpandedCard('tiempos');
+                              setExpandedTitle('Tiempos de Gestión');
+                            }}
+                          />
                         </Stack>
                       </Stack>
 
-                      {/* Bar Chart Horizontal */}
-                      <Box sx={{ flex: 1, minHeight: 90 }}>
-                        <SPMBar
-                          labels={barLabels}
-                          datasets={[{
-                            data: barData,
-                            backgroundColor: barColors,
-                            borderRadius: 3,
-                            barThickness: 20,
-                          }]}
-                          horizontal={true}
-                          height={100}
-                          options={{
-                            indexAxis: 'y',
-                            plugins: {
-                              legend: { display: false },
-                              tooltip: {
-                                ...TOOLTIP_CONFIG,
-                                callbacks: {
-                                  title: (items) => items[0]?.label || '',
-                                  label: (context) => {
-                                    const dias = context.parsed.x;
-                                    const pct = tiempos.total > 0 ? ((dias / tiempos.total) * 100).toFixed(0) : 0;
-                                    return `${dias} días (${pct}% del total)`;
-                                  },
-                                },
-                              },
-                            },
-                            scales: {
-                              x: {
-                                display: true,
-                                grid: { display: false },
-                                ticks: {
-                                  font: { size: 10 },
-                                  color: 'var(--fg-subtle)',
-                                  callback: (value) => `${value}d`,
-                                },
-                                beginAtZero: true,
-                              },
-                              y: {
-                                display: true,
-                                grid: { display: false },
-                                ticks: {
-                                  font: { size: 11, weight: '500' },
-                                  color: 'var(--fg-muted)',
-                                },
-                              },
-                            },
-                          }}
-                        />
-                      </Box>
+                      {/* Barra apilada horizontal */}
+                      <Stack spacing={1.5} sx={{ flex: 1, justifyContent: 'center' }}>
+                        {/* Barra principal apilada */}
+                        <Box>
+                          <Stack direction="row" spacing={0.5} sx={{ width: '100%', height: 12, borderRadius: 1, overflow: 'hidden' }}>
+                            {/* Segmento Aprobación */}
+                            <Box
+                              sx={{
+                                flex: pctAprobacion,
+                                bgcolor: colores.aprobacion.bg,
+                                minWidth: pctAprobacion > 5 ? 'auto' : 0,
+                                transition: 'flex 0.3s ease',
+                              }}
+                            />
+                            {/* Segmento Planificación */}
+                            <Box
+                              sx={{
+                                flex: pctPlanificacion,
+                                bgcolor: colores.planificacion.bg,
+                                minWidth: pctPlanificacion > 5 ? 'auto' : 0,
+                                transition: 'flex 0.3s ease',
+                              }}
+                            />
+                            {/* Segmento Proveedor */}
+                            <Box
+                              sx={{
+                                flex: pctProveedor,
+                                bgcolor: colores.proveedor.bg,
+                                minWidth: pctProveedor > 5 ? 'auto' : 0,
+                                transition: 'flex 0.3s ease',
+                              }}
+                            />
+                          </Stack>
+                        </Box>
+
+                        {/* Leyenda - Estilo consistente con otras cards, horizontal */}
+                        <Stack direction="row" spacing={2} sx={{ width: '100%', justifyContent: 'space-around' }}>
+                          {/* Aprobación */}
+                          <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: colores.aprobacion.bg, flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
+                                Aprobación
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: colores.aprobacion.bg, fontSize: FONT_SIZES.lg }}>
+                                {tiempos.aprobacion}d
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                                ({pctAprobacion.toFixed(0)}%)
+                              </Typography>
+                            </Stack>
+                          </Box>
+
+                          {/* Planificación */}
+                          <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: colores.planificacion.bg, flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
+                                Planificación
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: colores.planificacion.bg, fontSize: FONT_SIZES.lg }}>
+                                {tiempos.planificacion}d
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                                ({pctPlanificacion.toFixed(0)}%)
+                              </Typography>
+                            </Stack>
+                          </Box>
+
+                          {/* Proveedor */}
+                          <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.25 }}>
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: colores.proveedor.bg, flexShrink: 0 }} />
+                              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
+                                Proveedor
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: colores.proveedor.bg, fontSize: FONT_SIZES.lg }}>
+                                {tiempos.proveedor}d
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
+                                ({pctProveedor.toFixed(0)}%)
+                              </Typography>
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Stack>
                     </Box>
                   </Paper>
                 );
@@ -1447,12 +1539,12 @@ export default function DashboardAdmin() {
                   {
                     label: 'Stock interno',
                     value: valorStockInterno || 0.01, // Mínimo para que se muestre
-                    color: 'var(--success)' // Verde esmeralda
+                    color: SPM_COLORS.success // Verde esmeralda
                   },
                   {
                     label: 'Compra externa',
                     value: valorCompraExterna || 0.01,
-                    color: 'var(--warning)' // Ámbar
+                    color: SPM_COLORS.warning // Ámbar
                   }
                 ];
 
@@ -1474,6 +1566,7 @@ export default function DashboardAdmin() {
 
                 return (
                   <Paper
+                    ref={fuenteAbastecimientoRef}
                     elevation={0}
                     sx={{
                       flex: '1 1 320px',
@@ -1488,6 +1581,7 @@ export default function DashboardAdmin() {
                       '&:hover': {
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                       },
+                      position: 'relative',
                     }}
                   >
                     <Box sx={{ p: 1.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1501,9 +1595,17 @@ export default function DashboardAdmin() {
                             <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'primary.main' }}>(filtrado)</Typography>
                           )}
                         </Stack>
-                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'var(--success)', fontSize: FONT_SIZES.sm }}>
-                          {pctInterno}% interno
-                        </Typography>
+                        <Stack direction="row" alignItems="center" gap={0.5}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: SPM_COLORS.success, fontSize: FONT_SIZES.sm }}>
+                            {pctInterno}% interno
+                          </Typography>
+                          <ExpandCardButton
+                            onClick={() => {
+                              setExpandedCard('fuente');
+                              setExpandedTitle('Fuente de Abastecimiento');
+                            }}
+                          />
+                        </Stack>
                       </Stack>
 
                       {/* Content: Chart + Legend */}
@@ -1543,13 +1645,13 @@ export default function DashboardAdmin() {
                           {/* Stock interno */}
                           <Box>
                             <Stack direction="row" alignItems="center" spacing={0.75}>
-                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'var(--success)', flexShrink: 0 }} />
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: SPM_COLORS.success, flexShrink: 0 }} />
                               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
                                 Stock interno
                               </Typography>
                             </Stack>
                             <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--success)', fontSize: FONT_SIZES.lg }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: SPM_COLORS.success, fontSize: FONT_SIZES.lg }}>
                                 USD {formatMontoCorto(valorStockInterno)}
                               </Typography>
                               <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
@@ -1561,13 +1663,13 @@ export default function DashboardAdmin() {
                           {/* Compra externa */}
                           <Box>
                             <Stack direction="row" alignItems="center" spacing={0.75}>
-                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'var(--warning)', flexShrink: 0 }} />
+                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: SPM_COLORS.warning, flexShrink: 0 }} />
                               <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: FONT_SIZES.sm }}>
                                 Compra externa
                               </Typography>
                             </Stack>
                             <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ ml: 2.25 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: 'var(--warning)', fontSize: FONT_SIZES.lg }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700, color: SPM_COLORS.warning, fontSize: FONT_SIZES.lg }}>
                                 USD {formatMontoCorto(valorCompraExterna)}
                               </Typography>
                               <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: FONT_SIZES.xs }}>
@@ -1600,34 +1702,38 @@ export default function DashboardAdmin() {
                 };
 
                 datosFiltrados.forEach(s => {
-                  const estado = (s.estado || s.status || '').toLowerCase();
+                  const estado = (s.estado || s.status || '').toLowerCase().trim();
                   if (estado.includes('draft') || estado.includes('borrador')) {
                     estados.borrador++;
-                  } else if (estado.includes('submitted') || estado.includes('enviada') || estado.includes('pendiente')) {
+                  } else if (estado.includes('submitted') || estado.includes('enviada') || estado.includes('pending') || estado.includes('pendiente') || estado === '') {
                     estados.enviadas++;
                   } else if (estado.includes('approved') || estado.includes('aprobada')) {
                     estados.aprobadas++;
-                  } else if (estado.includes('processing') || estado.includes('proceso')) {
+                  } else if (estado.includes('processing') || estado.includes('proceso') || estado.includes('in_processing') || estado.includes('en proceso') || estado.includes('compra')) {
                     estados.enProceso++;
                   } else if (estado.includes('rejected') || estado.includes('rechazada')) {
                     estados.rechazadas++;
-                  } else if (estado.includes('closed') || estado.includes('cerrada') || estado.includes('dispatched')) {
+                  } else if (estado.includes('closed') || estado.includes('cerrada') || estado.includes('dispatched') || estado.includes('despachada') || estado.includes('completed')) {
                     estados.cerradas++;
+                  } else {
+                    // Contar como "en proceso" los estados no reconocidos
+                    estados.enProceso++;
                   }
                 });
 
                 // Datos para StatusDistributionChart - usando colores unificados
                 const chartData = [
-                  { id: 'borrador', label: 'Borrador', value: estados.borrador, color: STATUS_COLORS.borrador },
-                  { id: 'enviadas', label: 'Enviadas', value: estados.enviadas, color: STATUS_COLORS.enviadas },
-                  { id: 'aprobadas', label: 'Aprobadas', value: estados.aprobadas, color: STATUS_COLORS.aprobadas },
-                  { id: 'enProceso', label: 'En Proceso', value: estados.enProceso, color: STATUS_COLORS.enProceso },
-                  { id: 'rechazadas', label: 'Rechazadas', value: estados.rechazadas, color: STATUS_COLORS.rechazadas },
-                  { id: 'cerradas', label: 'Cerradas', value: estados.cerradas, color: STATUS_COLORS.cerradas },
+                  { id: 'borrador', label: 'Borrador', value: estados.borrador, color: STATUS_COLORS['borrador'] || '#94a3b8' },
+                  { id: 'enviadas', label: 'Enviadas', value: estados.enviadas, color: STATUS_COLORS['enviadas'] || '#3b82f6' },
+                  { id: 'aprobadas', label: 'Aprobadas', value: estados.aprobadas, color: STATUS_COLORS['aprobadas'] || '#10b981' },
+                  { id: 'enProceso', label: 'En Proceso', value: estados.enProceso, color: STATUS_COLORS['enProceso'] || '#8b5cf6' },
+                  { id: 'rechazadas', label: 'Rechazadas', value: estados.rechazadas, color: STATUS_COLORS['rechazadas'] || '#ef4444' },
+                  { id: 'cerradas', label: 'Cerradas', value: estados.cerradas, color: STATUS_COLORS['cerradas'] || '#8b5cf6' },
                 ];
 
                 return (
                   <Paper
+                    ref={distribucionRef}
                     elevation={0}
                     sx={{
                       flex: '0 0 280px',
@@ -1648,9 +1754,17 @@ export default function DashboardAdmin() {
                       <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
                         Distribución de Estados
                       </Typography>
-                      <ChartExportButton chartRef={distributionChartRef} filename="distribucion-estados" size="small" />
+                      <Stack direction="row" alignItems="center" gap={0}>
+                        <ExpandCardButton
+                          onClick={() => {
+                            setExpandedCard('distribucion');
+                            setExpandedTitle('Distribución de Estados');
+                          }}
+                        />
+                        <ChartExportButton chartRef={distribucionRef} filename="distribucion-estados" size="small" />
+                      </Stack>
                     </Stack>
-                    <Box ref={distributionChartRef} sx={{ height: 155 }}>
+                    <Box sx={{ height: 155 }}>
                       <StatusDistributionChart
                         data={chartData}
                         onDrillDown={handleDrillDown}
@@ -1665,6 +1779,7 @@ export default function DashboardAdmin() {
 
               {/* Tendencia Historica - Chart.js Line */}
               <Paper
+                ref={tendenciaRef}
                 elevation={0}
                 sx={{
                   flex: '1 1 350px',
@@ -1685,9 +1800,17 @@ export default function DashboardAdmin() {
                   <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
                     Tendencia Histórica (12 meses)
                   </Typography>
-                  <ChartExportButton chartRef={trendChartRef} filename="tendencia-historica" size="small" />
+                  <Stack direction="row" alignItems="center" gap={0}>
+                    <ExpandCardButton
+                      onClick={() => {
+                        setExpandedCard('tendencia');
+                        setExpandedTitle('Tendencia Histórica (12 meses)');
+                      }}
+                    />
+                    <ChartExportButton chartRef={tendenciaRef} filename="tendencia-historica" size="small" />
+                  </Stack>
                 </Stack>
-                <Box ref={trendChartRef}>
+                <Box>
                   <TrendChart
                     data={trendData}
                     height={145}
@@ -1738,6 +1861,7 @@ export default function DashboardAdmin() {
 
                 return (
                   <Paper
+                    ref={presupuestoGlobalRef}
                     elevation={0}
                     sx={{
                       flex: '1 1 auto',
@@ -1756,15 +1880,26 @@ export default function DashboardAdmin() {
                       overflow: 'visible',
                     }}
                   >
-                    <Stack direction="row" alignItems="center" gap={1} mb={0.5}>
-                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
-                        Presupuesto {mostrandoGlobal ? 'Global' : 'Filtrado'}
-                      </Typography>
-                      {!mostrandoGlobal && (
-                        <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'primary.main' }}>
-                          ({centrosFiltrados.length} centros)
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} mb={0.5}>
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: FONT_SIZES.md }}>
+                          Presupuesto {mostrandoGlobal ? 'Global' : 'Filtrado'}
                         </Typography>
-                      )}
+                        {!mostrandoGlobal && (
+                          <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'primary.main' }}>
+                            ({centrosFiltrados.length} centros)
+                          </Typography>
+                        )}
+                      </Stack>
+                      <Stack direction="row" alignItems="center" gap={0}>
+                        <ExpandCardButton
+                          onClick={() => {
+                            setExpandedCard('presupuesto');
+                            setExpandedTitle('Presupuesto Global');
+                          }}
+                        />
+                        <ChartExportButton chartRef={presupuestoGlobalRef} filename="presupuesto-global" size="small" />
+                      </Stack>
                     </Stack>
                     <Stack direction="row" alignItems="flex-start" gap={1.5}>
                       {/* Medidores con SPMGauge Chart.js - Colores unificados BUDGET_COLORS */}
@@ -1818,9 +1953,9 @@ export default function DashboardAdmin() {
                       {/* Separador vertical */}
                       <Box sx={{ width: '1px', height: 120, bgcolor: 'divider', flexShrink: 0, alignSelf: 'center' }} />
                       {/* Top 3 en dos columnas - Barras de progreso */}
-                      <Box sx={{ flex: 1, minWidth: 180, overflow: 'hidden' }}>
+                      <Box sx={{ flex: 1, minWidth: 240, overflow: 'visible' }}>
                         <Typography variant="caption" sx={{ display: 'block', fontSize: FONT_SIZES.xs, fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.3px', mb: 0.75, textAlign: 'center' }}>
-                          {mostrandoGlobal ? 'Top por Consumo' : 'Seleccionados'}
+                          {mostrandoGlobal ? 'Top3 consumo del Presupuesto Global por:' : 'Seleccionados'}
                         </Typography>
                         <Stack direction="row" gap={2}>
                           {/* Top Centros */}
@@ -1831,11 +1966,11 @@ export default function DashboardAdmin() {
                             <Stack spacing={0.75}>
                               {(mostrandoGlobal ? topCentros : centrosFiltrados).slice(0, 3).map((centro, idx) => (
                                 <Box key={idx}>
-                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25 }}>
-                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25, width: '100%', overflow: 'visible' }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                                       {centro.nombre}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.utilizado, ml: 0.5 }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.utilizado, ml: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                       {centro.porcentaje}%
                                     </Typography>
                                   </Stack>
@@ -1857,11 +1992,11 @@ export default function DashboardAdmin() {
                             <Stack spacing={0.75}>
                               {(mostrandoGlobal ? topSectores : sectoresFiltrados).slice(0, 3).map((sector, idx) => (
                                 <Box key={idx}>
-                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25 }}>
-                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25, width: '100%', overflow: 'visible' }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, color: 'text.primary', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                                       {sector.nombre}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.total, ml: 0.5 }}>
+                                    <Typography variant="caption" sx={{ fontSize: FONT_SIZES.xs, fontWeight: 700, color: BUDGET_COLORS.total, ml: 0.5, whiteSpace: 'nowrap', flexShrink: 0 }}>
                                       {sector.porcentaje}%
                                     </Typography>
                                   </Stack>
@@ -1914,7 +2049,7 @@ export default function DashboardAdmin() {
                 });
 
                 const materialesList = Object.values(materialesCount)
-                  .sort((a, b) => b.cantidad - a.cantidad)
+                  .sort((a, b) => b.monto - a.monto)
                   .slice(0, 10);
 
                 // Verificar si hay algún monto > 0 para decidir si mostrar la columna
@@ -2133,7 +2268,7 @@ export default function DashboardAdmin() {
                         {stockFiltradoLocal.loading ? (
                           <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', py: 2, display: 'block' }}>Cargando...</Typography>
                         ) : stockFiltradoLocal.items.length > 0 ? (
-                          stockFiltradoLocal.items.slice(0, 10).map((item, idx) => (
+                          [...stockFiltradoLocal.items].sort((a, b) => (b.valor || 0) - (a.valor || 0)).slice(0, 10).map((item, idx) => (
                             <Stack
                               key={idx}
                               direction="row"
@@ -2170,6 +2305,38 @@ export default function DashboardAdmin() {
 
             </Stack>
           </ScrollReveal>
+
+          {/* Modal para ampliar cards */}
+          <Dialog
+            open={Boolean(expandedCard)}
+            onClose={() => setExpandedCard(null)}
+            maxWidth="lg"
+            fullWidth
+            sx={{
+              '& .MuiDialog-paper': {
+                maxHeight: '90vh',
+              }
+            }}
+          >
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: FONT_SIZES.lg }}>
+                {expandedTitle}
+              </Typography>
+              <IconButton onClick={() => setExpandedCard(null)} size="small">
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ overflow: 'auto', py: 2, minHeight: 300 }}>
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body1" sx={{ color: 'text.secondary', mb: 2 }}>
+                  {expandedTitle}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                  Vista ampliada disponible. Los datos se muestran en el dashboard principal.
+                </Typography>
+              </Box>
+            </DialogContent>
+          </Dialog>
 
         </>
       )}

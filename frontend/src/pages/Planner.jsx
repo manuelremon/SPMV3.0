@@ -483,6 +483,7 @@ export default function Planner({ filterMode }) {
         flex: 0.6,
         minWidth: 100,
         type: "numericColumn",
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => (
           <Typography variant="body2" sx={{ fontFamily: "monospace" }}>
             {formatCurrency(params.value || 0)}

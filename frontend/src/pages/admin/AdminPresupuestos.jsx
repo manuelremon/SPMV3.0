@@ -623,34 +623,43 @@ const [centro, sector] = id.split("|");
                               spacing={0.5}
                               justifyContent="center"
                             >
-                              <IconButton
+                              <Button
                                 size="small"
+                                variant="text"
                                 onClick={() => handleEdit(row)}
-                                title="Editar"
                                 sx={{
-                                  color: "text.secondary",
+                                  textTransform: "none",
+                                  fontWeight: 600,
+                                  color: "primary.main",
+                                  fontSize: "0.75rem",
+                                  minWidth: "auto",
+                                  px: 1,
                                   "&:hover": {
-                                    color: "primary.main",
                                     bgcolor: "primary.lighter",
                                   },
                                 }}
                               >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
+                                Editar
+                              </Button>
+                              <Divider orientation="vertical" flexItem sx={{ mx: 0.25 }} />
+                              <Button
                                 size="small"
+                                variant="text"
                                 onClick={() => setDeletingId(row._id)}
-                                title="Eliminar"
                                 sx={{
-                                  color: "text.secondary",
+                                  textTransform: "none",
+                                  fontWeight: 600,
+                                  color: "error.main",
+                                  fontSize: "0.75rem",
+                                  minWidth: "auto",
+                                  px: 1,
                                   "&:hover": {
-                                    color: "error.main",
                                     bgcolor: "error.lighter",
                                   },
                                 }}
                               >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
+                                Eliminar
+                              </Button>
                             </Stack>
                           </TableCell>
                         </TableRow>

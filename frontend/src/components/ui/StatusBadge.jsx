@@ -33,15 +33,23 @@ const StatusBadge = memo(function StatusBadge({
   // Tooltip por defecto para estados (sin necesidad de tooltipInfo)
   if (!tooltipInfo) {
     if (["pendiente", "pendiente_de_aprobacion", "enviada", "submitted"].includes(estadoLower)) {
-      tooltipLines.push("Esperando aprobación...");
+      tooltipLines.push("Esperando aprobación del coordinador");
     } else if (["borrador", "draft"].includes(estadoLower)) {
       tooltipLines.push("Borrador - No enviada aún");
     } else if (["aprobada", "approved"].includes(estadoLower)) {
       tooltipLines.push("Aprobada - Pendiente de planificación");
     } else if (["en_planificacion", "planificacion", "in_planning"].includes(estadoLower)) {
-      tooltipLines.push("En proceso de planificación");
+      tooltipLines.push("En proceso de planificación de abastecimiento");
+    } else if (["en_tratamiento", "in_treatment"].includes(estadoLower)) {
+      tooltipLines.push("En fase de tratamiento y adquisición");
+    } else if (["tratado", "treated"].includes(estadoLower)) {
+      tooltipLines.push("Tratamiento completado - Listo para entrega");
     } else if (["rechazada", "rejected"].includes(estadoLower)) {
-      tooltipLines.push("Solicitud rechazada");
+      tooltipLines.push("Solicitud rechazada - Puede reenviar");
+    } else if (["cerrada", "closed"].includes(estadoLower)) {
+      tooltipLines.push("Solicitud finalizada exitosamente");
+    } else if (["cancelada", "cancelled"].includes(estadoLower)) {
+      tooltipLines.push("Solicitud cancelada");
     } else if (["despachada", "dispatched", "completada", "completed"].includes(estadoLower)) {
       tooltipLines.push("Solicitud completada");
     }

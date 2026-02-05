@@ -95,6 +95,7 @@ export function MaterialsTable({
         flex: 0.18,
         minWidth: 100,
         type: 'numericColumn',
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         valueFormatter: (params) => formatCurrency(params.value || 0),
       },
       {
@@ -103,6 +104,7 @@ export function MaterialsTable({
         flex: 0.18,
         minWidth: 100,
         type: 'numericColumn',
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => formatCurrency(params.data?.subtotal || 0),
       },
       {

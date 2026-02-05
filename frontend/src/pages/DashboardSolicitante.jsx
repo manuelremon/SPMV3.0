@@ -50,6 +50,7 @@ import { useI18n } from "../context/i18n";
 import { useAuthStore } from "../store/authStore";
 import StatusBadge from "../components/ui/StatusBadge";
 import { getCriticidadConfig } from "../utils/styleConfig";
+import { SPM_COLORS } from "../utils/chartTheme";
 
 // KPI CHART COMPONENTS using Chart.js
 function DonutChart({ data, colors, labels }) {
@@ -282,6 +283,7 @@ export default function DashboardSolicitante() {
       field: "total_monto",
       headerName: "Monto",
       width: 120,
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       cellRenderer: (params) => (
         <Box
           component="span"
@@ -290,8 +292,6 @@ export default function DashboardSolicitante() {
             fontSize: "0.75rem",
             fontVariantNumeric: "tabular-nums",
             fontWeight: 500,
-            textAlign: "right",
-            display: "block",
             whiteSpace: "nowrap",
           }}
         >
@@ -758,7 +758,7 @@ export default function DashboardSolicitante() {
                     <Box sx={{ px: 3, pb: 2.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <DonutChart
                         data={[kpiData.solicitudes.aprobadas, kpiData.solicitudes.rechazadas, kpiData.solicitudes.pendientes]}
-                        colors={["var(--success)", "var(--danger)", "var(--warning)"]}
+                        colors={[SPM_COLORS.success, SPM_COLORS.error, SPM_COLORS.warning]}
                         labels={["Aprobadas", "Rechazadas", "Pendientes"]}
                       />
                     </Box>
@@ -856,12 +856,12 @@ export default function DashboardSolicitante() {
                                   <Box
                                     sx={{
                                       height: "100%",
-                                      background: "linear-gradient(to right, var(--primary), var(--info))",
+                                      background: `linear-gradient(to right, ${SPM_COLORS.primary}, ${SPM_COLORS.info})`,
                                       borderRadius: 2,
                                       transition: "all 500ms",
                                       width: `${(m.cantidad / maxC) * 100}%`,
                                       "&:hover": {
-                                        background: "linear-gradient(to right, var(--primary), var(--primary))",
+                                        background: `linear-gradient(to right, ${SPM_COLORS.primary}, ${SPM_COLORS.primary})`,
                                       },
                                     }}
                                   />
@@ -948,12 +948,12 @@ export default function DashboardSolicitante() {
                                   <Box
                                     sx={{
                                       height: "100%",
-                                      background: "linear-gradient(to right, var(--success), var(--success))",
+                                      background: `linear-gradient(to right, ${SPM_COLORS.success}, ${SPM_COLORS.successLight})`,
                                       borderRadius: 2,
                                       transition: "all 500ms",
                                       width: `${(c.valor / maxV) * 100}%`,
                                       "&:hover": {
-                                        background: "linear-gradient(to right, var(--success), var(--success))",
+                                        background: `linear-gradient(to right, ${SPM_COLORS.successLight}, ${SPM_COLORS.success})`,
                                       },
                                     }}
                                   />

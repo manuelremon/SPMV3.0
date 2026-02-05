@@ -89,6 +89,7 @@ function ModalItemsTable({ items, totalMonto }) {
       flex: 0.25,
       minWidth: 80,
       type: "numericColumn",
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.data?.precio_unitario || 0),
     },
     {
@@ -97,6 +98,7 @@ function ModalItemsTable({ items, totalMonto }) {
       flex: 0.25,
       minWidth: 80,
       type: "numericColumn",
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.data?.subtotal || 0),
     },
   ], []);
@@ -595,6 +597,7 @@ export default function TodasLasSolicitudes() {
         headerName: "Monto",
         flex: 0.7,
         minWidth: 100,
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => (
           <Typography
             variant="body2"

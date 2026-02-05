@@ -5,9 +5,11 @@
  * Usa SPMDoughnut de Chart.js con estilo corporativo SPM.
  *
  * Uso:
+ *   import { SPM_COLORS } from '../utils/chartTheme';
+ *
  *   <CanvasDonutChart
  *     data={[150, 85, 120]}
- *     colors={['var(--primary)', 'var(--danger)', 'var(--success)']}
+ *     colors={[SPM_COLORS.primary, SPM_COLORS.error, SPM_COLORS.success]}
  *     labels={['Completadas', 'Pendientes', 'Rechazadas']}
  *     width={100}
  *     height={100}

@@ -23,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { WeeklyRequestsKpiCard } from "../components/dashboard/WeeklyRequestsKpiCard";
 import StatusBadge from "../components/ui/StatusBadge";
 import { getCriticidadConfig } from "../utils/styleConfig";
+import { SPM_COLORS } from "../utils/chartTheme";
 
 // MUI Components
 import Box from "@mui/material/Box";
@@ -296,6 +297,7 @@ export default function DashboardPlanificador() {
       headerName: "Monto",
       width: 120,
       type: "numericColumn",
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.value || 0),
       cellRenderer: (params) => (
         <Box
@@ -305,7 +307,6 @@ export default function DashboardPlanificador() {
             fontSize: "0.75rem",
             fontVariantNumeric: "tabular-nums",
             fontWeight: 500,
-            textAlign: "right",
             display: "block",
             whiteSpace: "nowrap",
           }}
@@ -664,7 +665,7 @@ export default function DashboardPlanificador() {
                   <Box sx={{ px: 3, pb: 2.5, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <DonutChart
                       data={[kpiData.solicitudes.aprobadas, kpiData.solicitudes.rechazadas, kpiData.solicitudes.pendientes]}
-                      colors={["var(--success)", "var(--danger)", "var(--warning)"]}
+                      colors={[SPM_COLORS.success, SPM_COLORS.error, SPM_COLORS.warning]}
                       labels={["Aprobadas", "Rechazadas", "Pendientes"]}
                     />
                   </Box>
@@ -713,7 +714,7 @@ export default function DashboardPlanificador() {
                                 className="progress-bar"
                                 sx={{
                                   height: "100%",
-                                  background: "linear-gradient(to right, var(--primary), var(--primary-light, #60a5fa))",
+                                  background: `linear-gradient(to right, ${SPM_COLORS.primary}, ${SPM_COLORS.primaryLight})`,
                                   borderRadius: 5,
                                   transition: "all 0.5s",
                                   width: `${(m.cantidad / maxC) * 100}%`,
@@ -764,7 +765,7 @@ export default function DashboardPlanificador() {
                                 className="progress-bar"
                                 sx={{
                                   height: "100%",
-                                  background: "linear-gradient(to right, var(--success), var(--success-light, #34d399))",
+                                  background: `linear-gradient(to right, ${SPM_COLORS.success}, ${SPM_COLORS.successLight})`,
                                   borderRadius: 5,
                                   transition: "all 0.5s",
                                   width: `${(c.valor / maxV) * 100}%`,

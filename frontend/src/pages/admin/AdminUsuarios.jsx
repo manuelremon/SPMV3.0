@@ -347,19 +347,23 @@ function UsuariosTable({
       sortable: false,
       filter: false,
       cellRenderer: (params) => (
-        <IconButton
+        <Button
           size="small"
+          variant="text"
           onClick={() => onDelete && onDelete(params.data.id_spm)}
           disabled={!!deletingId}
           sx={{
-            color: "grey.400",
-            transition: "all 0.15s",
-            "&:hover": { color: "error.main", bgcolor: "error.50" },
+            textTransform: "none",
+            fontWeight: 600,
+            color: "error.main",
+            fontSize: "0.75rem",
+            minWidth: "auto",
+            px: 1,
+            "&:hover": { bgcolor: "error.lighter" },
           }}
-          aria-label="Eliminar usuario"
         >
-          <DeleteIcon sx={{ fontSize: 18 }} />
-        </IconButton>
+          Eliminar
+        </Button>
       ),
     },
   ], [onDelete, deletingId]);

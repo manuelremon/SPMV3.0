@@ -359,6 +359,7 @@ export function getTableColumnsAgGrid(t) {
       headerName: "Monto",
       minWidth: 120,
       type: "numericColumn",
+      cellStyle: { textAlign: 'right', paddingRight: '16px' },
       valueFormatter: (params) => formatCurrency(params.data?.total_monto || 0),
       cellRenderer: (params) => (
         <Box
@@ -368,7 +369,6 @@ export function getTableColumnsAgGrid(t) {
             fontSize: "0.75rem",
             fontVariantNumeric: "tabular-nums",
             fontWeight: 500,
-            textAlign: "right",
             display: "block",
             whiteSpace: "nowrap",
           }}

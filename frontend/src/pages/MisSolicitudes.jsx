@@ -53,6 +53,7 @@ import PlaceIcon from "@mui/icons-material/Place";
 import WarehouseIcon from "@mui/icons-material/Warehouse";
 import TagIcon from "@mui/icons-material/Tag";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import AddIcon from "@mui/icons-material/Add";
 
 const DEBOUNCE_MS = 300;
 
@@ -596,6 +597,7 @@ export default function MisSolicitudes() {
         headerName: "Monto",
         flex: 0.7,
         minWidth: 100,
+        cellStyle: { textAlign: 'right', paddingRight: '16px' },
         cellRenderer: (params) => (
           <Typography variant="body2" sx={{ fontFamily: "monospace", color: "text.primary" }}>
             {formatCurrency(params.value || 0)}
@@ -717,34 +719,41 @@ export default function MisSolicitudes() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <IconButton
-            onClick={() => navigate(-1)}
-            sx={{
-              color: "text.disabled",
-              border: 1,
-              borderColor: "transparent",
-              "&:hover": {
-                color: "text.secondary",
-                bgcolor: "background.paper",
-                borderColor: "divider",
-              },
-            }}
-          >
-            <ArrowBackIcon />
-          </IconButton>
-          <Box>
-            <Typography
-              variant="h5"
-              component="h1"
-              sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <IconButton
+              onClick={() => navigate(-1)}
+              sx={{
+                color: "text.disabled",
+                "&:hover": {
+                  color: "text.secondary",
+                  bgcolor: "background.paper",
+                  border: 1,
+                  borderColor: "divider",
+                },
+              }}
             >
-              {t("mis_page_title", "Mis Solicitudes")}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("mis_page_subtitle", "Gestiona tus solicitudes de materiales")}
-            </Typography>
+              <ArrowBackIcon />
+            </IconButton>
+            <Box>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{ fontWeight: 700, color: 'text.primary', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+              >
+                {t("mis_page_title", "Mis Solicitudes")}
+              </Typography>
+            </Box>
           </Box>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={() => navigate("/solicitudes/nueva")}
+            sx={{ textTransform: "none" }}
+          >
+            {t("btn_crear_solicitud", "Crear Solicitud")}
+          </Button>
         </Box>
 
         {/* Alertas */}
@@ -762,18 +771,18 @@ export default function MisSolicitudes() {
         {/* Main Card */}
         <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
           {/* Tabs */}
-          <Box sx={{ bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "grey.50" }}>
             <Tabs
               value={activeTab}
               onChange={(e, newValue) => setActiveTab(newValue)}
               variant="scrollable"
               scrollButtons="auto"
               sx={{
-                minHeight: 44,
+                minHeight: 48,
                 "& .MuiTab-root": {
-                  minHeight: 44,
+                  minHeight: 48,
                   textTransform: "none",
-                  fontWeight: 500,
+                  fontWeight: 600,
                   fontSize: "0.875rem",
                 },
               }}
@@ -789,10 +798,10 @@ export default function MisSolicitudes() {
                         size="small"
                         sx={{
                           height: 20,
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          bgcolor: activeTab === idx ? "primary.main" : "grey.300",
-                          color: activeTab === idx ? "common.white" : "text.secondary",
+                          fontSize: "0.625rem",
+                          fontWeight: 700,
+                          bgcolor: activeTab === idx ? "primary.light" : "grey.200",
+                          color: activeTab === idx ? "primary.dark" : "text.secondary",
                         }}
                       />
                     </Box>
