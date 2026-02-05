@@ -21,7 +21,7 @@
 | 4 | Aprobaciones | ALTA | ✅ 100% | 4h |
 | 5 | Planificación | CRÍTICA | ✅ 100% | 0.75h |
 | 6 | MRP | MEDIA | ✅ 100% | 0.5h |
-| 7 | Forecast y AI | MEDIA | ⏳ | 6h |
+| 7 | Forecast y AI | MEDIA | ✅ 100% | 0.25h |
 | 8 | Presupuestos | ALTA | ⏳ | 5h |
 | 9 | Procurement | BAJA | ⏳ | 4h |
 | 10 | Materiales | MEDIA | ⏳ | 5h |
@@ -127,12 +127,14 @@ solicitante_test / password123  # usuario
 
 3. ✅ **FASE 6: MRP** - COMPLETADA
 
-4. **FASE 7: Forecast y AI** (6 horas) ⏳ SIGUIENTE
-   - Modelos de predicción
-   - RAG y embeddings
-   - Agente ReAct
+4. ✅ **FASE 7: Forecast y AI** - COMPLETADA
 
-5. Continuar con FASES 8-16...
+5. **FASE 8: Presupuestos** (5 horas) ⏳ SIGUIENTE
+   - BUR (Budget Update Requests)
+   - Ledger de presupuesto
+   - Aprobación por niveles
+
+6. Continuar con FASES 9-16...
 
 ---
 
