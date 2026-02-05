@@ -15,7 +15,7 @@
 
 | Fase | Nombre | Prioridad | Estado | Duración |
 |------|--------|-----------|--------|----------|
-| 1 | Autenticación y Autorización | CRÍTICA | ⏳ | 4h |
+| 1 | Autenticación y Autorización | CRÍTICA | 🔄 30% | 4h |
 | 2 | Dashboards por Rol | ALTA | ⏳ | 6h |
 | 3 | Flujo de Solicitudes | CRÍTICA | ⏳ | 12h |
 | 4 | Aprobaciones | ALTA | ⏳ | 4h |
