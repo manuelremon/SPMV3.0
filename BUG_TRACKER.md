@@ -1,22 +1,24 @@
 # BUG TRACKER - SPM v3.0 Testing
 
-**Actualizado**: 2026-02-05
+**Actualizado**: 2026-02-05 (actualizado post-fix BUG-001)
 **Total Bugs**: 2
 **Críticos**: 0
-**Altos**: 1
+**Altos**: 1 (0 abiertos, 1 resuelto)
 **Menores**: 1
+**Resolución Rate**: 50%
 
 ---
 
-## BUG #1: Logout No Invalida Token ⚠️ ALTO
+## BUG #1: Logout No Invalida Token ✅ RESUELTO
 
 | Atributo | Valor |
 |----------|-------|
 | **ID** | BUG-001 |
 | **Severidad** | ALTO |
-| **Status** | ABIERTO |
+| **Status** | RESUELTO |
 | **Fase Encontrado** | FASE 2 |
 | **Componente** | Auth - Logout |
+| **Resuelto en** | Commit 0aca50a |
 
 ### Descripción
 Después de ejecutar `POST /api/auth/logout`, el token JWT sigue siendo válido para hacer requests a endpoints protegidos.
@@ -46,31 +48,53 @@ Después de logout, GET `/api/auth/me` debería retornar:
 }
 ```
 
-### Root Cause (Probable)
-El endpoint `/logout` no invalida el token. Las opciones incluyen:
-1. Implementar token blacklist en memoria/cache
-2. Usar cookie SameSite=Strict
-3. Validar logout timestamp en GET /me
+### Root Cause
+El endpoint `/logout` solo borraba las cookies pero no invalidaba el JWT token. Si alguien usaba el token en el header `Authorization`, seguía siendo válido.
+
+### Solución Implementada
+Implementación de **Token Blacklist** (OPCIÓN 1) usando memoria en el servidor:
+
+1. **Agregar UUID único (jti)** a cada token en `generate_tokens()`:
+   ```python
+   "jti": str(uuid.uuid4())  # JWT ID para revocation
+   ```
+
+2. **Crear clase `TokenBlacklist`** para mantener tokens revocados:
+   ```python
+   class TokenBlacklist:
+       def revoke(token_jti, exp_timestamp)  # Agregar a blacklist
+       def is_revoked(token_jti)  # Verificar revocation
+       def _cleanup()  # Auto-limpiar tokens expirados
+   ```
+
+3. **Modificar `logout()`** para revocar el token:
+   ```python
+   # Extraer jti del token
+   # Agregar a blacklist con su timestamp de expiración
+   _token_blacklist.revoke(token_jti, exp_timestamp)
+   ```
+
+4. **Modificar `_decode_token()`** para verificar blacklist:
+   ```python
+   if _token_blacklist.is_revoked(token_jti):
+       return 401 "Token was revoked"
+   ```
 
 ### Impact
-- **Security**: Sesión puede continuar siendo usada después de logout
-- **Users Afectados**: Todos
-- **Workaround**: Borrar cookies del navegador manualmente
+- **Security**: Sesiones se invalidan correctamente en logout ✓
+- **Performance**: Blacklist se auto-limpia cuando tokens expiran ✓
+- **Scope**: Aplicable a todos los endpoints protegidos ✓
 
-### Fix Recomendado
-```python
-# En backend/routes/auth.py - logout()
-# Guardar token revocado en caché por su timestamp
-revoked_tokens.add(token_exp_timestamp)
+### Tests
+- ✅ Unit tests confirmados (test_logout_fix_unit.py)
+- ✅ Tokens revocados rechazados con 401
+- ✅ Otros tokens no afectados
+- ✅ Auto-cleanup funciona
 
-# En GET /me - validar
-if token_exp_timestamp in revoked_tokens:
-    return 401
-```
-
-### Prioridad
-- **Fix antes de**: Producción
-- **Estimado**: 30 minutos
+### Estimado
+- **Implementado en**: 30 minutos
+- **Complejidad**: Media
+- **Tests**: 6 unit tests passed
 
 ---
 
@@ -129,8 +153,8 @@ Total Bugs:      2
 
 ## PRÓXIMAS ACCIONES
 
-### Inmediato (Antes de FASE 3)
-- [ ] Fix BUG-001: Implementar token blacklist en logout
+### Completadas
+- [x] Fix BUG-001: Implementar token blacklist en logout ✅ COMPLETADO
 
 ### Antes de Producción
 - [ ] Fix BUG-002: Agregar security headers a nginx
