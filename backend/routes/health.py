@@ -44,9 +44,34 @@ def _check_database(db_name: str = "spm") -> dict:
         Estado de la BD
     """
     try:
-        # BD principal (spm) usa PostgreSQL
+        # BD principal (spm) - detectar si es PostgreSQL o SQLite
         if db_name == "spm":
-            return _check_postgresql()
+            db_url = settings.DATABASE_URL or ""
+            # En desarrollo usamos SQLite (sqlite:///)
+            # En producción usamos PostgreSQL (postgresql://)
+            if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+                return _check_postgresql()
+            else:
+                # Desarrollo: usar SQLite
+                db_path = get_db_path(db_name)
+                if not db_path.exists():
+                    return {"status": "unavailable", "error": f"Database file not found: {db_path}"}
+
+                start = time.time()
+                conn = sqlite3.connect(str(db_path), timeout=5.0)
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                conn.close()
+                latency_ms = (time.time() - start) * 1000
+
+                return {
+                    "status": "healthy",
+                    "latency_ms": round(latency_ms, 2),
+                    "path": str(db_path),
+                    "size_mb": round(db_path.stat().st_size / 1024 / 1024, 2),
+                    "type": "sqlite",
+                }
 
         # BDs secundarias todavia usan SQLite (migracion pendiente)
         db_path = get_db_path(db_name)
