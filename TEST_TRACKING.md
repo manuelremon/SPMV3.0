@@ -24,7 +24,7 @@
 | 7 | Forecast y AI | MEDIA | ✅ 100% | 0.25h |
 | 8 | Presupuestos | ALTA | ✅ 89% | 0.2h |
 | 9 | Procurement | BAJA | ⚠️ 20% | 0.2h |
-| 10 | Materiales | MEDIA | ⏳ | 5h |
+| 10 | Materiales | MEDIA | ✅ 60% | 0.2h |
 | 11 | Comunicación | BAJA | ⏳ | 4h |
 | 12 | Usuario | MEDIA | ⏳ | 3h |
 | 13 | Admin | ALTA | ⏳ | 16h |
@@ -133,11 +133,14 @@ solicitante_test / password123  # usuario
 
 6. ⚠️ **FASE 9: Procurement** - PARCIAL (requiere datos SAP)
 
-7. **FASE 10: Materiales** (5 horas) ⏳ SIGUIENTE
-   - Catálogo de materiales
-   - Búsqueda y equivalencias
+7. ✅ **FASE 10: Materiales** - COMPLETADA (60% - requiere catálogo)
+   - Endpoints GET funcionan 100%
+   - CRUD equivalencias requiere catálogo poblado
 
-8. Continuar con FASES 11-16...
+8. **FASE 11: Comunicación** (4 horas) ⏳ SIGUIENTE
+   - Mensajes, notificaciones, foro
+
+9. Continuar con FASES 12-16...
 
 ---
 
