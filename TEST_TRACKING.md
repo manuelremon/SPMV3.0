@@ -19,7 +19,7 @@
 | 2 | Dashboards por Rol | ALTA | ✅ 100% | 2h |
 | 3 | Flujo de Solicitudes | CRÍTICA | ✅ 100% | 12h |
 | 4 | Aprobaciones | ALTA | ✅ 100% | 4h |
-| 5 | Planificación | CRÍTICA | ⏳ | 10h |
+| 5 | Planificación | CRÍTICA | ✅ 100% | 0.75h |
 | 6 | MRP | MEDIA | ⏳ | 6h |
 | 7 | Forecast y AI | MEDIA | ⏳ | 6h |
 | 8 | Presupuestos | ALTA | ⏳ | 5h |
@@ -122,16 +122,15 @@ solicitante_test / password123  # usuario
 
 ## Próximos Pasos
 
-1. **FASE 4: Aprobaciones** (4 horas) ⏳ EN CURSO
-   - Matriz de aprobación por monto
-   - Delegación de aprobaciones
-   - Historial de aprobaciones
+1. ✅ **FASE 4: Aprobaciones** - COMPLETADA
+2. ✅ **FASE 5: Planificación** - COMPLETADA
 
-2. **FASE 5: Planificación** (10 horas)
-   - Wizard 4 pasos
-   - Decisiones de abastecimiento
+3. **FASE 6: MRP** (6 horas) ⏳ SIGUIENTE
+   - Alertas MRP
+   - KPIs de materiales
+   - Motor de cálculo
 
-3. Continuar con FASES 6-16...
+4. Continuar con FASES 7-16...
 
 ---
 
