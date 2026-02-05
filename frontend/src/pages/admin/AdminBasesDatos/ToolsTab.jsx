@@ -33,6 +33,45 @@ import PeopleIcon from "@mui/icons-material/People";
 import UploadIcon from "@mui/icons-material/Upload";
 import { useI18n } from "../../../context/i18n";
 
+/* ─────────────────────────────────────────────────────────────
+   Reusable Tool Card
+───────────────────────────────────────────────────────────── */
+function ToolCard({ icon: Icon, iconColor, title, chipLabel, chipColor, description, disabled, children }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        borderRadius: 2,
+        overflow: 'hidden',
+        opacity: disabled ? 0.55 : 1,
+        transition: 'border-color 0.2s',
+        '&:hover': disabled ? {} : { borderColor: 'primary.main' },
+      }}
+    >
+      <Box sx={{ px: 2.5, py: 2, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Icon sx={{ fontSize: 20, color: iconColor }} />
+          <Typography variant="body2" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {title}
+          </Typography>
+          <Chip
+            label={chipLabel}
+            size="small"
+            color={chipColor}
+            sx={{ ml: 'auto', height: 20, fontSize: '0.625rem', fontWeight: 700 }}
+          />
+        </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          {description}
+        </Typography>
+      </Box>
+      <Box sx={{ p: 2.5 }}>
+        {children}
+      </Box>
+    </Paper>
+  );
+}
+
 export function ToolsTab({
   databases,
   selectedDb,
@@ -56,417 +95,373 @@ export function ToolsTab({
 }) {
   const { t } = useI18n();
 
+  const loadingIcon = <CircularProgress size={14} color="inherit" />;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-        <FormControl sx={{ minWidth: 200 }} size="small">
-          <InputLabel id="db-select-label">{t("db_select", "Base de datos")}</InputLabel>
-          <Select
-            labelId="db-select-label"
-            value={selectedDb}
-            onChange={(e) => onDbChange(e.target.value)}
-            label={t("db_select", "Base de datos")}
-          >
-            {databases.map((db) => (
-              <MenuItem key={db.name} value={db.name}>
-                {db.name} ({db.type === "postgresql" ? "PostgreSQL" : "SQLite"})
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
+      {/* DB Selector */}
+      <FormControl sx={{ maxWidth: 280 }} size="small">
+        <InputLabel id="tools-db-label">{t("db_select", "Base de datos")}</InputLabel>
+        <Select
+          labelId="tools-db-label"
+          value={selectedDb}
+          onChange={(e) => onDbChange(e.target.value)}
+          label={t("db_select", "Base de datos")}
+        >
+          {databases.map((db) => (
+            <MenuItem key={db.name} value={db.name}>
+              {db.name} ({db.type === "postgresql" ? "PostgreSQL" : "SQLite"})
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
+      {/* Tools Grid */}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: "repeat(2, 1fr)",
-            lg: "repeat(3, 1fr)",
-          },
-          gap: 2,
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" },
+          gap: 3,
         }}
       >
         {/* Optimizar */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <FlashOnIcon sx={{ fontSize: 20, color: "warning.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Optimizar
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {isPostgres ? "VACUUM ANALYZE" : "Indices + ANALYZE + VACUUM"}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="contained"
-              onClick={() => onRunOperation("optimize", "BD optimizada")}
-              disabled={operationLoading}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <FlashOnIcon />}
-            >
-              Ejecutar Optimizacion
-            </Button>
-          </Box>
-        </Paper>
+        <ToolCard
+          icon={FlashOnIcon}
+          iconColor="warning.main"
+          title="Optimizar"
+          chipLabel="All DBs"
+          chipColor="success"
+          description={isPostgres ? "VACUUM ANALYZE" : "Indices + ANALYZE + VACUUM"}
+        >
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => onRunOperation("optimize", "BD optimizada")}
+            disabled={operationLoading}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <FlashOnIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Ejecutar Optimizacion
+          </Button>
+        </ToolCard>
 
         {/* VACUUM */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <StorageIcon sx={{ fontSize: 20, color: "info.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                VACUUM
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Compactar y liberar espacio
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => onRunOperation("vacuum", "VACUUM completado")}
-              disabled={operationLoading}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <StorageIcon />}
-            >
-              Ejecutar VACUUM
-            </Button>
-          </Box>
-        </Paper>
+        <ToolCard
+          icon={StorageIcon}
+          iconColor="info.main"
+          title="VACUUM"
+          chipLabel="All DBs"
+          chipColor="success"
+          description="Compactar y liberar espacio"
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => onRunOperation("vacuum", "VACUUM completado")}
+            disabled={operationLoading}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <StorageIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Ejecutar VACUUM
+          </Button>
+        </ToolCard>
 
         {/* ANALYZE */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <AccessTimeIcon sx={{ fontSize: 20, color: "success.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                ANALYZE
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Actualizar estadisticas de tablas
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => onRunOperation("analyze", "ANALYZE completado")}
-              disabled={operationLoading}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <AccessTimeIcon />}
-            >
-              Ejecutar ANALYZE
-            </Button>
-          </Box>
-        </Paper>
+        <ToolCard
+          icon={AccessTimeIcon}
+          iconColor="success.main"
+          title="ANALYZE"
+          chipLabel="All DBs"
+          chipColor="success"
+          description="Actualizar estadisticas de tablas"
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => onRunOperation("analyze", "ANALYZE completado")}
+            disabled={operationLoading}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <AccessTimeIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Ejecutar ANALYZE
+          </Button>
+        </ToolCard>
 
         {/* Crear Indices */}
-        <Paper elevation={1} sx={{ p: 0, opacity: isPostgres ? 0.6 : 1 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <ListIcon sx={{ fontSize: 20, color: "primary.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Crear Indices
-              </Typography>
-              <Chip label="SQLite" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Indices recomendados para rendimiento
+        <ToolCard
+          icon={ListIcon}
+          iconColor="primary.main"
+          title="Crear Indices"
+          chipLabel="SQLite"
+          chipColor="warning"
+          description="Indices recomendados para rendimiento"
+          disabled={isPostgres}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => onRunOperation("create-indexes", "Indices creados")}
+            disabled={operationLoading || isPostgres}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <ListIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Crear Indices
+          </Button>
+          {isPostgres && (
+            <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+              No disponible para PostgreSQL
             </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => onRunOperation("create-indexes", "Indices creados")}
-              disabled={operationLoading || isPostgres}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <ListIcon />}
-            >
-              Crear Indices
-            </Button>
-            {isPostgres && (
-              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
-                No disponible para PostgreSQL
-              </Typography>
-            )}
-          </Box>
-        </Paper>
+          )}
+        </ToolCard>
 
         {/* Verificar Integridad */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <ShieldIcon sx={{ fontSize: 20, color: "error.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Verificar Integridad
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {isPostgres ? "Indices invalidos y fragmentacion" : "PRAGMA integrity_check"}
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Button
-              variant="outlined"
-              onClick={onIntegrityCheck}
-              disabled={operationLoading}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <ShieldIcon />}
+        <ToolCard
+          icon={ShieldIcon}
+          iconColor="error.main"
+          title="Verificar Integridad"
+          chipLabel="All DBs"
+          chipColor="success"
+          description={isPostgres ? "Indices invalidos y fragmentacion" : "PRAGMA integrity_check"}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onIntegrityCheck}
+            disabled={operationLoading}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <ShieldIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Verificar
+          </Button>
+          {integrityResult && (
+            <Box
+              sx={{
+                mt: 1.5,
+                p: 1.5,
+                borderRadius: 1,
+                bgcolor: integrityResult.integrity_ok ? "success.lighter" : "error.lighter",
+                border: 1,
+                borderColor: integrityResult.integrity_ok ? "success.light" : "error.light",
+              }}
             >
-              Verificar
-            </Button>
-            {integrityResult && (
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1,
-                  bgcolor: integrityResult.integrity_ok ? "success.lighter" : "error.lighter",
-                  border: 1,
-                  borderColor: integrityResult.integrity_ok ? "success.light" : "error.light",
-                }}
-              >
-                <Stack direction="row" alignItems="center" gap={1}>
-                  {integrityResult.integrity_ok ? (
-                    <CheckCircleIcon sx={{ fontSize: 20, color: "success.main" }} />
-                  ) : (
-                    <CancelIcon sx={{ fontSize: 20, color: "error.main" }} />
-                  )}
-                  <Typography variant="body2" fontWeight={500}>
-                    {integrityResult.integrity_ok ? "BD Integra" : "Problemas detectados"}
-                  </Typography>
-                </Stack>
-                {integrityResult.foreign_key_issues > 0 && (
-                  <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
-                    {integrityResult.foreign_key_issues} problemas de FK
-                  </Typography>
+              <Stack direction="row" alignItems="center" gap={1}>
+                {integrityResult.integrity_ok ? (
+                  <CheckCircleIcon sx={{ fontSize: 18, color: "success.main" }} />
+                ) : (
+                  <CancelIcon sx={{ fontSize: 18, color: "error.main" }} />
                 )}
-                {integrityResult.bloated_tables?.length > 0 && (
-                  <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
-                    {integrityResult.bloated_tables.length} tablas con fragmentacion
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-        </Paper>
+                <Typography variant="caption" fontWeight={600}>
+                  {integrityResult.integrity_ok ? "BD Integra" : "Problemas detectados"}
+                </Typography>
+              </Stack>
+              {integrityResult.foreign_key_issues > 0 && (
+                <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
+                  {integrityResult.foreign_key_issues} problemas de FK
+                </Typography>
+              )}
+              {integrityResult.bloated_tables?.length > 0 && (
+                <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 0.5 }}>
+                  {integrityResult.bloated_tables.length} tablas con fragmentacion
+                </Typography>
+              )}
+            </Box>
+          )}
+        </ToolCard>
 
         {/* Descargar Backup */}
-        <Paper elevation={1} sx={{ p: 0, opacity: isPostgres ? 0.6 : 1 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <DownloadIcon sx={{ fontSize: 20, color: "info.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Backup
-              </Typography>
-              <Chip label="SQLite" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Descargar copia de la BD
+        <ToolCard
+          icon={DownloadIcon}
+          iconColor="info.main"
+          title="Backup"
+          chipLabel="SQLite"
+          chipColor="warning"
+          description="Descargar copia de la BD"
+          disabled={isPostgres}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onDownloadDatabase}
+            disabled={isPostgres}
+            fullWidth
+            startIcon={<DownloadIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Descargar {selectedDb}.db
+          </Button>
+          {isPostgres && (
+            <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+              Use pg_dump para PostgreSQL
             </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={onDownloadDatabase}
-              disabled={isPostgres}
-              fullWidth
-              startIcon={<DownloadIcon />}
-            >
-              Descargar {selectedDb}.db
-            </Button>
-            {isPostgres && (
-              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
-                Use pg_dump para PostgreSQL
-              </Typography>
-            )}
-          </Box>
-        </Paper>
+          )}
+        </ToolCard>
 
         {/* Estadisticas de Tabla */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <BarChartIcon sx={{ fontSize: 20, color: "primary.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Estadisticas
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Ver tamaño, filas e indices de una tabla
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Stack direction="row" gap={1}>
-              <FormControl size="small" sx={{ flex: 1 }}>
-                <Select
-                  value={selectedTable || ""}
-                  onChange={(e) => onTableChange(e.target.value)}
-                  displayEmpty
-                >
-                  <MenuItem value="">Seleccionar tabla...</MenuItem>
-                  {tables.map((t) => (
-                    <MenuItem key={t.name} value={t.name}>
-                      {t.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Button
-                variant="outlined"
-                onClick={() => selectedTable && onLoadTableStats(selectedTable)}
-                disabled={operationLoading || !selectedTable}
+        <ToolCard
+          icon={BarChartIcon}
+          iconColor="primary.main"
+          title="Estadisticas"
+          chipLabel="All DBs"
+          chipColor="success"
+          description="Ver tamano, filas e indices de una tabla"
+        >
+          <Stack direction="row" gap={1}>
+            <FormControl size="small" sx={{ flex: 1 }}>
+              <Select
+                value={selectedTable || ""}
+                onChange={(e) => onTableChange(e.target.value)}
+                displayEmpty
+                sx={{ fontSize: '0.8125rem' }}
               >
-                <BarChartIcon />
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
+                <MenuItem value="">Seleccionar tabla...</MenuItem>
+                {tables.map((t) => (
+                  <MenuItem key={t.name} value={t.name}>
+                    {t.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => selectedTable && onLoadTableStats(selectedTable)}
+              disabled={operationLoading || !selectedTable}
+              sx={{ minWidth: 40 }}
+            >
+              <BarChartIcon fontSize="small" />
+            </Button>
+          </Stack>
+        </ToolCard>
 
         {/* Audit Logs */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <HistoryIcon sx={{ fontSize: 20, color: "warning.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Audit Log
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Ver historial de operaciones CRUD
-            </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={onLoadAuditLogs}
-              disabled={operationLoading}
-              fullWidth
-              startIcon={<HistoryIcon />}
-            >
-              Ver Ultimos 7 dias
-            </Button>
-          </Box>
-        </Paper>
+        <ToolCard
+          icon={HistoryIcon}
+          iconColor="warning.main"
+          title="Audit Log"
+          chipLabel="All DBs"
+          chipColor="success"
+          description="Ver historial de operaciones CRUD"
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onLoadAuditLogs}
+            disabled={operationLoading}
+            fullWidth
+            startIcon={<HistoryIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Ver Ultimos 7 dias
+          </Button>
+        </ToolCard>
 
         {/* Conexiones Activas */}
-        <Paper elevation={1} sx={{ p: 0, opacity: !isPostgres ? 0.6 : 1 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <PeopleIcon sx={{ fontSize: 20, color: "info.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Conexiones
-              </Typography>
-              <Chip label="PostgreSQL" size="small" color="info" sx={{ ml: "auto", fontSize: "0.75rem" }} />
-            </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Ver conexiones activas
+        <ToolCard
+          icon={PeopleIcon}
+          iconColor="info.main"
+          title="Conexiones"
+          chipLabel="PostgreSQL"
+          chipColor="info"
+          description="Ver conexiones activas"
+          disabled={!isPostgres}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onLoadConnections}
+            disabled={operationLoading || !isPostgres}
+            fullWidth
+            startIcon={operationLoading ? loadingIcon : <PeopleIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Ver Conexiones
+          </Button>
+          {!isPostgres && (
+            <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
+              Solo disponible para PostgreSQL
             </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={onLoadConnections}
-              disabled={operationLoading || !isPostgres}
-              fullWidth
-              startIcon={operationLoading ? <CircularProgress size={16} color="inherit" /> : <PeopleIcon />}
-            >
-              Ver Conexiones
-            </Button>
-            {!isPostgres && (
-              <Typography variant="caption" color="warning.main" sx={{ display: "block", mt: 1 }}>
-                Solo disponible para PostgreSQL
-              </Typography>
-            )}
-          </Box>
-        </Paper>
+          )}
+        </ToolCard>
 
         {/* Pool Stats */}
-        <Paper elevation={1} sx={{ p: 0 }}>
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-            <Stack direction="row" alignItems="center" gap={1}>
-              <ShowChartIcon sx={{ fontSize: 20, color: "success.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
-                Pool Stats
-              </Typography>
-              <Chip label="All DBs" size="small" color="success" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+        <ToolCard
+          icon={ShowChartIcon}
+          iconColor="success.main"
+          title="Pool Stats"
+          chipLabel="All DBs"
+          chipColor="success"
+          description="Estadisticas del pool de conexiones"
+        >
+          {poolStats ? (
+            <Stack spacing={1}>
+              {Object.entries(poolStats).map(([pool, stats]) => (
+                <Box key={pool} sx={{ p: 1.5, bgcolor: "grey.50", borderRadius: 1, border: 1, borderColor: 'divider' }}>
+                  <Typography variant="caption" fontWeight={600}>
+                    {pool}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    Activas: {stats.active || 0} | Idle: {stats.idle || 0}
+                  </Typography>
+                </Box>
+              ))}
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Estadisticas del pool de conexiones
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Cargando...
             </Typography>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            {poolStats ? (
-              <Stack spacing={1}>
-                {Object.entries(poolStats).map(([pool, stats]) => (
-                  <Box key={pool} sx={{ p: 1, bgcolor: "action.hover", borderRadius: 1 }}>
-                    <Typography variant="body2" fontWeight={500}>
-                      {pool}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Activas: {stats.active || 0} | Idle: {stats.idle || 0}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Cargando...
-              </Typography>
-            )}
-          </Box>
-        </Paper>
+          )}
+        </ToolCard>
 
         {/* Importar Datos Temporales */}
         <Paper
-          elevation={1}
+          variant="outlined"
           sx={{
-            p: 0,
-            border: 1,
-            borderColor: "warning.light",
-            background: "linear-gradient(to bottom right, rgba(237, 108, 2, 0.05), rgba(255, 152, 0, 0.05))",
+            borderRadius: 2,
+            overflow: 'hidden',
+            borderColor: 'warning.light',
           }}
         >
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+          <Box sx={{ px: 2, py: 1.5, bgcolor: 'rgba(237, 108, 2, 0.06)', borderBottom: 1, borderColor: 'warning.light' }}>
             <Stack direction="row" alignItems="center" gap={1}>
-              <UploadIcon sx={{ fontSize: 20, color: "warning.main" }} />
-              <Typography variant="subtitle1" fontWeight={600}>
+              <UploadIcon sx={{ fontSize: 18, color: "warning.main" }} />
+              <Typography variant="body2" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Datos Temporales
               </Typography>
-              <Chip label="MRP/Forecast" size="small" color="warning" sx={{ ml: "auto", fontSize: "0.75rem" }} />
+              <Chip
+                label="MRP/Forecast"
+                size="small"
+                color="warning"
+                sx={{ ml: 'auto', height: 20, fontSize: '0.625rem', fontWeight: 700 }}
+              />
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
               Importar Excel para operar MRP y Forecast con datos temporales
             </Typography>
           </Box>
           <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Typography variant="caption" color="text.secondary">
-              Permite trabajar con datos importados desde Excel sin afectar las bases de datos del sistema. Ideal para
-              pruebas y analisis.
+              Permite trabajar con datos importados desde Excel sin afectar las bases de datos del sistema.
             </Typography>
             <Button
               variant="contained"
+              size="small"
               color="warning"
               onClick={onOpenImportModal}
               disabled={tempModeActive}
               fullWidth
               startIcon={<UploadIcon />}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
             >
               {tempModeActive ? "Modo Temporal Activo" : "Importar Excel"}
             </Button>
             {tempModeActive && (
               <Typography variant="caption" color="warning.main" sx={{ textAlign: "center" }}>
-                Desactive el modo temporal desde el banner superior para importar nuevos datos
+                Desactive el modo temporal desde el banner superior
               </Typography>
             )}
           </Box>
@@ -474,8 +469,8 @@ export function ToolsTab({
       </Box>
 
       {isProduction && (
-        <Alert severity="info" icon={<WarningAmberIcon />} sx={{ mt: 2 }}>
-          PostgreSQL en produccion: Algunas operaciones (VACUUM, Optimize) funcionan pero requieren permisos adecuados.
+        <Alert severity="info" icon={<WarningAmberIcon />}>
+          PostgreSQL en produccion: Algunas operaciones requieren permisos adecuados.
         </Alert>
       )}
     </Box>

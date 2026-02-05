@@ -259,6 +259,19 @@ export { default as Volume1 } from '@mui/icons-material/VolumeDown';
 export { default as Volume } from '@mui/icons-material/VolumeMute';
 
 // ============================================================================
+// TRANSPORTE Y FLOTA
+// ============================================================================
+export { default as Fuel } from '@mui/icons-material/LocalGasStation';
+export { default as Route } from '@mui/icons-material/Route';
+export { default as DirectionsCar } from '@mui/icons-material/DirectionsCar';
+export { default as Engineering } from '@mui/icons-material/Engineering';
+export { default as BuildCircle } from '@mui/icons-material/BuildCircle';
+export { default as LocalShipping } from '@mui/icons-material/LocalShipping';
+export { default as Inventory } from '@mui/icons-material/Inventory';
+export { default as Assignment } from '@mui/icons-material/Assignment';
+export { default as LinearScaleIcon } from '@mui/icons-material/LinearScale';
+
+// ============================================================================
 // DASHBOARD Y ADMIN
 // ============================================================================
 export { default as Dashboard } from '@mui/icons-material/Dashboard';

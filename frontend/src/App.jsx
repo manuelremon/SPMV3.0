@@ -83,6 +83,29 @@ const AnalisisPuntualHome = lazy(() => import('./pages/admin/AnalisisPuntualHome
 const AnalisisPuntualMRP = lazy(() => import('./pages/admin/AnalisisPuntualMRP'))
 const AnalisisPuntualForecast = lazy(() => import('./pages/admin/AnalisisPuntualForecast'))
 
+// TMS pages (lazy-loaded)
+const ShipmentsList = lazy(() => import('./pages/tms/ShipmentsList'))
+const ShipmentDetail = lazy(() => import('./pages/tms/ShipmentDetail'))
+const ShipmentCreate = lazy(() => import('./pages/tms/ShipmentCreate'))
+const Consolidation = lazy(() => import('./pages/tms/Consolidation'))
+const TMSRoutes = lazy(() => import('./pages/tms/Routes'))
+const TripSettlement = lazy(() => import('./pages/tms/TripSettlement'))
+const TMSKPIs = lazy(() => import('./pages/tms/TMSKPIs'))
+const TariffRules = lazy(() => import('./pages/tms/TariffRules'))
+
+// FMS pages (lazy-loaded)
+const VehiclesList = lazy(() => import('./pages/fms/VehiclesList'))
+const VehicleDetail = lazy(() => import('./pages/fms/VehicleDetail'))
+const DriversList = lazy(() => import('./pages/fms/DriversList'))
+const WorkOrders = lazy(() => import('./pages/fms/WorkOrders'))
+const WorkOrderDetail = lazy(() => import('./pages/fms/WorkOrderDetail'))
+const FMSKPIs = lazy(() => import('./pages/fms/FMSKPIs'))
+
+// Dashboards editables (lazy-loaded)
+const Dashboards = lazy(() => import('./pages/Dashboards'))
+const DashboardEditor = lazy(() => import('./pages/DashboardEditor'))
+const SpreadsheetShared = lazy(() => import('./pages/SpreadsheetShared'))
+
 function App() {
   const { user, isLoading, getCurrentUser } = useAuthStore()
   const [appLoading, setAppLoading] = useState(true)
@@ -156,6 +179,26 @@ function App() {
             <Route path="/ayuda" element={<ProtectedRoute><Ayuda /></ProtectedRoute>} />
             <Route path="/trivias" element={<ProtectedRoute><Trivias /></ProtectedRoute>} />
             <Route path="/foro" element={<ProtectedRoute><Foro /></ProtectedRoute>} />
+            <Route path="/dashboards" element={<ProtectedRoute><Dashboards /></ProtectedRoute>} />
+            <Route path="/dashboards/:uuid" element={<ProtectedRoute><DashboardEditor /></ProtectedRoute>} />
+            <Route path="/shared/:token" element={<SpreadsheetShared />} />
+            {/* TMS Routes */}
+            <Route path="/tms/shipments" element={<ProtectedRoute><ShipmentsList /></ProtectedRoute>} />
+            <Route path="/tms/shipments/new" element={<ProtectedRoute><ShipmentCreate /></ProtectedRoute>} />
+            <Route path="/tms/shipments/:id" element={<ProtectedRoute><ShipmentDetail /></ProtectedRoute>} />
+            <Route path="/tms/consolidation" element={<ProtectedRoute><Consolidation /></ProtectedRoute>} />
+            <Route path="/tms/routes" element={<ProtectedRoute><TMSRoutes /></ProtectedRoute>} />
+            <Route path="/tms/settlements" element={<ProtectedRoute><TripSettlement /></ProtectedRoute>} />
+            <Route path="/tms/kpis" element={<ProtectedRoute><TMSKPIs /></ProtectedRoute>} />
+            <Route path="/tms/tariffs" element={<ProtectedRoute><TariffRules /></ProtectedRoute>} />
+            {/* FMS Routes */}
+            <Route path="/fms/vehicles" element={<ProtectedRoute><VehiclesList /></ProtectedRoute>} />
+            <Route path="/fms/vehicles/:id" element={<ProtectedRoute><VehicleDetail /></ProtectedRoute>} />
+            <Route path="/fms/drivers" element={<ProtectedRoute><DriversList /></ProtectedRoute>} />
+            <Route path="/fms/work-orders" element={<ProtectedRoute><WorkOrders /></ProtectedRoute>} />
+            <Route path="/fms/work-orders/:id" element={<ProtectedRoute><WorkOrderDetail /></ProtectedRoute>} />
+            <Route path="/fms/kpis" element={<ProtectedRoute><FMSKPIs /></ProtectedRoute>} />
+            {/* Admin Routes */}
             <Route path="/admin/centros" element={<ProtectedRoute roles={['administrador', 'admin']}><AdminCentros /></ProtectedRoute>} />
             <Route path="/admin/almacenes" element={<ProtectedRoute roles={['administrador', 'admin']}><AdminAlmacenes /></ProtectedRoute>} />
             <Route path="/admin/sectores" element={<ProtectedRoute roles={['administrador', 'admin']}><AdminSectores /></ProtectedRoute>} />

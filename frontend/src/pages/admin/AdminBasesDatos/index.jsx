@@ -183,39 +183,41 @@ export default function AdminBasesDatos() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "grey.100" }}>
-      <Box sx={{ maxWidth: 1600, mx: "auto", px: 3, py: 3 }}>
-
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}>
-          <IconButton
-            onClick={() => navigate(-1)}
-            size="small"
-            sx={{
-              color: "text.secondary",
-              "&:hover": {
-                color: "text.primary",
-                bgcolor: "grey.200",
-              },
-            }}
-          >
-            <ArrowBackIcon fontSize="small" />
-          </IconButton>
-          <Box>
-            <Typography
-              variant="subtitle1"
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <IconButton
+              onClick={() => navigate(-1)}
               sx={{
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.primary",
+                color: "text.disabled",
+                "&:hover": {
+                  color: "text.secondary",
+                  bgcolor: "background.paper",
+                  border: 1,
+                  borderColor: "divider",
+                },
               }}
             >
-              {t("admin_bases_datos", "Bases de Datos")}
-            </Typography>
-            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              {db.isProduction ? "PostgreSQL (Produccion)" : "SQLite (Desarrollo)"}
-            </Typography>
+              <ArrowBackIcon />
+            </IconButton>
+            <Box>
+              <Typography
+                variant="h5"
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  color: "text.primary",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {t("admin_bases_datos", "Bases de Datos")}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {db.isProduction ? "PostgreSQL (Produccion)" : "SQLite (Desarrollo)"}
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
@@ -223,7 +225,6 @@ export default function AdminBasesDatos() {
         {db.error && (
           <Alert
             severity="error"
-            sx={{ mb: 2 }}
             onClose={() => db.setError("")}
           >
             {db.error}
@@ -232,7 +233,6 @@ export default function AdminBasesDatos() {
         {db.success && (
           <Alert
             severity="success"
-            sx={{ mb: 2 }}
             onClose={db.clearMessages}
           >
             {db.success}
@@ -243,32 +243,19 @@ export default function AdminBasesDatos() {
         <TempDataBanner onStatusChange={setTempModeActive} />
 
         {/* Card con Tabs */}
-        <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
           {/* Tabs Header */}
-          <Box sx={{ bgcolor: "grey.50", borderBottom: 1, borderColor: "divider" }}>
+          <Box sx={{ borderBottom: 1, borderColor: "divider", bgcolor: "grey.50" }}>
             <Tabs
               value={activeTab}
               onChange={handleTabChange}
               sx={{
+                minHeight: 48,
                 "& .MuiTab-root": {
-                  px: 2.5,
-                  py: 1.5,
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  textTransform: "none",
                   minHeight: 48,
-                  color: "text.secondary",
-                  "&.Mui-selected": {
-                    color: "primary.main",
-                    bgcolor: "background.paper",
-                  },
-                  "&:hover": {
-                    color: "text.primary",
-                    bgcolor: "grey.100",
-                  },
-                },
-                "& .MuiTabs-indicator": {
-                  height: 2,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
                 },
               }}
             >
@@ -409,7 +396,6 @@ export default function AdminBasesDatos() {
             setImportExcelModal(false);
           }}
         />
-      </Box>
     </Box>
   );
 }

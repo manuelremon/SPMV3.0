@@ -53,6 +53,7 @@ import {
   Clock,
   BarChart2,
   LineChart,
+  FileSpreadsheet,
   Menu as MenuIcon,
   X,
   ICON_COLORS,
@@ -97,6 +98,14 @@ const getMainNavItems = (canApprove) => [
       { trKey: "nav_stock_masivo", label: "Stock Masivo", to: "/materiales/stock", icon: Boxes, iconName: "Boxes" },
       { trKey: "nav_stock_individual", label: "Stock Individual", to: "/materiales/stock-individual", icon: Package, iconName: "Package" },
     ],
+  },
+  {
+    key: "dashboards",
+    trKey: "nav_dashboards",
+    label: "Dashboards",
+    icon: FileSpreadsheet,
+    iconName: "FileSpreadsheet",
+    to: "/dashboards",
   },
 ];
 
@@ -152,6 +161,41 @@ const plannerNavItems = [
 ];
 
 
+// TMS/FMS Navigation - visible to admin, dispatcher, fleet_manager, driver
+const tmsNavItems = [
+  {
+    key: "tms",
+    trKey: "nav_tms",
+    label: "Transporte",
+    icon: Truck,
+    iconName: "Truck",
+    children: [
+      { trKey: "nav_tms_envios", label: "Envios", to: "/tms/shipments", icon: Package, iconName: "Package" },
+      { trKey: "nav_tms_consolidacion", label: "Consolidacion LTL", to: "/tms/consolidation", icon: Boxes, iconName: "Boxes" },
+      { trKey: "nav_tms_rutas", label: "Rutas", to: "/tms/routes", icon: MapPin, iconName: "MapPin" },
+      { trKey: "nav_tms_cierres", label: "Cierres Financieros", to: "/tms/settlements", icon: Wallet, iconName: "Wallet" },
+      { trKey: "nav_tms_tarifas", label: "Tarifas", to: "/tms/tariffs", icon: ClipboardList, iconName: "ClipboardList" },
+      { trKey: "nav_tms_kpis", label: "KPIs Transporte", to: "/tms/kpis", icon: BarChart2, iconName: "BarChart2" },
+    ],
+  },
+];
+
+const fmsNavItems = [
+  {
+    key: "fms",
+    trKey: "nav_fms",
+    label: "Flota",
+    icon: Truck,
+    iconName: "Truck",
+    children: [
+      { trKey: "nav_fms_vehiculos", label: "Vehiculos", to: "/fms/vehicles", icon: Truck, iconName: "Truck" },
+      { trKey: "nav_fms_conductores", label: "Conductores", to: "/fms/drivers", icon: User, iconName: "User" },
+      { trKey: "nav_fms_ots", label: "Ordenes de Trabajo", to: "/fms/work-orders", icon: Workflow, iconName: "Workflow" },
+      { trKey: "nav_fms_kpis", label: "KPIs Flota", to: "/fms/kpis", icon: BarChart2, iconName: "BarChart2" },
+    ],
+  },
+];
+
 const adminNavHierarchy = [
   {
     key: "registros",
@@ -182,6 +226,7 @@ const adminNavHierarchy = [
     iconName: "Server",
     children: [
       { trKey: "admin_estado", label: "Estado del Sistema", to: "/admin/estado", icon: Activity, iconName: "Activity" },
+      { trKey: "admin_dashboards", label: "Dashboard 2", to: "/dashboards", icon: FileSpreadsheet, iconName: "FileSpreadsheet" },
       {
         key: "analisis-puntual",
         trKey: "admin_cat_analisis_puntual",
@@ -659,6 +704,31 @@ function Sidebar({ collapsed, onToggle }) {
           )}
           <List disablePadding>
             {plannerNavItems.map((item) => renderNavItem(item))}
+          </List>
+        </>
+      )}
+
+      {/* Section: Transporte (TMS) */}
+      {(isAdmin() || canSeePlanner) && (
+        <>
+          {!collapsed && (
+            <Box sx={{ pt: 1, pb: 0.5, px: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: '8px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: 'var(--fg-muted)',
+                }}
+              >
+                {t("nav_logistica", "Logistica")}
+              </Typography>
+            </Box>
+          )}
+          <List disablePadding>
+            {tmsNavItems.map((item) => renderNavItem(item))}
+            {fmsNavItems.map((item) => renderNavItem(item))}
           </List>
         </>
       )}

@@ -26,6 +26,7 @@ def register_blueprints(app: Flask) -> None:
         auth,
         budget,
         catalogos,
+        dashboards,
         database,
         docs,
         equivalencias,
@@ -103,3 +104,11 @@ def register_blueprints(app: Flask) -> None:
 
     # External integrations
     app.register_blueprint(procurement.procurement_bp)  # SAP Procurement data at /api/procurement
+
+    # Dashboards editables
+    app.register_blueprint(dashboards.bp)  # Editable spreadsheet dashboards at /api/dashboards
+
+    # Transport and Fleet Management
+    from backend.routes import tms, fms
+    app.register_blueprint(tms.bp)  # TMS (Transport Management) at /api/tms
+    app.register_blueprint(fms.bp)  # FMS (Fleet Management) at /api/fms

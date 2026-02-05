@@ -1,6 +1,5 @@
 /**
  * OverviewTab - Vista general de bases de datos
- * Migrated to Material UI
  */
 
 import {
@@ -12,6 +11,7 @@ import {
   Chip,
   Grid,
   CircularProgress,
+  LinearProgress,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import StorageIcon from '@mui/icons-material/Storage';
@@ -32,12 +32,12 @@ export function OverviewTab({
       {/* Refresh Button */}
       <Stack direction="row" justifyContent="flex-end">
         <Button
-          variant="text"
+          variant="outlined"
           size="small"
-          startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+          startIcon={loading ? <CircularProgress size={14} /> : <RefreshIcon />}
           onClick={onRefresh}
           disabled={loading}
-          sx={{ textTransform: 'none' }}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
         >
           {t("common_actualizar", "Actualizar")}
         </Button>
@@ -49,105 +49,98 @@ export function OverviewTab({
           <CircularProgress />
         </Box>
       ) : (
-        <Grid container spacing={2}>
-          {databases.map((db) => (
-            <Grid item xs={12} md={6} lg={3} key={db.name}>
-              <Paper
-                elevation={1}
-                sx={{
-                  '&:hover': { boxShadow: 3 },
-                  transition: 'box-shadow 0.2s ease-in-out',
-                }}
-              >
-                {/* Card Header */}
-                <Box sx={{ p: 2, pb: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <StorageIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-                      <Typography
-                        variant="subtitle2"
-                        fontWeight={600}
-                        sx={{ textTransform: 'uppercase' }}
-                      >
-                        {db.name}
-                      </Typography>
+        <Grid container spacing={3}>
+          {databases.map((db) => {
+            const maxSize = Math.max(...databases.map(d => d.size_mb || 1), 1);
+            const pct = ((db.size_mb || 0) / maxSize) * 100;
+            return (
+              <Grid item xs={12} sm={6} lg={6} key={db.name}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    transition: 'border-color 0.2s',
+                    '&:hover': { borderColor: 'primary.main' },
+                  }}
+                >
+                  {/* Card Header */}
+                  <Box sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <StorageIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                        <Typography variant="body2" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          {db.name}
+                        </Typography>
+                      </Stack>
+                      <Chip
+                        label={db.status}
+                        size="small"
+                        color={db.status === "online" ? "success" : "error"}
+                        sx={{ height: 20, fontSize: '0.625rem', fontWeight: 700 }}
+                      />
                     </Stack>
-                    <Chip
-                      label={db.status}
-                      size="small"
-                      color={db.status === "online" ? "success" : "error"}
-                      variant="outlined"
-                    />
-                  </Stack>
-                </Box>
+                  </Box>
 
-                {/* Card Content */}
-                <Box sx={{ p: 2, pt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Tipo
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                      {db.type}
-                    </Typography>
-                  </Stack>
+                  {/* Card Content */}
+                  <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {[
+                      { label: 'Tipo', value: db.type },
+                      { label: 'Tablas', value: db.tables },
+                      { label: 'Registros', value: db.records?.toLocaleString() || "0" },
+                      { label: 'Latencia', value: `${db.latency_ms} ms` },
+                    ].map(({ label, value }) => (
+                      <Stack key={label} direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          {label}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                          {value}
+                        </Typography>
+                      </Stack>
+                    ))}
 
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Tamano
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                      {formatSize(db.size_mb)}
-                    </Typography>
-                  </Stack>
-
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Tablas
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                      {db.tables}
-                    </Typography>
-                  </Stack>
-
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Registros
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                      {db.records?.toLocaleString() || "-"}
-                    </Typography>
-                  </Stack>
-
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Latencia
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                      {db.latency_ms} ms
-                    </Typography>
-                  </Stack>
-                </Box>
-              </Paper>
-            </Grid>
-          ))}
+                    {/* Size bar */}
+                    <Box sx={{ mt: 0.5 }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                          Tamano
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 700, color: 'primary.main' }}>
+                          {formatSize(db.size_mb)}
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={pct}
+                        sx={{
+                          height: 4,
+                          borderRadius: 2,
+                          bgcolor: 'grey.100',
+                          '& .MuiLinearProgress-bar': { borderRadius: 2 },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            );
+          })}
         </Grid>
       )}
 
       {/* Pool Stats */}
       {poolStats && Object.keys(poolStats).length > 0 && (
-        <Paper elevation={1}>
-          {/* Pool Header */}
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+          <Box sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
             <Stack direction="row" alignItems="center" spacing={1}>
-              <DnsIcon sx={{ fontSize: 20, color: 'secondary.main' }} />
-              <Typography variant="h6" fontWeight={600}>
+              <DnsIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+              <Typography variant="body2" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {t("db_pool_stats", "Pool de Conexiones")}
               </Typography>
             </Stack>
           </Box>
 
-          {/* Pool Content */}
           <Box sx={{ p: 2 }}>
             <Grid container spacing={2}>
               {Object.entries(poolStats).map(([name, stats]) => (
@@ -161,23 +154,26 @@ export function OverviewTab({
                       borderColor: 'divider',
                     }}
                   >
-                    <Typography variant="body2" fontWeight={500} color="text.primary">
+                    <Typography variant="body2" fontWeight={600} color="text.primary" sx={{ mb: 1 }}>
                       {name}
                     </Typography>
-                    <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Creadas: {stats.created || 0}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Reutilizadas: {stats.reused || 0}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Expiradas: {stats.expired || 0}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Errores: {stats.errors || 0}
-                      </Typography>
-                    </Box>
+                    <Stack spacing={0.5}>
+                      {[
+                        { label: 'Creadas', value: stats.created || 0, color: 'success.main' },
+                        { label: 'Reutilizadas', value: stats.reused || 0, color: 'info.main' },
+                        { label: 'Expiradas', value: stats.expired || 0, color: 'warning.main' },
+                        { label: 'Errores', value: stats.errors || 0, color: stats.errors > 0 ? 'error.main' : 'text.secondary' },
+                      ].map(({ label, value, color }) => (
+                        <Stack key={label} direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" color="text.secondary">
+                            {label}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 600, color }}>
+                            {value}
+                          </Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
                   </Box>
                 </Grid>
               ))}
