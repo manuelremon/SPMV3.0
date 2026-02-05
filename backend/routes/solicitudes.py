@@ -1007,7 +1007,9 @@ def aprobar_solicitud(solicitud_id):
         )
     except Exception as e:
         # FIX: Cualquier otro error también debe revertir el presupuesto
+        import traceback
         logger.error(f"Error inesperado en aprobación de solicitud {solicitud_id}: {e}")
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         _revertir_presupuesto_aprobacion_fallida(
             solicitud_id=solicitud_id,
             solicitud=solicitud,
