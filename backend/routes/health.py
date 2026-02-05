@@ -47,11 +47,14 @@ def _check_database(db_name: str = "spm") -> dict:
         # BD principal (spm) - detectar si es PostgreSQL o SQLite
         if db_name == "spm":
             db_url = settings.DATABASE_URL or ""
+            logger.debug(f"[health] Checking spm DB with URL: {db_url[:50]}...")
             # En desarrollo usamos SQLite (sqlite:///)
             # En producción usamos PostgreSQL (postgresql://)
             if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+                logger.debug("[health] Detected PostgreSQL, calling _check_postgresql()")
                 return _check_postgresql()
             else:
+                logger.debug("[health] Detected SQLite, using local file check")
                 # Desarrollo: usar SQLite
                 db_path = get_db_path(db_name)
                 if not db_path.exists():
@@ -93,10 +96,12 @@ def _check_database(db_name: str = "spm") -> dict:
             "size_mb": round(db_path.stat().st_size / 1024 / 1024, 2),
         }
 
-    except sqlite3.Error as e:
+    except sqlite3.OperationalError as e:
         return {"status": "unhealthy", "error": str(e)}
     except Exception as e:
-        return {"status": "error", "error": str(e)}
+        # Log the full exception for debugging
+        logger.debug(f"Unexpected error in _check_database({db_name}): {type(e).__name__}: {e}")
+        return {"status": "error", "error": f"{type(e).__name__}: {str(e)[:100]}"}
 
 
 def _check_postgresql() -> dict:
