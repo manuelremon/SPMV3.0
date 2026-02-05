@@ -67,8 +67,38 @@ class RateLimiter:
         self._attempts.pop(key, None)
 
 
+# =============================================================================
+# Token Blacklist (en memoria) - Para invalidar tokens en logout
+# =============================================================================
+class TokenBlacklist:
+    """
+    Blacklist de tokens JWT revocados.
+    Almacena tokens revocados con su exp time para limpiar automáticamente.
+    """
+
+    def __init__(self):
+        self._revoked: Dict[str, float] = {}  # {token_jti: exp_timestamp}
+
+    def revoke(self, token_jti: str, exp_timestamp: float) -> None:
+        """Agrega un token a la blacklist con su tiempo de expiración"""
+        self._revoked[token_jti] = exp_timestamp
+
+    def is_revoked(self, token_jti: str) -> bool:
+        """Verifica si un token está revocado"""
+        self._cleanup()
+        return token_jti in self._revoked
+
+    def _cleanup(self) -> None:
+        """Elimina tokens expirados de la blacklist"""
+        now = time.time()
+        self._revoked = {k: v for k, v in self._revoked.items() if v > now}
+
+
 # Rate limiter global: 10 intentos cada 5 minutos por IP
 _login_limiter = RateLimiter(max_attempts=10, window_seconds=300)
+
+# Token blacklist global
+_token_blacklist = TokenBlacklist()
 
 
 def _get_user(username: str):
@@ -114,18 +144,20 @@ def _get_user_by_id(user_id: str):
 
 
 def generate_tokens(user_id: str) -> dict:
-    """Generate access and refresh tokens"""
+    """Generate access and refresh tokens with unique JWT ID (jti)"""
     now = datetime.utcnow()
 
     access_payload = {
         "user_id": user_id,
         "type": "access",
+        "jti": str(uuid.uuid4()),  # Unique JWT ID for revocation
         "iat": now,
         "exp": now + timedelta(seconds=settings.JWT_ACCESS_TOKEN_EXPIRES),
     }
     refresh_payload = {
         "user_id": user_id,
         "type": "refresh",
+        "jti": str(uuid.uuid4()),  # Unique JWT ID for revocation
         "iat": now,
         "exp": now + timedelta(seconds=settings.JWT_REFRESH_TOKEN_EXPIRES),
     }
@@ -163,6 +195,20 @@ def _decode_token(expected_type: str, cookie_name: str) -> Dict[str, Any] | tupl
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != expected_type:
             raise InvalidTokenError("Invalid token type")
+
+        # Verificar si el token está revocado en la blacklist
+        token_jti = payload.get("jti")
+        if token_jti and _token_blacklist.is_revoked(token_jti):
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "error": {"code": "unauthorized", "message": "Token was revoked"},
+                    }
+                ),
+                401,
+            )
+
         return payload
     except InvalidTokenError:
         return (
@@ -413,7 +459,27 @@ def refresh():
 
 @bp.route("/logout", methods=["POST"])
 def logout():
-    """Logout"""
+    """Logout - invalida token en blacklist"""
+    # Intentar obtener el token actual para revocarlo
+    token = _get_token_from_request("spm_token")
+    if token:
+        try:
+            # Decodificar sin verificar expiración para revocar incluso si expiró
+            payload = jwt.decode(
+                token, settings.JWT_SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False}
+            )
+            token_jti = payload.get("jti")
+            exp_timestamp = payload.get("exp")
+
+            # Agregar a blacklist si es válido
+            if token_jti and exp_timestamp:
+                _token_blacklist.revoke(token_jti, float(exp_timestamp))
+                logging.getLogger(__name__).info(
+                    f"Token revocado para usuario {payload.get('user_id')}"
+                )
+        except Exception as e:
+            logging.getLogger(__name__).debug(f"Logout: No se pudo revocar token: {e}")
+
     response = jsonify({"ok": True, "message": "Logged out successfully"})
 
     response.set_cookie("spm_token", "", max_age=0, path="/")
