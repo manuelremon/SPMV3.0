@@ -1322,6 +1322,101 @@ def cancelar_solicitud(solicitud_id):
     return get_solicitud(solicitud_id)
 
 
+@bp.route("/<int:solicitud_id>/reenviar", methods=["PUT", "POST"])
+@require_auth
+def reenviar_solicitud(solicitud_id):
+    """
+    Reenviar solicitud rechazada para nueva aprobación.
+    Transición: rejected → submitted
+    Máximo 2 reenvíos permitidos (validación de reenvíos).
+    """
+    actor_id = str(g.user.get("user_id", ""))
+
+    # 1. Obtener solicitud
+    solicitud = _get_raw(solicitud_id)
+    if not solicitud:
+        return (
+            jsonify(
+                {"ok": False, "error": {"code": "not_found", "message": "Solicitud not found"}}
+            ),
+            404,
+        )
+
+    # 2. SEGURIDAD: Solo el owner puede reenviar
+    owner_id = str(solicitud.get("id_usuario") or solicitud.get("solicitante_id") or "")
+    if str(actor_id) != owner_id:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "forbidden",
+                        "message": "Solo el solicitante puede reenviar esta solicitud",
+                    },
+                }
+            ),
+            403,
+        )
+
+    # 3. Validar que esté en estado rejected
+    estado_actual = normalizar_estado(solicitud.get("status") or "")
+    if estado_actual != "rejected":
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "invalid_state",
+                        "message": f"Solicitud debe estar rechazada, estado actual: {estado_actual}",
+                    },
+                }
+            ),
+            400,
+        )
+
+    # 4. Validar máximo de reenvíos (máximo 2)
+    with get_db_connection() as conn:
+        cur = conn.cursor()
+        # Contar transiciones de rejected → submitted
+        cur.execute(
+            """SELECT COUNT(*) as reenvios FROM solicitud_historial_estado
+               WHERE solicitud_id = ? AND estado_anterior = 'rejected' AND estado_nuevo = 'submitted'""",
+            (solicitud_id,),
+        )
+        row = cur.fetchone()
+        reenvios = row["reenvios"] if isinstance(row, dict) else row[0]
+
+    if reenvios >= 2:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "max_reenvios_exceeded",
+                        "message": f"Número máximo de reenvíos (2) excedido. Reenvíos actuales: {reenvios}",
+                    },
+                }
+            ),
+            400,
+        )
+
+    # 5. Transicionar a submitted
+    data = request.get_json(silent=True) or {}
+    razon_reenvio = (data.get("razon_reenvio") or "").strip()
+
+    # 6. Hacer transición
+    cambio_estado(
+        solicitud_id=solicitud_id,
+        estado_nuevo=EstadoSolicitud.SUBMITTED,
+        actor_id=actor_id,
+        razon=razon_reenvio or f"Reenvío #{reenvios + 1}",
+    )
+
+    logger.info(f"[REENVIAR] Solicitud {solicitud_id} reenviada (reenvío #{reenvios + 1})")
+
+    return get_solicitud(solicitud_id)
+
+
 @bp.route("/<int:solicitud_id>/comentar", methods=["POST"])
 @require_auth
 def comentar_solicitud(solicitud_id):
@@ -1447,15 +1542,15 @@ def get_transiciones_posibles(solicitud_id):
         )
 
     estado_actual = normalizar_estado(solicitud.get("status") or "")
-    transiciones_raw = fsm_transiciones(estado_actual)
+    transiciones_display = fsm_transiciones(estado_actual)  # Retorna strings display names
 
     # Obtener información del usuario para validar permisos
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute("SELECT rol, centro FROM usuario WHERE id_spm = ?", (user_id,))
         user_row = cur.fetchone()
-        user_rol = user_row["rol"] if user_row else ""
-        user_centro = user_row["centro"] if user_row else None
+        user_rol = user_row["rol"] if isinstance(user_row, dict) else user_row[1] if user_row else ""
+        user_centro = user_row["centro"] if isinstance(user_row, dict) else user_row[2] if user_row else None
 
     # FIX 2.1: Enriquecer transiciones con validación de permisos
     transiciones_con_permisos = []
@@ -1464,18 +1559,23 @@ def get_transiciones_posibles(solicitud_id):
     es_admin = "admin" in (user_rol or "").lower()
 
     # Calcular total de la solicitud para validar aprobación
-    items_json = solicitud.get("items") or "[]"
+    items_json = solicitud.get("data_json") or "{}"
     try:
-        items = json.loads(items_json) if isinstance(items_json, str) else items_json
+        extra = json.loads(items_json) if isinstance(items_json, str) else items_json
+        items = extra.get("items", [])
     except (json.JSONDecodeError, TypeError):
         items = []
     total_solicitud = _calcular_total(items)
 
-    for transicion in transiciones_raw:
-        estado_destino = transicion.get("estado") if isinstance(transicion, dict) else transicion
+    for estado_display in transiciones_display:
+        # estado_display es un string como "Aprobada", "Enviada", etc.
+        # Convertir de nuevo a estado interno para comparaciones
+        from backend.core.fsm import normalizar_estado
+        estado_destino = normalizar_estado(estado_display)
+
         validacion = {
             "estado": estado_destino,
-            "estado_display": estado_para_display(estado_destino),
+            "estado_display": estado_display,
             "permitido": True,
             "razon": None,
         }
