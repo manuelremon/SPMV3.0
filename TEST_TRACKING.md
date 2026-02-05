@@ -26,7 +26,7 @@
 | 9 | Procurement | BAJA | ⚠️ 20% | 0.2h |
 | 10 | Materiales | MEDIA | ✅ 60% | 0.2h |
 | 11 | Comunicación | BAJA | ✅ 89% | 0.2h |
-| 12 | Usuario | MEDIA | ⏳ | 3h |
+| 12 | Usuario | MEDIA | ✅ 78% | 0.2h |
 | 13 | Admin | ALTA | ⏳ | 16h |
 | 14 | Seguridad | CRÍTICA | ⏳ | 6h |
 | 15 | Performance | MEDIA | ⏳ | 5h |
