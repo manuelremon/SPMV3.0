@@ -1537,7 +1537,7 @@ def get_transiciones_posibles(solicitud_id):
     user_id = g.user.get("user_id")
 
     # Importar función del FSM
-    from backend.core.fsm import get_transiciones_posibles as fsm_transiciones
+    from backend.core.fsm import get_transiciones_posibles as fsm_transiciones, normalizar_estado
 
     # Importar servicio de aprobación para validar permisos
     from backend.services.approval_service import puede_aprobar
@@ -1558,10 +1558,10 @@ def get_transiciones_posibles(solicitud_id):
     # Obtener información del usuario para validar permisos
     with get_db_connection() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT rol, centro FROM usuario WHERE id_spm = ?", (user_id,))
+        cur.execute("SELECT rol, centros FROM usuario WHERE id_spm = ?", (user_id,))
         user_row = cur.fetchone()
-        user_rol = user_row["rol"] if isinstance(user_row, dict) else user_row[1] if user_row else ""
-        user_centro = user_row["centro"] if isinstance(user_row, dict) else user_row[2] if user_row else None
+        user_rol = user_row["rol"] if isinstance(user_row, dict) else user_row[0] if user_row else ""
+        user_centro = user_row["centros"] if isinstance(user_row, dict) else user_row[1] if user_row else None
 
     # FIX 2.1: Enriquecer transiciones con validación de permisos
     transiciones_con_permisos = []

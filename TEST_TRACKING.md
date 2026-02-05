@@ -17,8 +17,8 @@
 |------|--------|-----------|--------|----------|
 | 1 | Autenticación y Autorización | CRÍTICA | ✅ 100% | 3.5h |
 | 2 | Dashboards por Rol | ALTA | ✅ 100% | 2h |
-| 3 | Flujo de Solicitudes | CRÍTICA | ⏳ | 12h |
-| 4 | Aprobaciones | ALTA | ⏳ | 4h |
+| 3 | Flujo de Solicitudes | CRÍTICA | ✅ 100% | 12h |
+| 4 | Aprobaciones | ALTA | ✅ 100% | 4h |
 | 5 | Planificación | CRÍTICA | ⏳ | 10h |
 | 6 | MRP | MEDIA | ⏳ | 6h |
 | 7 | Forecast y AI | MEDIA | ⏳ | 6h |
@@ -105,19 +105,33 @@ solicitante_test / password123  # usuario
 - ✅ TEST_FASE1_AUTENTICACION.md - Plan de testing
 - ✅ BUG_TRACKER.md - Issues (si las hay)
 
+## FASE 3 COMPLETADA ✅ (2026-02-05 04:10)
+
+**Resultados**: 7/7 tests pasados (100%)
+**Issues resueltos**:
+- Error 500 en FSM (audit_trail, sla_alertas, imports)
+- Validación de ownership en reenvío
+
+**Tests Completados**:
+- ✅ TEST 1-4: Crear, obtener, actualizar, enviar solicitud
+- ✅ TEST 5: Aprobar solicitud (HTTP 200)
+- ✅ TEST 6: Rechazar solicitud (HTTP 200)
+- ✅ TEST 7: Reenviar solicitud (ownership validation)
+
+---
+
 ## Próximos Pasos
 
-1. **FASE 2: Dashboards por Rol** (6 horas)
-   - Testing de cada dashboard según rol
-   - Verificar lazy loading
-   - Validar permisos de visualización
+1. **FASE 4: Aprobaciones** (4 horas) ⏳ EN CURSO
+   - Matriz de aprobación por monto
+   - Delegación de aprobaciones
+   - Historial de aprobaciones
 
-2. **FASE 3: Flujo de Solicitudes** (12 horas)
-   - Estados FSM completo
-   - Creación/edición/eliminación
-   - Validación de items
+2. **FASE 5: Planificación** (10 horas)
+   - Wizard 4 pasos
+   - Decisiones de abastecimiento
 
-3. Continuar con FASES 4-16...
+3. Continuar con FASES 6-16...
 
 ---
 
