@@ -1,0 +1,84 @@
+{
+  "nombre": "Dashboard MRP",
+  "descripcion": "Alertas y KPIs de Material Requirements Planning",
+  "tipo": "spreadsheet",
+  "icono": "table",
+  "color": "#ef4444",
+  "sheets": [
+    {
+      "nombre": "Alertas",
+      "data": {
+        "name": "Alertas",
+        "celldata": [
+          {"r": 0, "c": 0, "v": {"v": "Dashboard MRP - Alertas", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 14}},
+          {"r": 2, "c": 0, "v": {"v": "Centro", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 1, "v": {"v": "Alertas Alta", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 2, "v": {"v": "Alertas Media", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 3, "v": {"v": "Alertas Baja", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 4, "v": {"v": "Total", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 0, "v": {"v": "1000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 1, "v": {"v": "=SPM.MRP.ALERTAS(\"1000\", \"alta\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 2, "v": {"v": "=SPM.MRP.ALERTAS(\"1000\", \"media\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 3, "v": {"v": "=SPM.MRP.ALERTAS(\"1000\", \"baja\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 4, "v": {"v": "=SPM.MRP.ALERTAS(\"1000\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 0, "v": {"v": "2000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 1, "v": {"v": "=SPM.MRP.ALERTAS(\"2000\", \"alta\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 2, "v": {"v": "=SPM.MRP.ALERTAS(\"2000\", \"media\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 3, "v": {"v": "=SPM.MRP.ALERTAS(\"2000\", \"baja\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 4, "v": {"v": "=SPM.MRP.ALERTAS(\"2000\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 8, "c": 0, "v": {"v": "Severidades:", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 9, "c": 0, "v": {"v": "alta: Stock negativo o punto de reorden alcanzado", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 10, "c": 0, "v": {"v": "media: Consumo anormal detectado", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 11, "c": 0, "v": {"v": "baja: Inventario sobre el maximo", "ct": {"fa": "General", "t": "g"}}}
+        ],
+        "row": 100,
+        "column": 26,
+        "config": {
+          "columnlen": {"0": 100, "1": 120, "2": 120, "3": 120, "4": 100}
+        },
+        "status": 1,
+        "order": 0,
+        "index": 0
+      }
+    },
+    {
+      "nombre": "Stock",
+      "data": {
+        "name": "Stock",
+        "celldata": [
+          {"r": 0, "c": 0, "v": {"v": "Consulta de Stock", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 14}},
+          {"r": 2, "c": 0, "v": {"v": "Material", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 1, "v": {"v": "Centro", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 2, "v": {"v": "Stock Actual", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 3, "v": {"v": "Punto Reorden", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 4, "v": {"v": "EOQ", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 0, "v": {"v": "[Ingresa codigo material]", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 1, "v": {"v": "1000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 2, "v": {"v": "=SPM.STOCK(A5, B5, \"stock_actual\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 3, "v": {"v": "=SPM.STOCK(A5, B5, \"punto_reorden\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 4, "v": {"v": "=SPM.STOCK(A5, B5, \"eoq\")", "ct": {"fa": "General", "t": "g"}}}
+        ],
+        "row": 100,
+        "column": 26,
+        "config": {
+          "columnlen": {"0": 180, "1": 80, "2": 120, "3": 120, "4": 100}
+        },
+        "status": 0,
+        "order": 1,
+        "index": 1
+      }
+    }
+  ],
+  "datasources": [
+    {
+      "nombre": "MRP Alertas",
+      "tipo": "mrp",
+      "filtros": {}
+    },
+    {
+      "nombre": "Stock",
+      "tipo": "stock",
+      "filtros": {}
+    }
+  ]
+}

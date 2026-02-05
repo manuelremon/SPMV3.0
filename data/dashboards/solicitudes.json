@@ -1,0 +1,62 @@
+{
+  "nombre": "Dashboard de Solicitudes",
+  "descripcion": "Estadisticas y metricas de solicitudes de materiales",
+  "tipo": "spreadsheet",
+  "icono": "table",
+  "color": "#8b5cf6",
+  "sheets": [
+    {
+      "nombre": "Estadisticas",
+      "data": {
+        "name": "Estadisticas",
+        "celldata": [
+          {"r": 0, "c": 0, "v": {"v": "Dashboard de Solicitudes", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 14}},
+          {"r": 2, "c": 0, "v": {"v": "Resumen por Estado", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 12}},
+          {"r": 4, "c": 0, "v": {"v": "Estado", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 1, "v": {"v": "Cantidad", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 6, "c": 0, "v": {"v": "Borrador", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 6, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"draft\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 7, "c": 0, "v": {"v": "Pendiente", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 7, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"submitted\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 8, "c": 0, "v": {"v": "Aprobada", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 8, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"approved\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 9, "c": 0, "v": {"v": "En Planificacion", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 9, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"in_planning\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 10, "c": 0, "v": {"v": "En Proceso", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 10, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"processing\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 11, "c": 0, "v": {"v": "Despachada", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 11, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"dispatched\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 12, "c": 0, "v": {"v": "Cerrada", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 12, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"closed\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 13, "c": 0, "v": {"v": "Rechazada", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 13, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"rejected\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 16, "c": 0, "v": {"v": "Resumen por Centro", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 12}},
+          {"r": 18, "c": 0, "v": {"v": "Centro", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 18, "c": 1, "v": {"v": "Total", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 18, "c": 2, "v": {"v": "Aprobadas", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 20, "c": 0, "v": {"v": "1000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 20, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"\", \"1000\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 20, "c": 2, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"approved\", \"1000\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 21, "c": 0, "v": {"v": "2000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 21, "c": 1, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"\", \"2000\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 21, "c": 2, "v": {"v": "=SPM.SOLICITUDES.COUNT(\"approved\", \"2000\")", "ct": {"fa": "General", "t": "g"}}}
+        ],
+        "row": 100,
+        "column": 26,
+        "config": {
+          "columnlen": {"0": 150, "1": 100, "2": 100}
+        },
+        "status": 1,
+        "order": 0,
+        "index": 0
+      }
+    }
+  ],
+  "datasources": [
+    {
+      "nombre": "Solicitudes",
+      "tipo": "solicitudes",
+      "filtros": {}
+    }
+  ]
+}

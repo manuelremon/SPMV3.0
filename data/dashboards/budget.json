@@ -1,0 +1,53 @@
+{
+  "nombre": "Dashboard de Presupuestos",
+  "descripcion": "Resumen de presupuestos por centro y sector",
+  "tipo": "spreadsheet",
+  "icono": "table",
+  "color": "#3b82f6",
+  "sheets": [
+    {
+      "nombre": "Resumen",
+      "data": {
+        "name": "Resumen",
+        "celldata": [
+          {"r": 0, "c": 0, "v": {"v": "Dashboard de Presupuestos", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 14}},
+          {"r": 2, "c": 0, "v": {"v": "Centro", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 1, "v": {"v": "Sector", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 2, "v": {"v": "Presupuesto Total", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 3, "v": {"v": "Saldo Disponible", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 2, "c": 4, "v": {"v": "% Consumido", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 0, "v": {"v": "1000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 1, "v": {"v": "MTTO", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 2, "v": {"v": "=SPM.BUDGET(\"1000\", \"MTTO\", \"monto_usd\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 3, "v": {"v": "=SPM.BUDGET(\"1000\", \"MTTO\", \"saldo_usd\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 4, "c": 4, "v": {"v": "=SPM.BUDGET(\"1000\", \"MTTO\", \"porcentaje_consumido\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 0, "v": {"v": "1000", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 1, "v": {"v": "OPERACIONES", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 2, "v": {"v": "=SPM.BUDGET(\"1000\", \"OPERACIONES\", \"monto_usd\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 3, "v": {"v": "=SPM.BUDGET(\"1000\", \"OPERACIONES\", \"saldo_usd\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 5, "c": 4, "v": {"v": "=SPM.BUDGET(\"1000\", \"OPERACIONES\", \"porcentaje_consumido\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 8, "c": 0, "v": {"v": "Instrucciones:", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 9, "c": 0, "v": {"v": "Las formulas SPM.BUDGET obtienen datos en tiempo real del sistema de presupuestos.", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 10, "c": 0, "v": {"v": "Campos disponibles: monto_usd, saldo_usd, consumido_usd, porcentaje_consumido", "ct": {"fa": "General", "t": "g"}}}
+        ],
+        "row": 100,
+        "column": 26,
+        "config": {
+          "merge": {},
+          "rowlen": {},
+          "columnlen": {"0": 120, "1": 120, "2": 150, "3": 150, "4": 120}
+        },
+        "status": 1,
+        "order": 0,
+        "index": 0
+      }
+    }
+  ],
+  "datasources": [
+    {
+      "nombre": "Presupuestos",
+      "tipo": "budget",
+      "filtros": {}
+    }
+  ]
+}

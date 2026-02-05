@@ -1,0 +1,56 @@
+{
+  "nombre": "Dashboard de Forecast",
+  "descripcion": "Predicciones de demanda y precision de modelos",
+  "tipo": "spreadsheet",
+  "icono": "table",
+  "color": "#f59e0b",
+  "sheets": [
+    {
+      "nombre": "Predicciones",
+      "data": {
+        "name": "Predicciones",
+        "celldata": [
+          {"r": 0, "c": 0, "v": {"v": "Dashboard de Forecast - Predicciones de Demanda", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 14}},
+          {"r": 2, "c": 0, "v": {"v": "Prediccion de Demanda (30 dias)", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 12}},
+          {"r": 4, "c": 0, "v": {"v": "Material", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 1, "v": {"v": "Modelo ARIMA", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 2, "v": {"v": "Modelo Prophet", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 4, "c": 3, "v": {"v": "Modelo XGBoost", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 6, "c": 0, "v": {"v": "[Ingresa codigo material]", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 6, "c": 1, "v": {"v": "=SPM.FORECAST(A7, 30, \"arima\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 6, "c": 2, "v": {"v": "=SPM.FORECAST(A7, 30, \"prophet\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 6, "c": 3, "v": {"v": "=SPM.FORECAST(A7, 30, \"xgboost\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 10, "c": 0, "v": {"v": "Precision de Modelos", "ct": {"fa": "General", "t": "g"}, "bl": 1, "fs": 12}},
+          {"r": 12, "c": 0, "v": {"v": "Material", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 12, "c": 1, "v": {"v": "MAE ARIMA", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 12, "c": 2, "v": {"v": "MAE Prophet", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 12, "c": 3, "v": {"v": "MAE XGBoost", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 14, "c": 0, "v": {"v": "[Mismo codigo material]", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 14, "c": 1, "v": {"v": "=SPM.FORECAST.ACCURACY(A15, \"arima\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 14, "c": 2, "v": {"v": "=SPM.FORECAST.ACCURACY(A15, \"prophet\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 14, "c": 3, "v": {"v": "=SPM.FORECAST.ACCURACY(A15, \"xgboost\")", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 18, "c": 0, "v": {"v": "Instrucciones:", "ct": {"fa": "General", "t": "g"}, "bl": 1}},
+          {"r": 19, "c": 0, "v": {"v": "1. Ingresa el codigo del material en la celda A7", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 20, "c": 0, "v": {"v": "2. Las formulas SPM.FORECAST calculan la demanda proyectada usando el modelo indicado", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 21, "c": 0, "v": {"v": "3. SPM.FORECAST.ACCURACY retorna el error medio absoluto (MAE) del modelo", "ct": {"fa": "General", "t": "g"}}},
+          {"r": 22, "c": 0, "v": {"v": "4. Menor MAE indica mayor precision del modelo para ese material", "ct": {"fa": "General", "t": "g"}}}
+        ],
+        "row": 100,
+        "column": 26,
+        "config": {
+          "columnlen": {"0": 200, "1": 120, "2": 120, "3": 120}
+        },
+        "status": 1,
+        "order": 0,
+        "index": 0
+      }
+    }
+  ],
+  "datasources": [
+    {
+      "nombre": "Forecast",
+      "tipo": "forecast",
+      "filtros": {}
+    }
+  ]
+}
